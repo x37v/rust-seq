@@ -1,0 +1,9 @@
+[package]
+name = "seq"
+version = "0.1.0"
+authors = ["Alex Norman <alex@x37v.info>"]
+
+[dependencies]
+
+[features]
+specialization = []
