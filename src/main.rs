@@ -6,17 +6,17 @@ type UTime = usize;
 type SeqFn = Box<Fn(&mut Seq) -> Option<UTime>>;
 
 trait SeqSend {
-  fn send_usize(&mut self, v: usize) -> ();
+    fn send_usize(&mut self, v: usize) -> ();
 }
 
 impl<T> SeqSend for T {
-  default fn send_usize(&mut self, _v: usize) { ; }
+    default fn send_usize(&mut self, _v: usize) {}
 }
 
 impl SeqSend for Seq {
-  fn send_usize(&mut self, v: usize) -> () { 
-    println!("YES {}", v);
-  }
+    fn send_usize(&mut self, v: usize) -> () {
+        println!("YES {}", v);
+    }
 }
 
 /*
@@ -39,16 +39,16 @@ impl<T> LLNode<T> {
 // Fn(context) -> option(utime) [if it gets rescheduled or not]
 // context allows for scheduling additional things
 
-struct Seq { 
+struct Seq {
     items: Vec<SeqFn>,
-    reserve: Vec<SeqFn>
+    reserve: Vec<SeqFn>,
 }
 
 impl Seq {
     fn new() -> Self {
         Seq {
             items: Vec::new(),
-            reserve: Vec::new()
+            reserve: Vec::new(),
         }
     }
 
@@ -82,9 +82,7 @@ fn main() {
     let mut seq = Seq::new();
 
     for i in 1..10 {
-        seq.reserve(Box::new(move |_s: &mut Seq| {
-            Some(i)
-        }));
+        seq.reserve(Box::new(move |_s: &mut Seq| Some(i)));
     }
 
     seq.send_usize(30);
