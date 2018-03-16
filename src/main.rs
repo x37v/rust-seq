@@ -32,7 +32,7 @@ enum Midi {
 }
 
 impl SeqCall for Midi {
-    fn seq_call(&mut self, s: &mut Seq) -> Option<UTime> {
+    fn seq_call(&mut self, _s: &mut Seq) -> Option<UTime> {
         println!("MIDI CALL");
         None
     }
@@ -42,10 +42,10 @@ struct MidiCache;
 
 impl SeqCached<Midi> for MidiCache {
     fn pop() -> Option<Box<Midi>> {
-        None
+        Some(Box::new(Midi::Note)) //XXX!!!!
     }
 
-    fn push(v: Box<Midi>) {
+    fn push(_v: Box<Midi>) {
     }
 }
 
