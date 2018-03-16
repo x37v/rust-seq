@@ -3,10 +3,50 @@
 //not super flexible..
 
 type UTime = usize;
-type SeqFn = Box<Fn(&mut Seq) -> Option<UTime>>;
+type SeqFn = Box<SeqCall>;
+
+trait SeqCall {
+    fn seq_call(&mut self, &mut Seq) -> Option<UTime>;
+}
+
+impl<F: Fn(&mut Seq) -> Option<UTime>> SeqCall for F {
+    fn seq_call(&mut self, s: &mut Seq) -> Option<UTime> {
+        (*self)(s)
+    }
+}
+
 
 trait SeqSend {
     fn send_usize(&mut self, v: usize) -> ();
+}
+
+trait SeqCached<T> {
+    fn pop() -> Option<Box<T>>;
+    fn push(v: Box<T>) -> ();
+}
+
+#[derive(Copy, Clone)]
+enum Midi {
+    Note,
+    CC,
+}
+
+impl SeqCall for Midi {
+    fn seq_call(&mut self, s: &mut Seq) -> Option<UTime> {
+        println!("MIDI CALL");
+        None
+    }
+}
+
+struct MidiCache;
+
+impl SeqCached<Midi> for MidiCache {
+    fn pop() -> Option<Box<Midi>> {
+        None
+    }
+
+    fn push(v: Box<Midi>) {
+    }
 }
 
 impl<T> SeqSend for T {
@@ -69,8 +109,8 @@ impl Seq {
         //abort early if it takes too long?
         println!("run!");
         let l: Vec<SeqFn> = self.items.drain(..).collect();
-        for f in l {
-            if let Some(n) = f(self) {
+        for mut f in l {
+            if let Some(n) = f.seq_call(self) {
                 println!("{}", n);
                 self.items.push(f);
             }
@@ -86,11 +126,15 @@ fn main() {
     }
 
     seq.send_usize(30);
+    MidiCache::push(Box::new(Midi::Note));
 
     seq.schedule(Box::new(|s: &mut Seq| {
         let v = Box::new(|s: &mut Seq| {
             if let Some(n) = s.reserve_pop() {
                 s.schedule(n);
+            }
+            if let Some(m) = MidiCache::pop() {
+                s.schedule(m);
             }
             Some(20)
         });
