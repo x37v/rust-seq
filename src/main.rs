@@ -15,7 +15,6 @@ impl<F: Fn(&mut Seq) -> Option<UTime>> SeqCall for F {
     }
 }
 
-
 trait SeqSend {
     fn send_usize(&mut self, v: usize) -> ();
 }
@@ -27,14 +26,41 @@ trait SeqCached<T> {
 
 #[derive(Copy, Clone)]
 enum Midi {
-    Note,
-    CC,
+    Note {
+        chan: u8,
+        num: u8,
+        vel: u8,
+        on: bool,
+    },
+    CC {
+        chan: u8,
+        num: u8,
+        val: u8,
+    },
 }
 
 impl SeqCall for Midi {
     fn seq_call(&mut self, _s: &mut Seq) -> Option<UTime> {
-        println!("MIDI CALL");
-        None
+        match self {
+            &mut Midi::Note {
+                ref chan,
+                ref num,
+                ref vel,
+                ref mut on,
+            } => {
+                println!("note {} {} {} {}", on, chan, num, vel);
+                if *on {
+                    *on = false;
+                    Some(20)
+                } else {
+                    None
+                }
+            }
+            &mut Midi::CC { chan, num, val } => {
+                println!("cc {} {} {}", chan, num, val);
+                None
+            }
+        }
     }
 }
 
@@ -42,11 +68,15 @@ struct MidiCache;
 
 impl SeqCached<Midi> for MidiCache {
     fn pop() -> Option<Box<Midi>> {
-        Some(Box::new(Midi::Note)) //XXX!!!!
+        Some(Box::new(Midi::Note {
+            chan: 0,
+            num: 64,
+            vel: 127,
+            on: true,
+        })) //XXX!!!!
     }
 
-    fn push(_v: Box<Midi>) {
-    }
+    fn push(_v: Box<Midi>) {}
 }
 
 impl<T> SeqSend for T {
@@ -126,7 +156,7 @@ fn main() {
     }
 
     seq.send_usize(30);
-    MidiCache::push(Box::new(Midi::Note));
+    //XXX MidiCache::push(Box::new(Midi::Note));
 
     seq.schedule(Box::new(|s: &mut Seq| {
         let v = Box::new(|s: &mut Seq| {
