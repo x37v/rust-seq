@@ -6,14 +6,18 @@
 use std::sync::Arc;
 
 type TimePoint = isize;
-type SeqFn = Arc<SeqCall>;
+type SeqFn = Arc<SchedCall>;
 
-trait SeqCall {
-    fn seq_call(&mut self, &mut Seq) -> Option<TimePoint>;
+trait SchedCall {
+    fn sched_call(&mut self, &mut Sched) -> Option<TimePoint>;
 }
 
-impl<F: Fn(&mut Seq) -> Option<TimePoint>> SeqCall for F {
-    fn seq_call(&mut self, s: &mut Seq) -> Option<TimePoint> {
+trait Sched {
+    fn schedule(&mut self, t: TimePoint, f: SeqFn);
+}
+
+impl<F: Fn(&mut Sched) -> Option<TimePoint>> SchedCall for F {
+    fn sched_call(&mut self, s: &mut Sched) -> Option<TimePoint> {
         (*self)(s)
     }
 }
@@ -63,8 +67,8 @@ impl Midi {
     }
 }
 
-impl SeqCall for Midi {
-    fn seq_call(&mut self, _s: &mut Seq) -> Option<TimePoint> {
+impl SchedCall for Midi {
+    fn sched_call(&mut self, _s: &mut Sched) -> Option<TimePoint> {
         match self {
             &mut Midi::Note {
                 ref chan,
@@ -139,13 +143,15 @@ struct Seq {
     items: Vec<SeqFn>,
 }
 
+impl Sched for Seq {
+    fn schedule(&mut self, _t: TimePoint, f: SeqFn) {
+        self.items.push(f);
+    }
+}
+
 impl Seq {
     fn new() -> Self {
         Seq { items: Vec::new() }
-    }
-
-    fn schedule(&mut self, _t: TimePoint, f: SeqFn) {
-        self.items.push(f);
     }
 
     fn run(&mut self) {
@@ -153,7 +159,7 @@ impl Seq {
         let l: Vec<SeqFn> = self.items.drain(..).collect();
         for mut f in l {
             if let Some(fm) = Arc::get_mut(&mut f) {
-                if let Some(_n) = fm.seq_call(self) {
+                if let Some(_n) = fm.sched_call(self) {
                     self.items.push(f);
                 }
             }
@@ -168,8 +174,8 @@ fn main() {
 
     seq.schedule(
         0,
-        Arc::new(|s: &mut Seq| {
-            let v = Arc::new(|s: &mut Seq| {
+        Arc::new(|s: &mut Sched| {
+            let v = Arc::new(|s: &mut Sched| {
                 if let Some(mut m) = MidiCache::pop() {
                     if let Some(mm) = Arc::get_mut(&mut m) {
                         mm.note(0, 1, 127, 64);
