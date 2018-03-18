@@ -134,9 +134,6 @@ impl<T> LLNode<T> {
 }
 */
 
-// Fn(context) -> option(utime) [if it gets rescheduled or not]
-// context allows for scheduling additional things
-
 struct Seq {
     items: Vec<SeqFn>,
 }
