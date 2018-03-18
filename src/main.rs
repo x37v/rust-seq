@@ -1,7 +1,5 @@
 #![feature(specialization)]
 #![feature(nll)]
-//could have a key -> value where the value is an enumerated item of any of the types we support?
-//not super flexible..
 
 use std::sync::Arc;
 
