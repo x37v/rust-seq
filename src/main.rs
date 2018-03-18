@@ -1,16 +1,19 @@
 #![feature(specialization)]
+#![feature(nll)]
 //could have a key -> value where the value is an enumerated item of any of the types we support?
 //not super flexible..
 
-type UTime = usize;
-type SeqFn = Box<SeqCall>;
+use std::sync::Arc;
+
+type TimePoint = isize;
+type SeqFn = Arc<SeqCall>;
 
 trait SeqCall {
-    fn seq_call(&mut self, &mut Seq) -> Option<UTime>;
+    fn seq_call(&mut self, &mut Seq) -> Option<TimePoint>;
 }
 
-impl<F: Fn(&mut Seq) -> Option<UTime>> SeqCall for F {
-    fn seq_call(&mut self, s: &mut Seq) -> Option<UTime> {
+impl<F: Fn(&mut Seq) -> Option<TimePoint>> SeqCall for F {
+    fn seq_call(&mut self, s: &mut Seq) -> Option<TimePoint> {
         (*self)(s)
     }
 }
@@ -20,8 +23,8 @@ trait SeqSend {
 }
 
 trait SeqCached<T> {
-    fn pop() -> Option<Box<T>>;
-    fn push(v: Box<T>) -> ();
+    fn pop() -> Option<Arc<T>>;
+    fn push(v: Arc<T>) -> ();
 }
 
 #[derive(Copy, Clone)]
@@ -31,6 +34,7 @@ enum Midi {
         num: u8,
         vel: u8,
         on: bool,
+        dur: TimePoint,
     },
     CC {
         chan: u8,
@@ -39,19 +43,32 @@ enum Midi {
     },
 }
 
+impl Midi {
+    fn note(&mut self, chan: u8, num: u8, vel: u8, dur: TimePoint) {
+        *self = Midi::Note {
+            on: true,
+            chan,
+            num,
+            vel,
+            dur,
+        };
+    }
+}
+
 impl SeqCall for Midi {
-    fn seq_call(&mut self, _s: &mut Seq) -> Option<UTime> {
+    fn seq_call(&mut self, _s: &mut Seq) -> Option<TimePoint> {
         match self {
             &mut Midi::Note {
                 ref chan,
                 ref num,
                 ref vel,
                 ref mut on,
+                ref dur,
             } => {
                 println!("note {} {} {} {}", on, chan, num, vel);
                 if *on {
                     *on = false;
-                    Some(20)
+                    Some(*dur)
                 } else {
                     None
                 }
@@ -67,16 +84,17 @@ impl SeqCall for Midi {
 struct MidiCache;
 
 impl SeqCached<Midi> for MidiCache {
-    fn pop() -> Option<Box<Midi>> {
-        Some(Box::new(Midi::Note {
+    fn pop() -> Option<Arc<Midi>> {
+        Some(Arc::new(Midi::Note {
             chan: 0,
             num: 64,
             vel: 127,
             on: true,
+            dur: 0,
         })) //XXX!!!!
     }
 
-    fn push(_v: Box<Midi>) {}
+    fn push(_v: Arc<Midi>) {}
 }
 
 impl<T> SeqSend for T {
@@ -91,7 +109,7 @@ impl SeqSend for Seq {
 
 /*
 struct LLNode<T> {
-    next: Option<Box<LLNode<T>>>,
+    next: Option<Arc<LLNode<T>>>,
     value: T
 }
 
@@ -100,7 +118,7 @@ impl<T> LLNode<T> {
         LLNode { next: None, value: v }
     }
 
-    fn append(&mut self, item: Box<LLNode<T>>) {
+    fn append(&mut self, item: Arc<LLNode<T>>) {
         self.next = Some(item);
     }
 }
@@ -122,7 +140,7 @@ impl Seq {
         }
     }
 
-    fn schedule(&mut self, f: SeqFn) {
+    fn schedule(&mut self, _t: TimePoint, f: SeqFn) {
         self.items.push(f);
     }
 
@@ -135,14 +153,13 @@ impl Seq {
     }
 
     fn run(&mut self) {
-        //XXX loop while we still have items in the current time slice.
-        //abort early if it takes too long?
         println!("run!");
         let l: Vec<SeqFn> = self.items.drain(..).collect();
         for mut f in l {
-            if let Some(n) = f.seq_call(self) {
-                println!("{}", n);
-                self.items.push(f);
+            if let Some(fm) = Arc::get_mut(&mut f) {
+                if let Some(n) = fm.seq_call(self) {
+                    self.items.push(f);
+                }
             }
         }
     }
@@ -152,25 +169,31 @@ fn main() {
     let mut seq = Seq::new();
 
     for i in 1..10 {
-        seq.reserve(Box::new(move |_s: &mut Seq| Some(i)));
+        seq.reserve(Arc::new(move |_s: &mut Seq| Some(i)));
     }
 
     seq.send_usize(30);
-    //XXX MidiCache::push(Box::new(Midi::Note));
+    //XXX MidiCache::push(Arc::new(Midi::Note));
 
-    seq.schedule(Box::new(|s: &mut Seq| {
-        let v = Box::new(|s: &mut Seq| {
-            if let Some(n) = s.reserve_pop() {
-                s.schedule(n);
-            }
-            if let Some(m) = MidiCache::pop() {
-                s.schedule(m);
-            }
-            Some(20)
-        });
-        s.schedule(v);
-        None
-    }));
+    seq.schedule(
+        0,
+        Arc::new(|s: &mut Seq| {
+            let v = Arc::new(|s: &mut Seq| {
+                if let Some(n) = s.reserve_pop() {
+                    s.schedule(0, n);
+                }
+                if let Some(mut m) = MidiCache::pop() {
+                    if let Some(mm) = Arc::get_mut(&mut m) {
+                        mm.note(0, 1, 127, 64);
+                        s.schedule(0, m);
+                    }
+                }
+                Some(20)
+            });
+            s.schedule(0, v);
+            None
+        }),
+    );
 
     for _ in 1..10 {
         seq.run();
