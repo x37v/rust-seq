@@ -18,10 +18,6 @@ impl<F: Fn(&mut Seq) -> Option<TimePoint>> SeqCall for F {
     }
 }
 
-trait SeqSend {
-    fn send_usize(&mut self, v: usize) -> ();
-}
-
 trait SeqCached<T> {
     fn pop() -> Option<Arc<T>>;
     fn push(v: Arc<T>) -> ();
@@ -41,6 +37,18 @@ enum Midi {
         num: u8,
         val: u8,
     },
+}
+
+impl Default for Midi {
+    fn default() -> Midi {
+        Midi::Note {
+            chan: 0,
+            num: 64,
+            vel: 127,
+            on: false,
+            dur: 0,
+        }
+    }
 }
 
 impl Midi {
@@ -85,16 +93,15 @@ struct MidiCache;
 
 impl SeqCached<Midi> for MidiCache {
     fn pop() -> Option<Arc<Midi>> {
-        Some(Arc::new(Midi::Note {
-            chan: 0,
-            num: 64,
-            vel: 127,
-            on: true,
-            dur: 0,
-        })) //XXX!!!!
+        Some(Arc::new(Midi::default()))
     }
 
     fn push(_v: Arc<Midi>) {}
+}
+
+/*
+trait SeqSend {
+    fn send_usize(&mut self, v: usize) -> ();
 }
 
 impl<T> SeqSend for T {
@@ -106,6 +113,7 @@ impl SeqSend for Seq {
         println!("YES {}", v);
     }
 }
+*/
 
 /*
 struct LLNode<T> {
@@ -129,27 +137,15 @@ impl<T> LLNode<T> {
 
 struct Seq {
     items: Vec<SeqFn>,
-    reserve: Vec<SeqFn>,
 }
 
 impl Seq {
     fn new() -> Self {
-        Seq {
-            items: Vec::new(),
-            reserve: Vec::new(),
-        }
+        Seq { items: Vec::new() }
     }
 
     fn schedule(&mut self, _t: TimePoint, f: SeqFn) {
         self.items.push(f);
-    }
-
-    fn reserve(&mut self, f: SeqFn) {
-        self.reserve.push(f);
-    }
-
-    fn reserve_pop(&mut self) -> Option<SeqFn> {
-        self.reserve.pop()
     }
 
     fn run(&mut self) {
@@ -157,7 +153,7 @@ impl Seq {
         let l: Vec<SeqFn> = self.items.drain(..).collect();
         for mut f in l {
             if let Some(fm) = Arc::get_mut(&mut f) {
-                if let Some(n) = fm.seq_call(self) {
+                if let Some(_n) = fm.seq_call(self) {
                     self.items.push(f);
                 }
             }
@@ -168,20 +164,12 @@ impl Seq {
 fn main() {
     let mut seq = Seq::new();
 
-    for i in 1..10 {
-        seq.reserve(Arc::new(move |_s: &mut Seq| Some(i)));
-    }
-
-    seq.send_usize(30);
     //XXX MidiCache::push(Arc::new(Midi::Note));
 
     seq.schedule(
         0,
         Arc::new(|s: &mut Seq| {
             let v = Arc::new(|s: &mut Seq| {
-                if let Some(n) = s.reserve_pop() {
-                    s.schedule(0, n);
-                }
                 if let Some(mut m) = MidiCache::pop() {
                     if let Some(mm) = Arc::get_mut(&mut m) {
                         mm.note(0, 1, 127, 64);
