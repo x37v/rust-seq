@@ -3,11 +3,13 @@
 
 pub mod seq;
 pub mod midi;
+pub mod llist;
 
 use std::sync::Arc;
 use seq::Sched;
 use seq::Seq;
 use seq::SeqCached;
+use std::thread;
 
 /*
 trait SeqSend {
@@ -25,27 +27,19 @@ impl SeqSend for Seq {
 }
 */
 
-/*
-struct LLNode<T> {
-    next: Option<Arc<LLNode<T>>>,
-    value: T
-}
-
-impl<T> LLNode<T> {
-    fn new(v: T) -> Self {
-        LLNode { next: None, value: v }
-    }
-
-    fn append(&mut self, item: Arc<LLNode<T>>) {
-        self.next = Some(item);
-    }
-}
-*/
+//XXX instead of disposing back to the cache there can be a thread that keeps each cache full!
 
 fn main() {
     let mut sq = Seq::new();
 
     //XXX midi::MidiCache::push(Arc::new(Midi::Note));
+    
+    let y = 234.0;
+    let x = Arc::new(move |_s: &mut seq::Sched| {
+        println!("SODA {} {}", y);
+        None
+    });
+    sq.schedule(20, x);
 
     sq.schedule(
         0,
@@ -64,7 +58,11 @@ fn main() {
         }),
     );
 
-    for _ in 1..10 {
-        sq.run();
-    }
+
+    let child = thread::spawn(move || {
+        for _ in 1..10 {
+            sq.run();
+        }
+    });
+    child.join();
 }
