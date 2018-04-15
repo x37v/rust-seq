@@ -80,4 +80,3 @@ impl SeqCached<Midi> for MidiCache {
 
     fn push(_v: Arc<Midi>) {}
 }
-

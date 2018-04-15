@@ -1,9 +1,10 @@
 [package]
-name = "seq"
+name = "xnor_seq"
 version = "0.1.0"
 authors = ["Alex Norman <alex@x37v.info>"]
 
 [dependencies]
+xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop" }
 
 [features]
 specialization = []

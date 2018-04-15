@@ -1,4 +1,14 @@
 [[package]]
-name = "seq"
+name = "xnor_llist"
 version = "0.1.0"
+source = "git+https://github.com/x37v/rust-llist?branch=develop#e2eaaccd6467f9ca4b0546bd623cacd513f42316"
 
+[[package]]
+name = "xnor_seq"
+version = "0.1.0"
+dependencies = [
+ "xnor_llist 0.1.0 (git+https://github.com/x37v/rust-llist?branch=develop)",
+]
+
+[metadata]
+"checksum xnor_llist 0.1.0 (git+https://github.com/x37v/rust-llist?branch=develop)" = "<none>"
