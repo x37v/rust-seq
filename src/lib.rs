@@ -2,11 +2,12 @@ extern crate xnor_llist;
 
 use std::sync::Arc;
 
-pub type TimePoint = isize;
+pub type ITimePoint = isize;
+pub type UTimePoint = usize;
 pub type SeqFn = Arc<SchedCall>;
 
 pub struct TimedFn {
-    time: TimePoint,
+    time: ITimePoint,
     func: SeqFn,
 }
 
@@ -27,24 +28,24 @@ macro_rules! boxed_fn {
 
 //XXX is it cool to just say that these shits are Sync and send?
 pub trait SchedCall: Sync + Send {
-    fn sched_call(&mut self, &mut Sched) -> Option<TimePoint>;
+    fn sched_call(&mut self, &mut Sched) -> Option<UTimePoint>;
 }
 
 pub trait Sched {
-    fn schedule(&mut self, t: TimePoint, n: SeqFnNode);
+    fn schedule(&mut self, t: ITimePoint, n: SeqFnNode);
 }
 
-impl<F: Fn(&mut Sched) -> Option<TimePoint>> SchedCall for F
+impl<F: Fn(&mut Sched) -> Option<UTimePoint>> SchedCall for F
 where
     F: Sync + Send,
 {
-    fn sched_call(&mut self, s: &mut Sched) -> Option<TimePoint> {
+    fn sched_call(&mut self, s: &mut Sched) -> Option<UTimePoint> {
         (*self)(s)
     }
 }
 
 impl SchedCall for TimedFn {
-    fn sched_call(&mut self, s: &mut Sched) -> Option<TimePoint> {
+    fn sched_call(&mut self, s: &mut Sched) -> Option<UTimePoint> {
         if let Some(f) = Arc::get_mut(&mut self.func) {
             f.sched_call(s)
         } else {
@@ -63,7 +64,7 @@ pub struct Seq {
 }
 
 impl Sched for Seq {
-    fn schedule(&mut self, t: TimePoint, mut f: SeqFnNode) {
+    fn schedule(&mut self, t: ITimePoint, mut f: SeqFnNode) {
         f.time = t;
         self.list.insert(f, |n, o| n.time <= o.time);
     }
@@ -77,14 +78,10 @@ impl Seq {
     }
 
     pub fn run(&mut self) {
-        println!("run!");
-
         let mut reschedule = xnor_llist::List::new();
         while let Some(mut timedfn) = self.list.pop_front() {
-            println!("got one {}", timedfn.time);
             if let Some(t) = timedfn.sched_call(self) {
-                println!("RESCHEDULE");
-                timedfn.time = t + timedfn.time;
+                timedfn.time = t as ITimePoint + timedfn.time;
                 reschedule.push_back(timedfn);
             }
         }
