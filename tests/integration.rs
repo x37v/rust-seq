@@ -9,22 +9,6 @@ use xnor_seq::Sched;
 use xnor_seq::sequencer;
 use std::{thread, time};
 
-/*
-trait SeqSend {
-    fn send_usize(&mut self, v: usize) -> ();
-}
-
-impl<T> SeqSend for T {
-    default fn send_usize(&mut self, _v: usize) {}
-}
-
-impl SeqSend for Seq {
-    fn send_usize(&mut self, v: usize) -> () {
-        println!("YES {}", v);
-    }
-}
-*/
-
 #[test]
 fn can() {
     let (mut s, mut exec) = sequencer();
@@ -37,6 +21,7 @@ fn can() {
         Some(2)
     });
     s.schedule(0, x);
+
     s.schedule(
         41,
         boxed_fn!(move |_s: &mut Sched| {
