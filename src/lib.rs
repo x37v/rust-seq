@@ -1,4 +1,5 @@
-extern crate xnor_llist;
+#[doc(hidden)]
+pub extern crate xnor_llist;
 
 use std::thread;
 use std::sync::Arc;
@@ -24,7 +25,7 @@ pub type SeqFnNode = Box<xnor_llist::Node<TimedFn>>;
 #[macro_export]
 macro_rules! boxed_fn {
     ($x:expr) => {
-        xnor_llist::Node::new_boxed(TimedFn::new(Arc::new($x)))
+        $crate::xnor_llist::Node::new_boxed($crate::TimedFn::new(Arc::new($x)))
     }
 }
 
@@ -117,7 +118,7 @@ impl SeqSender {
         let mut receiver = None;
         std::mem::swap(&mut receiver, &mut self.dispose_receiver);
         self.dispose_handle = Some(thread::spawn(move || {
-            let mut receiver = receiver.unwrap();
+            let receiver = receiver.unwrap();
             loop {
                 let r = receiver.recv();
                 match r {

@@ -1,14 +1,11 @@
 #![feature(specialization)]
 #![feature(nll)]
 
-extern crate xnor_llist;
 #[macro_use]
 extern crate xnor_seq;
 
 use std::sync::Arc;
-use xnor_llist::Node;
 use xnor_seq::Sched;
-use xnor_seq::TimedFn;
 use xnor_seq::sequencer;
 use std::thread;
 
@@ -48,7 +45,7 @@ fn can() {
         }),
     );
 
-    let child = std::thread::spawn(move || {
+    let child = thread::spawn(move || {
         exec.run();
         exec.run();
         exec.run();
