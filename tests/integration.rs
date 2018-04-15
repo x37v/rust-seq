@@ -8,6 +8,7 @@ use std::sync::Arc;
 use xnor_seq::Sched;
 use xnor_seq::sequencer;
 use std::{thread, time};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn can() {
@@ -15,9 +16,11 @@ fn can() {
 
     s.spawn_dispose_thread();
 
-    let y = 234.0;
+    //can use atomics!
+    let y = Arc::new(AtomicUsize::new(2));
+    let c = y.clone();
     let x = boxed_fn!(move |_s: &mut Sched| {
-        println!("SODA {}", y);
+        println!("SODA {}", c.load(Ordering::Relaxed));
         Some(2)
     });
     s.schedule(0, x);
@@ -38,6 +41,9 @@ fn can() {
         }
         println!("ditching exec thread");
     });
+
+    thread::sleep(time::Duration::from_millis(40));
+    y.store(2084, Ordering::Relaxed);
 
     if let Err(e) = child.join() {
         panic!(e);
