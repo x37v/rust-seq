@@ -9,8 +9,7 @@ use std::sync::Arc;
 use xnor_llist::Node;
 use xnor_seq::Sched;
 use xnor_seq::TimedFn;
-use xnor_seq::Seq;
-use xnor_seq::SeqCached;
+use xnor_seq::sequencer;
 use std::thread;
 
 /*
@@ -31,22 +30,31 @@ impl SeqSend for Seq {
 
 #[test]
 fn can() {
-    let mut sq = Seq::new();
+    let (mut s, mut exec) = sequencer();
+
+    s.spawn_dispose_thread();
 
     let y = 234.0;
     let x = boxed_fn!(move |_s: &mut Sched| {
         println!("SODA {}", y);
         Some(2)
     });
-    sq.schedule(20, x);
-    sq.schedule(
+    s.schedule(20, x);
+    s.schedule(
         30,
         boxed_fn!(move |_s: &mut Sched| {
             println!("YES YES YES");
             None
         }),
     );
-    sq.run();
-    sq.run();
-    sq.run();
+
+    let child = std::thread::spawn(move || {
+        exec.run();
+        exec.run();
+        exec.run();
+    });
+
+    if let Err(e) = child.join() {
+        panic!(e);
+    }
 }
