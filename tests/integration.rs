@@ -27,8 +27,16 @@ fn can() {
 
     s.schedule(
         41,
-        boxed_fn!(move |_s: &mut Sched| {
+        boxed_fn!(move |s: &mut Sched| {
             println!("YES YES YES");
+            s.schedule(
+                3,
+                //XXX THIS IS A BAD MOVE, WE DON'T WANT TO ALLOCATE IN REMOTE THREAD
+                boxed_fn!(move |_s: &mut Sched| {
+                    println!("INNER DOG");
+                    None
+                }),
+            );
             None
         }),
     );
