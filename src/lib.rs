@@ -72,6 +72,7 @@ pub struct SeqExecuter {
     list: xnor_llist::List<TimedFn>,
     receiver: Receiver<SeqFnNode>,
     dispose_sender: SyncSender<SeqFnNode>,
+    time: UTimePoint,
 }
 
 pub fn sequencer() -> (SeqSender, SeqExecuter) {
@@ -87,6 +88,7 @@ pub fn sequencer() -> (SeqSender, SeqExecuter) {
             receiver,
             dispose_sender,
             list: xnor_llist::List::new(),
+            time: 0,
         },
     )
 }
@@ -123,7 +125,7 @@ impl SeqSender {
                 let r = receiver.recv();
                 match r {
                     Err(_) => {
-                        println!("ditching");
+                        println!("ditching dispose thread");
                         break;
                     }
                     Ok(_) => println!("got dispose"),
@@ -134,16 +136,22 @@ impl SeqSender {
 }
 
 impl SeqExecuter {
-    pub fn run(&mut self) {
+    pub fn time(&self) -> UTimePoint {
+        self.time
+    }
+
+    pub fn run(&mut self, ticks: UTimePoint) {
+        let next = (self.time + ticks) as ITimePoint;
         //grab new nodes
         while let Ok(n) = self.receiver.try_recv() {
             self.list.insert(n, |n, o| n.time <= o.time);
         }
 
         let mut reschedule = xnor_llist::List::new();
-        while let Some(mut timedfn) = self.list.pop_front() {
+        while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             if let Some(t) = timedfn.sched_call(self) {
                 timedfn.time = t as ITimePoint + timedfn.time;
+                //XXX clamp bottom to next?
                 reschedule.push_back(timedfn);
             } else {
                 if let Err(_) = self.dispose_sender.try_send(timedfn) {
@@ -154,5 +162,6 @@ impl SeqExecuter {
         for n in reschedule.into_iter() {
             self.schedule(n.time, n);
         }
+        self.time = next as UTimePoint;
     }
 }

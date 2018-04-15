@@ -7,7 +7,7 @@ extern crate xnor_seq;
 use std::sync::Arc;
 use xnor_seq::Sched;
 use xnor_seq::sequencer;
-use std::thread;
+use std::{thread, time};
 
 /*
 trait SeqSend {
@@ -36,9 +36,9 @@ fn can() {
         println!("SODA {}", y);
         Some(2)
     });
-    s.schedule(20, x);
+    s.schedule(0, x);
     s.schedule(
-        30,
+        41,
         boxed_fn!(move |_s: &mut Sched| {
             println!("YES YES YES");
             None
@@ -46,9 +46,12 @@ fn can() {
     );
 
     let child = thread::spawn(move || {
-        exec.run();
-        exec.run();
-        exec.run();
+        let delay = time::Duration::from_millis(20);
+        while exec.time() < 200 {
+            exec.run(20);
+            thread::sleep(delay);
+        }
+        println!("ditching exec thread");
     });
 
     if let Err(e) = child.join() {
