@@ -47,9 +47,10 @@ fn can() {
         41,
         wrap_fn!(move |s: &mut Sched| {
             println!("YES YES YES, {:?}", thread::current().id());
-            let mut m = MidiCache::pop().unwrap();
-            m.note(3, 4, 5, 93);
-            s.schedule(3, m);
+            if let Some(mut m) = MidiCache::pop() {
+                m.note(3, 4, 5, 93);
+                s.schedule(3, m);
+            }
             None
         }),
     );
