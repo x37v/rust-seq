@@ -13,6 +13,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct MidiCache;
 
+//XXX can a cache be a channel? Maybe we use a spinlock owned by the sequence and each thread gets
+//its own copy?
 impl MidiCache {
     fn pop(_s: &mut Sched) -> Option<Box<Midi>> {
         //XXX grab from channel
