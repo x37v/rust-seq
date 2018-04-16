@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 pub struct MidiCache;
 
 impl MidiCache {
-    fn pop() -> Option<Box<Midi>> {
+    fn pop(_s: &mut Sched) -> Option<Box<Midi>> {
         //XXX grab from channel
         Some(Box::new(Midi::default()))
     }
@@ -47,7 +47,7 @@ fn can() {
         41,
         wrap_fn!(move |s: &mut Sched| {
             println!("YES YES YES, {:?}", thread::current().id());
-            if let Some(mut m) = MidiCache::pop() {
+            if let Some(mut m) = MidiCache::pop(s) {
                 m.note(3, 4, 5, 93);
                 s.schedule(3, m);
             }
