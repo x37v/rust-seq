@@ -7,8 +7,23 @@ extern crate xnor_seq;
 use std::sync::Arc;
 use xnor_seq::Sched;
 use xnor_seq::sequencer;
+use xnor_seq::midi::Midi;
 use std::{thread, time};
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+pub struct MidiCache;
+
+impl MidiCache {
+    fn pop() -> Option<Box<Midi>> {
+        //XXX grab from channel
+        Some(Box::new(Midi::default()))
+    }
+
+    /*
+     * XXX push into channel
+    fn push(_v: Box<Midi>) {}
+    */
+}
 
 #[test]
 fn can() {
@@ -19,7 +34,11 @@ fn can() {
     let y = Arc::new(AtomicUsize::new(2));
     let c = y.clone();
     let x = wrap_fn!(move |_s: &mut Sched| {
-        println!("SODA {}", c.load(Ordering::Relaxed));
+        println!(
+            "SODA {} {:?}",
+            c.load(Ordering::Relaxed),
+            thread::current().id()
+        );
         Some(2)
     });
     s.schedule(0, x);
@@ -27,15 +46,10 @@ fn can() {
     s.schedule(
         41,
         wrap_fn!(move |s: &mut Sched| {
-            println!("YES YES YES");
-            s.schedule(
-                3,
-                //XXX THIS IS A BAD MOVE, WE DON'T WANT TO ALLOCATE IN REMOTE THREAD
-                wrap_fn!(move |_s: &mut Sched| {
-                    println!("INNER DOG");
-                    None
-                }),
-            );
+            println!("YES YES YES, {:?}", thread::current().id());
+            let mut m = MidiCache::pop().unwrap();
+            m.note(3, 4, 5, 93);
+            s.schedule(3, m);
             None
         }),
     );
