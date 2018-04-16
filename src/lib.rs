@@ -2,30 +2,23 @@
 pub extern crate xnor_llist;
 
 use std::thread;
-use std::sync::Arc;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 pub type ITimePoint = isize;
 pub type UTimePoint = usize;
-pub type SeqFn = Arc<SchedCall>;
+pub type SeqFn = Box<SchedCall>;
 
 pub struct TimedFn {
     time: ITimePoint,
-    func: SeqFn,
-}
-
-impl TimedFn {
-    pub fn new(func: SeqFn) -> Self {
-        TimedFn { func, time: 0 }
-    }
+    func: Option<SeqFn>,
 }
 
 pub type SeqFnNode = Box<xnor_llist::Node<TimedFn>>;
 
 #[macro_export]
-macro_rules! boxed_fn {
+macro_rules! wrap_fn {
     ($x:expr) => {
-        $crate::xnor_llist::Node::new_boxed($crate::TimedFn::new(Arc::new($x)))
+        Box::new($x)
     }
 }
 
@@ -35,7 +28,7 @@ pub trait SchedCall: Sync + Send {
 }
 
 pub trait Sched {
-    fn schedule(&mut self, t: ITimePoint, n: SeqFnNode);
+    fn schedule(&mut self, t: ITimePoint, n: SeqFn);
 }
 
 impl<F: Fn(&mut Sched) -> Option<UTimePoint>> SchedCall for F
@@ -49,7 +42,7 @@ where
 
 impl SchedCall for TimedFn {
     fn sched_call(&mut self, s: &mut Sched) -> Option<UTimePoint> {
-        if let Some(f) = Arc::get_mut(&mut self.func) {
+        if let Some(ref mut f) = self.func {
             f.sched_call(s)
         } else {
             None
@@ -58,34 +51,41 @@ impl SchedCall for TimedFn {
 }
 
 pub trait SeqCached<T> {
-    fn pop() -> Option<Arc<T>>;
-    fn push(v: Arc<T>) -> ();
+    fn pop() -> Option<Box<T>>;
+    fn push(v: Box<T>) -> ();
 }
 
 pub struct SeqSender {
     sender: SyncSender<SeqFnNode>,
-    dispose_receiver: Option<Receiver<SeqFnNode>>,
+    node_cache_sender: Option<SyncSender<SeqFnNode>>,
+    dispose_receiver: Option<Receiver<Box<Send>>>,
     dispose_handle: Option<thread::JoinHandle<()>>,
+    cache_handle: Option<thread::JoinHandle<()>>,
 }
 
 pub struct SeqExecuter {
     list: xnor_llist::List<TimedFn>,
     receiver: Receiver<SeqFnNode>,
-    dispose_sender: SyncSender<SeqFnNode>,
+    node_cache_receiver: Receiver<SeqFnNode>,
+    dispose_sender: SyncSender<Box<Send>>,
     time: UTimePoint,
 }
 
 pub fn sequencer() -> (SeqSender, SeqExecuter) {
     let (sender, receiver) = sync_channel(1024);
+    let (node_cache_sender, node_cache_receiver) = sync_channel(1024);
     let (dispose_sender, dispose_receiver) = sync_channel(1024);
     (
         SeqSender {
             sender,
+            node_cache_sender: Some(node_cache_sender),
             dispose_receiver: Some(dispose_receiver),
             dispose_handle: None,
+            cache_handle: None,
         },
         SeqExecuter {
             receiver,
+            node_cache_receiver,
             dispose_sender,
             list: xnor_llist::List::new(),
             time: 0,
@@ -94,21 +94,39 @@ pub fn sequencer() -> (SeqSender, SeqExecuter) {
 }
 
 impl Sched for SeqSender {
-    fn schedule(&mut self, t: ITimePoint, mut f: SeqFnNode) {
-        f.time = t;
+    fn schedule(&mut self, time: ITimePoint, func: SeqFn) {
+        let f = xnor_llist::Node::new_boxed(TimedFn {
+            func: Some(func),
+            time,
+        });
         self.sender.send(f).unwrap();
     }
 }
 
 impl Sched for SeqExecuter {
-    fn schedule(&mut self, t: ITimePoint, mut f: SeqFnNode) {
-        f.time = t;
-        self.list.insert(f, |n, o| n.time <= o.time);
+    fn schedule(&mut self, time: ITimePoint, func: SeqFn) {
+        match self.node_cache_receiver.try_recv() {
+            Ok(mut n) => {
+                n.time = time;
+                n.func = Some(func);
+                self.list.insert(n, |n, o| n.time <= o.time);
+            }
+            Err(_) => {
+                println!("OOPS");
+            }
+        }
     }
 }
 
 impl SeqSender {
-    /// Spawn a thread that will handle the disposing of nodes
+    /// Spawn the helper threads
+    pub fn spawn_helper_threads(&mut self) -> () {
+        self.spawn_dispose_thread();
+        self.spawn_cache_thread();
+    }
+
+    /// Spawn a thread that will handle the disposing of boxed items pushed from the schedule
+    /// thread
     pub fn spawn_dispose_thread(&mut self) -> () {
         if self.dispose_handle.is_some() {
             return;
@@ -129,6 +147,35 @@ impl SeqSender {
                         break;
                     }
                     Ok(_) => println!("got dispose"),
+                }
+            }
+        }));
+    }
+
+    /// Spawn a thread to fill up the node cache so we can schedule in the schedule thread
+    pub fn spawn_cache_thread(&mut self) -> () {
+        if self.cache_handle.is_some() {
+            return;
+        }
+        if self.node_cache_sender.is_none() {
+            panic!("no cache sender");
+        }
+
+        let mut sender = None;
+        std::mem::swap(&mut sender, &mut self.node_cache_sender);
+        self.cache_handle = Some(thread::spawn(move || {
+            let sender = sender.unwrap();
+            loop {
+                let r = sender.send(xnor_llist::Node::new_boxed(TimedFn {
+                    func: None,
+                    time: 0,
+                }));
+                match r {
+                    Err(_) => {
+                        println!("ditching cache thread");
+                        break;
+                    }
+                    Ok(_) => (),
                 }
             }
         }));
@@ -160,7 +207,7 @@ impl SeqExecuter {
             }
         }
         for n in reschedule.into_iter() {
-            self.schedule(n.time, n);
+            self.list.insert(n, |n, o| n.time <= o.time);
         }
         self.time = next as UTimePoint;
     }
