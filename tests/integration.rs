@@ -27,6 +27,56 @@ impl MidiCache {
     */
 }
 
+use xnor_seq::SeqFnNode;
+use xnor_seq::TimedFn;
+use xnor_seq::CacheUpdate;
+use xnor_seq::xnor_llist::Node;
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+
+pub struct CacheSender {
+    node_cache_sender: SyncSender<SeqFnNode>,
+    midi_cache_sender: SyncSender<Box<Midi>>,
+}
+
+pub struct CacheReceiver {
+    node_cache_receiver: Receiver<SeqFnNode>,
+    midi_cache_receiver: Receiver<Box<Midi>>,
+}
+
+pub fn cache() -> (CacheSender, CacheReceiver) {
+    let (nsender, nreceiver) = sync_channel(1024);
+    let (msender, mreceiver) = sync_channel(1024);
+    (
+        CacheSender {
+            node_cache_sender: nsender,
+            midi_cache_sender: msender,
+        },
+        CacheReceiver {
+            node_cache_receiver: nreceiver,
+            midi_cache_receiver: mreceiver,
+        },
+    )
+}
+
+impl CacheUpdate for CacheSender {
+    fn update(&mut self) {
+        while let Ok(_) = self.node_cache_sender
+            .try_send(Node::new_boxed(TimedFn::default()))
+        {}
+        while let Ok(_) = self.midi_cache_sender.try_send(Box::new(Midi::default())) {}
+    }
+}
+
+impl CacheReceiver {
+    fn pop_node(&mut self) -> Option<SeqFnNode> {
+        self.node_cache_receiver.try_recv().ok()
+    }
+
+    fn pop_midi(&mut self) -> Option<Box<Midi>> {
+        self.midi_cache_receiver.try_recv().ok()
+    }
+}
+
 #[test]
 fn can() {
     let (mut s, mut exec) = sequencer();
