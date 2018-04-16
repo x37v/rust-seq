@@ -1,18 +1,14 @@
-use std::sync::Arc;
+use UTimePoint;
+use SchedCall;
+use Sched;
 
-use seq::TimePoint;
-use seq::SchedCall;
-use seq::Sched;
-use seq::SeqCached;
-
-#[derive(Copy, Clone)]
 pub enum Midi {
     Note {
         chan: u8,
         num: u8,
         vel: u8,
         on: bool,
-        dur: TimePoint,
+        dur: UTimePoint,
     },
     CC {
         chan: u8,
@@ -34,7 +30,7 @@ impl Default for Midi {
 }
 
 impl Midi {
-    pub fn note(&mut self, chan: u8, num: u8, vel: u8, dur: TimePoint) {
+    pub fn note(&mut self, chan: u8, num: u8, vel: u8, dur: UTimePoint) {
         *self = Midi::Note {
             on: true,
             chan,
@@ -45,8 +41,10 @@ impl Midi {
     }
 }
 
+use std::thread;
+
 impl SchedCall for Midi {
-    fn sched_call(&mut self, _s: &mut Sched) -> Option<TimePoint> {
+    fn sched_call(&mut self, _s: &mut Sched) -> Option<UTimePoint> {
         match self {
             &mut Midi::Note {
                 ref chan,
@@ -55,7 +53,14 @@ impl SchedCall for Midi {
                 ref mut on,
                 ref dur,
             } => {
-                println!("note {} {} {} {}", on, chan, num, vel);
+                println!(
+                    "note {} {} {} {} {:?}",
+                    on,
+                    chan,
+                    num,
+                    vel,
+                    thread::current().id()
+                );
                 if *on {
                     *on = false;
                     Some(*dur)
@@ -64,19 +69,9 @@ impl SchedCall for Midi {
                 }
             }
             &mut Midi::CC { chan, num, val } => {
-                println!("cc {} {} {}", chan, num, val);
+                println!("cc {} {} {} {:?}", chan, num, val, thread::current().id());
                 None
             }
         }
     }
-}
-
-pub struct MidiCache;
-
-impl SeqCached<Midi> for MidiCache {
-    fn pop() -> Option<Arc<Midi>> {
-        Some(Arc::new(Midi::default()))
-    }
-
-    fn push(_v: Arc<Midi>) {}
 }
