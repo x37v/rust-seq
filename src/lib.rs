@@ -15,6 +15,15 @@ pub struct TimedFn {
     func: Option<SeqFn>,
 }
 
+impl Default for TimedFn {
+    fn default() -> Self {
+        TimedFn {
+            time: 0,
+            func: None,
+        }
+    }
+}
+
 pub type SeqFnNode = Box<xnor_llist::Node<TimedFn>>;
 
 #[macro_export]
@@ -55,6 +64,10 @@ impl SchedCall for TimedFn {
 pub trait SeqCached<T> {
     fn pop() -> Option<Box<T>>;
     fn push(v: Box<T>) -> ();
+}
+
+pub trait CacheUpdate {
+    fn update(&mut self);
 }
 
 pub struct SeqSender {
