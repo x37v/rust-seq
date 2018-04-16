@@ -1,6 +1,8 @@
 #[doc(hidden)]
 pub extern crate xnor_llist;
 
+pub mod midi;
+
 use std::thread;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
@@ -146,7 +148,7 @@ impl SeqSender {
                         println!("ditching dispose thread");
                         break;
                     }
-                    Ok(_) => println!("got dispose"),
+                    Ok(_) => println!("got dispose {:?}", thread::current().id()),
                 }
             }
         }));
