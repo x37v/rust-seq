@@ -43,7 +43,7 @@ pub trait Sched {
 
 impl<F: Fn(&mut Sched) -> Option<UTimePoint>> SchedCall for F
 where
-    F: Sync + Send,
+    F: Send,
 {
     fn sched_call(&mut self, s: &mut Sched) -> Option<UTimePoint> {
         (*self)(s)
