@@ -33,8 +33,7 @@ macro_rules! wrap_fn {
     }
 }
 
-//XXX is it cool to just say that these shits are Sync and send?
-pub trait SchedCall: Sync + Send {
+pub trait SchedCall: Send {
     fn sched_call(&mut self, &mut Sched) -> Option<UTimePoint>;
 }
 
