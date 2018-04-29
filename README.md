@@ -1,6 +1,25 @@
 # rust-seq
 a work in progress scheduled executor, built in rust
 
+## Terminology
+
+### Scheduler
+
+The object that allows initial scheduling of objects that implement the SchedCall trait. This object then passes these off to an Executor which executes the schedule.
+
+### Executor
+
+The object and context that a schedule gets executed in. This will usually be in another thread and likely in a context where heap allocation should not be allowed.
+
+### Cache
+
+A source for getting objects to schedule in the Executor context, avoiding heap allocation. For instance, a MIDI on/off note pair to be scheduled.
+	
+### Sink
+
+An object that accepts objects to send out from the Executor context. For instance, the actual MIDI data to go to your hardware.
+
+
 ## NOTES
 
 seq should work like channel, you get a sender and receiver, the receiver goes into another thread that can execute.
