@@ -1,21 +1,46 @@
 #[doc(hidden)]
 pub extern crate xnor_llist;
 
-pub mod midi;
-
 use std::thread;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 pub type ITimePoint = isize;
 pub type UTimePoint = usize;
-pub type SeqFn = Box<SchedCall>;
 
-pub struct TimedFn {
-    time: ITimePoint,
-    func: Option<SeqFn>,
+//an object to be put into a schedule and called later
+pub type SchedFn<'a, Cache> = Box<SchedCall<Cache> + 'a>;
+
+//an object that can schedule SchedFn's and provide a Cache with the cache() method
+pub trait Sched<Cache> {
+    fn schedule(&mut self, n: SchedFn<Cache>);
+    fn cache(&mut self) -> &mut Cache;
 }
 
-impl Default for TimedFn {
+pub trait SchedCall<Cache>: Send {
+    fn sched_call(&mut self, sched: &mut Sched<Cache>) -> ();
+}
+
+pub trait NodeCache<'a, Cache> {
+    fn pop_node(&mut self) -> Option<SchedFnNode<'a, Cache>>;
+}
+
+//implement sched_call for any Fn that with the correct sig
+impl<F: Fn(&mut Sched<Cache>) -> (), Cache> SchedCall<Cache> for F
+where
+    F: Send,
+{
+    fn sched_call(&mut self, s: &mut Sched<Cache>) -> () {
+        (*self)(s)
+    }
+}
+
+pub struct TimedFn<'a, Cache> {
+    time: ITimePoint,
+    func: Option<SchedFn<'a, Cache>>,
+}
+pub type SchedFnNode<'a, Cache> = Box<xnor_llist::Node<TimedFn<'a, Cache>>>;
+
+impl<'a, Cache> Default for TimedFn<'a, Cache> {
     fn default() -> Self {
         TimedFn {
             time: 0,
@@ -24,8 +49,6 @@ impl Default for TimedFn {
     }
 }
 
-pub type SeqFnNode = Box<xnor_llist::Node<TimedFn>>;
-
 #[macro_export]
 macro_rules! wrap_fn {
     ($x:expr) => {
@@ -33,25 +56,51 @@ macro_rules! wrap_fn {
     }
 }
 
-pub trait SchedCall: Send {
-    fn sched_call(&mut self, &mut Sched) -> Option<UTimePoint>;
-}
-
-pub trait Sched {
-    fn schedule(&mut self, t: ITimePoint, n: SeqFn);
-}
-
-impl<F: Fn(&mut Sched) -> Option<UTimePoint>> SchedCall for F
+pub struct Executor<'a, Cache>
 where
-    F: Send,
+    Cache: NodeCache<'a, Cache> + Default,
 {
-    fn sched_call(&mut self, s: &mut Sched) -> Option<UTimePoint> {
-        (*self)(s)
+    list: xnor_llist::List<TimedFn<'a, Cache>>,
+    receiver: Receiver<SchedFnNode<'a, Cache>>,
+    cache: Cache,
+    dispose_sender: SyncSender<Box<Send>>,
+}
+
+pub struct Scheduler<'a, Cache>
+where
+    Cache: NodeCache<'a, Cache> + Default,
+{
+    executor: Option<Executor<'a, Cache>>,
+    sender: SyncSender<SchedFnNode<'a, Cache>>,
+    dispose_receiver: Option<Receiver<Box<Send>>>,
+    dispose_handle: Option<thread::JoinHandle<()>>,
+    cache_handle: Option<thread::JoinHandle<()>>,
+}
+
+impl<'a, Cache> Scheduler<'a, Cache>
+where
+    Cache: NodeCache<'a, Cache> + Default,
+{
+    fn new() -> Self {
+        let (sender, receiver) = sync_channel(1024);
+        let (dispose_sender, dispose_receiver) = sync_channel(1024);
+        Scheduler {
+            executor: None,
+            sender,
+            dispose_receiver: Some(dispose_receiver),
+            dispose_handle: None,
+            cache_handle: None,
+        }
     }
 }
 
-impl SchedCall for TimedFn {
-    fn sched_call(&mut self, s: &mut Sched) -> Option<UTimePoint> {
+/*
+
+impl<Context, Cache, Sink> SchedCall<Context, Cache, Sink> for TimedFn<Context, Cache, Sink> {
+    fn sched_call<S>(&mut self, s: &mut S) -> Option<UTimePoint>
+    where
+        S: Sched<Context, Cache, Sink>,
+    {
         if let Some(ref mut f) = self.func {
             f.sched_call(s)
         } else {
@@ -224,5 +273,28 @@ impl SeqExecuter {
             self.list.insert(n, |n, o| n.time <= o.time);
         }
         self.time = next as UTimePoint;
+    }
+}
+*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let x: Vec<TimedFn<()>> = (0..20).map({ |_| TimedFn::default() }).collect();
+    }
+
+    impl<'a> NodeCache<'a, ()> for () {
+        fn pop_node(&mut self) -> Option<SchedFnNode<'a, ()>> {
+            None
+        }
+    }
+
+    #[test]
+    fn scheduler() {
+        type Impl<'a> = Scheduler<'a, ()>;
+        let s = Impl::new();
     }
 }
