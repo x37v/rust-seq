@@ -1,6 +1,7 @@
 #![feature(specialization)]
 #![feature(nll)]
 
+/*
 #[macro_use]
 extern crate xnor_seq;
 
@@ -123,3 +124,4 @@ fn can() {
         panic!(e);
     }
 }
+*/
