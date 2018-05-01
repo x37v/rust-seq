@@ -98,8 +98,14 @@ where
     fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
         let (dispose_sender, dispose_receiver) = sync_channel(1024);
+        let cache = Cache::default();
         Scheduler {
-            executor: None,
+            executor: Some(Executor {
+                list: List::new(),
+                receiver,
+                cache,
+                dispose_sender,
+            }),
             sender,
             dispose_receiver: Some(dispose_receiver),
             dispose_handle: None,
