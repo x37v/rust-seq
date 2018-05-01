@@ -19,6 +19,7 @@ pub enum TimeSched {
 pub enum TimeResched {
     Relative(usize),
     ContextRelative(usize),
+    None,
 }
 
 //an object to be put into a schedule and called later
