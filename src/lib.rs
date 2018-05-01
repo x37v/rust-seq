@@ -291,7 +291,7 @@ impl<'a, Cache> Sched<'a, Cache> for Scheduler<'a, Cache>
 where
     Cache: NodeCache<'a, Cache> + Default,
 {
-    fn schedule(&mut self, time: TimeSched, func: SchedFn<'a, Cache>) {
+    fn schedule(&mut self, _time: TimeSched, func: SchedFn<'a, Cache>) {
         let t: usize = 0; //XXX translate from time
         let f = Node::new_boxed(TimedFn {
             func: Some(func),
@@ -305,7 +305,7 @@ impl<'a, Cache> Sched<'a, Cache> for Executor<'a, Cache>
 where
     Cache: NodeCache<'a, Cache> + Default,
 {
-    fn schedule(&mut self, time: TimeSched, func: SchedFn<'a, Cache>) {
+    fn schedule(&mut self, _time: TimeSched, func: SchedFn<'a, Cache>) {
         let t: usize = 0; //XXX translate from time
         match self.cache.pop_node() {
             Some(mut n) => {
