@@ -7,6 +7,18 @@ use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 pub type ITimePoint = isize;
 pub type UTimePoint = usize;
 
+enum TimeSched {
+    Absolute(usize),
+    Relative(isize),
+    ContextAbsolute(usize),
+    ContextRelative(isize),
+}
+
+enum TimeResched {
+    Relative(usize),
+    ContextRelative(usize),
+}
+
 //an object to be put into a schedule and called later
 pub type SchedFn<'a, Cache> = Box<SchedCall<Cache> + 'a>;
 
