@@ -23,16 +23,19 @@ pub enum TimeResched {
 }
 
 //an object to be put into a schedule and called later
-pub type SchedFn<'a, Cache> = Box<SchedCall<Cache> + 'a>;
+pub type SchedFn<'a, Cache> = Box<SchedCall<'a, Cache> + 'a>;
 
 //an object that can schedule SchedFn's and provide a Cache with the cache() method
 pub trait Sched<'a, Cache> {
     fn schedule(&mut self, t: TimeSched, func: SchedFn<'a, Cache>);
+}
+
+pub trait ExecSched<'a, Cache>: Sched<'a, Cache> {
     fn cache(&mut self) -> &mut Cache;
 }
 
-pub trait SchedCall<Cache>: Send {
-    fn sched_call(&mut self, sched: &mut Sched<Cache>) -> TimeResched;
+pub trait SchedCall<'a, Cache>: Send {
+    fn sched_call(&mut self, sched: &mut ExecSched<'a, Cache>) -> TimeResched;
 }
 
 pub trait NodeCache<'a, Cache> {
@@ -40,11 +43,11 @@ pub trait NodeCache<'a, Cache> {
 }
 
 //implement sched_call for any Fn that with the correct sig
-impl<F: Fn(&mut Sched<Cache>) -> TimeResched, Cache> SchedCall<Cache> for F
+impl<'a, F: Fn(&mut ExecSched<'a, Cache>) -> TimeResched, Cache> SchedCall<'a, Cache> for F
 where
     F: Send,
 {
-    fn sched_call(&mut self, s: &mut Sched<Cache>) -> TimeResched {
+    fn sched_call(&mut self, s: &mut ExecSched<'a, Cache>) -> TimeResched {
         (*self)(s)
     }
 }
@@ -284,6 +287,20 @@ impl SeqExecuter {
 }
 */
 
+impl<'a, Cache> Sched<'a, Cache> for Scheduler<'a, Cache>
+where
+    Cache: NodeCache<'a, Cache> + Default,
+{
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<'a, Cache>) {
+        let t: usize = 0; //XXX translate from time
+        let f = Node::new_boxed(TimedFn {
+            func: Some(func),
+            time: t,
+        });
+        self.sender.send(f).unwrap();
+    }
+}
+
 impl<'a, Cache> Sched<'a, Cache> for Executor<'a, Cache>
 where
     Cache: NodeCache<'a, Cache> + Default,
@@ -301,7 +318,12 @@ where
             }
         }
     }
+}
 
+impl<'a, Cache> ExecSched<'a, Cache> for Executor<'a, Cache>
+where
+    Cache: NodeCache<'a, Cache> + Default,
+{
     fn cache(&mut self) -> &mut Cache {
         &mut self.cache
     }
@@ -324,7 +346,11 @@ mod tests {
 
     #[test]
     fn scheduler() {
-        type Impl<'a> = Scheduler<'a, ()>;
-        let s = Impl::new();
+        type SImpl<'a> = Scheduler<'a, ()>;
+        let mut s = SImpl::new();
+        s.schedule(
+            TimeSched::Absolute(0),
+            Box::new(move |_s: &mut ExecSched<()>| TimeResched::None),
+        );
     }
 }
