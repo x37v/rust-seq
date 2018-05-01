@@ -184,64 +184,6 @@ impl<'a, Cache> SchedCall<'a, Cache> for TimedFn<'a, Cache> {
 
 /*
 
-pub trait SeqCached<T> {
-    fn pop() -> Option<Box<T>>;
-    fn push(v: Box<T>) -> ();
-}
-
-pub trait CacheUpdate {
-    fn update(&mut self);
-}
-
-pub struct SeqSender {
-    sender: SyncSender<SeqFnNode>,
-    node_cache_sender: Option<SyncSender<SeqFnNode>>,
-    dispose_receiver: Option<Receiver<Box<Send>>>,
-    dispose_handle: Option<thread::JoinHandle<()>>,
-    cache_handle: Option<thread::JoinHandle<()>>,
-}
-
-pub struct SeqExecuter {
-    list: List<TimedFn>,
-    receiver: Receiver<SeqFnNode>,
-    node_cache_receiver: Receiver<SeqFnNode>,
-    dispose_sender: SyncSender<Box<Send>>,
-    time: UTimePoint,
-}
-
-pub fn sequencer() -> (SeqSender, SeqExecuter) {
-    let (sender, receiver) = sync_channel(1024);
-    let (node_cache_sender, node_cache_receiver) = sync_channel(1024);
-    let (dispose_sender, dispose_receiver) = sync_channel(1024);
-    (
-        SeqSender {
-            sender,
-            node_cache_sender: Some(node_cache_sender),
-            dispose_receiver: Some(dispose_receiver),
-            dispose_handle: None,
-            cache_handle: None,
-        },
-        SeqExecuter {
-            receiver,
-            node_cache_receiver,
-            dispose_sender,
-            list: List::new(),
-            time: 0,
-        },
-    )
-}
-
-impl Sched for SeqSender {
-    fn schedule(&mut self, time: ITimePoint, func: SeqFn) {
-        let f = Node::new_boxed(TimedFn {
-            func: Some(func),
-            time,
-        });
-        self.sender.send(f).unwrap();
-    }
-}
-
-
 impl SeqSender {
     /// Spawn the helper threads
     pub fn spawn_helper_threads(&mut self) -> () {
@@ -303,37 +245,6 @@ impl SeqSender {
                 }
             }
         }));
-    }
-}
-
-impl SeqExecuter {
-    pub fn time(&self) -> UTimePoint {
-        self.time
-    }
-
-    pub fn run(&mut self, ticks: UTimePoint) {
-        let next = (self.time + ticks) as ITimePoint;
-        //grab new nodes
-        while let Ok(n) = self.receiver.try_recv() {
-            self.list.insert(n, |n, o| n.time <= o.time);
-        }
-
-        let mut reschedule = List::new();
-        while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
-            if let Some(t) = timedfn.sched_call(self) {
-                timedfn.time = t as ITimePoint + timedfn.time;
-                //XXX clamp bottom to next?
-                reschedule.push_back(timedfn);
-            } else {
-                if let Err(_) = self.dispose_sender.try_send(timedfn) {
-                    println!("XXX how to note this error??");
-                }
-            }
-        }
-        for n in reschedule.into_iter() {
-            self.list.insert(n, |n, o| n.time <= o.time);
-        }
-        self.time = next as UTimePoint;
     }
 }
 */
