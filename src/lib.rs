@@ -7,14 +7,14 @@ use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 pub type ITimePoint = isize;
 pub type UTimePoint = usize;
 
-enum TimeSched {
+pub enum TimeSched {
     Absolute(usize),
     Relative(isize),
     ContextAbsolute(usize),
     ContextRelative(isize),
 }
 
-enum TimeResched {
+pub enum TimeResched {
     Relative(usize),
     ContextRelative(usize),
 }
@@ -29,7 +29,7 @@ pub trait Sched<Cache> {
 }
 
 pub trait SchedCall<Cache>: Send {
-    fn sched_call(&mut self, sched: &mut Sched<Cache>) -> ();
+    fn sched_call(&mut self, sched: &mut Sched<Cache>) -> TimeResched;
 }
 
 pub trait NodeCache<'a, Cache> {
@@ -37,11 +37,11 @@ pub trait NodeCache<'a, Cache> {
 }
 
 //implement sched_call for any Fn that with the correct sig
-impl<F: Fn(&mut Sched<Cache>) -> (), Cache> SchedCall<Cache> for F
+impl<F: Fn(&mut Sched<Cache>) -> TimeResched, Cache> SchedCall<Cache> for F
 where
     F: Send,
 {
-    fn sched_call(&mut self, s: &mut Sched<Cache>) -> () {
+    fn sched_call(&mut self, s: &mut Sched<Cache>) -> TimeResched {
         (*self)(s)
     }
 }
