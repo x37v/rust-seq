@@ -1,6 +1,8 @@
 #[doc(hidden)]
 pub extern crate xnor_llist;
 
+use xnor_llist::{List, Node};
+
 use std::thread;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
@@ -72,7 +74,7 @@ pub struct Executor<'a, Cache>
 where
     Cache: NodeCache<'a, Cache> + Default,
 {
-    list: xnor_llist::List<TimedFn<'a, Cache>>,
+    list: List<TimedFn<'a, Cache>>,
     receiver: Receiver<SchedFnNode<'a, Cache>>,
     cache: Cache,
     dispose_sender: SyncSender<Box<Send>>,
@@ -139,7 +141,7 @@ pub struct SeqSender {
 }
 
 pub struct SeqExecuter {
-    list: xnor_llist::List<TimedFn>,
+    list: List<TimedFn>,
     receiver: Receiver<SeqFnNode>,
     node_cache_receiver: Receiver<SeqFnNode>,
     dispose_sender: SyncSender<Box<Send>>,
@@ -162,7 +164,7 @@ pub fn sequencer() -> (SeqSender, SeqExecuter) {
             receiver,
             node_cache_receiver,
             dispose_sender,
-            list: xnor_llist::List::new(),
+            list: List::new(),
             time: 0,
         },
     )
@@ -170,7 +172,7 @@ pub fn sequencer() -> (SeqSender, SeqExecuter) {
 
 impl Sched for SeqSender {
     fn schedule(&mut self, time: ITimePoint, func: SeqFn) {
-        let f = xnor_llist::Node::new_boxed(TimedFn {
+        let f = Node::new_boxed(TimedFn {
             func: Some(func),
             time,
         });
@@ -227,7 +229,7 @@ impl SeqSender {
         self.cache_handle = Some(thread::spawn(move || {
             let sender = sender.unwrap();
             loop {
-                let r = sender.send(xnor_llist::Node::new_boxed(TimedFn {
+                let r = sender.send(Node::new_boxed(TimedFn {
                     func: None,
                     time: 0,
                 }));
@@ -255,7 +257,7 @@ impl SeqExecuter {
             self.list.insert(n, |n, o| n.time <= o.time);
         }
 
-        let mut reschedule = xnor_llist::List::new();
+        let mut reschedule = List::new();
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             if let Some(t) = timedfn.sched_call(self) {
                 timedfn.time = t as ITimePoint + timedfn.time;
@@ -309,7 +311,7 @@ mod tests {
 
     impl<'a> NodeCache<'a, ()> for () {
         fn pop_node(&mut self) -> Option<SchedFnNode<'a, ()>> {
-            None
+            Some(Node::new_boxed(Default::default()))
         }
     }
 
