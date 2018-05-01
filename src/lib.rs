@@ -84,6 +84,7 @@ where
     Cache: NodeCache<'a, Cache> + Default,
 {
     list: List<TimedFn<'a, Cache>>,
+    time: UTimePoint,
     receiver: Receiver<SchedFnNode<'a, Cache>>,
     cache: Cache,
     dispose_sender: SyncSender<Box<Send>>,
@@ -114,6 +115,7 @@ where
         Scheduler {
             executor: Some(Executor {
                 list: List::new(),
+                time: 0,
                 receiver,
                 cache: updater.cache().unwrap(),
                 dispose_sender,
@@ -125,22 +127,70 @@ where
             cache_handle: None,
         }
     }
+
+    fn executor(&mut self) -> Option<Executor<'a, Cache>> {
+        self.executor.take()
+    }
 }
 
-/*
+impl<'a, Cache> Executor<'a, Cache>
+where
+    Cache: NodeCache<'a, Cache> + Default,
+{
+    pub fn run(&mut self, ticks: UTimePoint) {
+        let next = (self.time + ticks) as ITimePoint;
+        //grab new nodes
+        while let Ok(n) = self.receiver.try_recv() {
+            self.list.insert(n, |n, o| n.time <= o.time);
+        }
 
-impl<Context, Cache, Sink> SchedCall<Context, Cache, Sink> for TimedFn<Context, Cache, Sink> {
-    fn sched_call<S>(&mut self, s: &mut S) -> Option<UTimePoint>
-    where
-        S: Sched<Context, Cache, Sink>,
-    {
+        let mut reschedule = List::new();
+        while let Some(mut timedfn) = self.list.pop_front_while(|n| (n.time as ITimePoint) < next) {
+            match timedfn.sched_call(self) {
+                TimeResched::Relative(time) => {
+                    reschedule.push_back(timedfn);
+                }
+                TimeResched::ContextRelative(time) => {
+                    reschedule.push_back(timedfn);
+                }
+                TimeResched::None => {
+                    /*
+                    if let Err(_) = self.dispose_sender.try_send(timedfn) {
+                        println!("XXX how to note this error??");
+                    }
+                    */
+                }
+            }
+            /*
+            if let Some(t) = timedfn.sched_call(self) {
+                timedfn.time = t as ITimePoint + timedfn.time;
+                //XXX clamp bottom to next?
+                reschedule.push_back(timedfn);
+            } else {
+                if let Err(_) = self.dispose_sender.try_send(timedfn) {
+                    println!("XXX how to note this error??");
+                }
+            }
+            */
+        }
+        for n in reschedule.into_iter() {
+            self.list.insert(n, |n, o| n.time <= o.time);
+        }
+        self.time = next as UTimePoint;
+    }
+}
+
+impl<'a, Cache> SchedCall<'a, Cache> for TimedFn<'a, Cache> {
+    fn sched_call(&mut self, s: &mut ExecSched<'a, Cache>) -> TimeResched {
         if let Some(ref mut f) = self.func {
             f.sched_call(s)
         } else {
-            None
+            TimeResched::None
         }
     }
 }
+
+/*
 
 pub trait SeqCached<T> {
     fn pop() -> Option<Box<T>>;
@@ -365,9 +415,17 @@ mod tests {
     fn scheduler() {
         type SImpl<'a> = Scheduler<'a, (), ()>;
         let mut s = SImpl::new();
+        let e = s.executor();
+        assert!(e.is_some());
         s.schedule(
             TimeSched::Absolute(0),
-            Box::new(move |_s: &mut ExecSched<()>| TimeResched::None),
+            Box::new(move |_s: &mut ExecSched<()>| {
+                println!("Closure in schedule");
+                TimeResched::None
+            }),
         );
+
+        let mut e = e.unwrap();
+        e.run(32);
     }
 }
