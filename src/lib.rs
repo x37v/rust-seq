@@ -148,12 +148,15 @@ where
         while let Some(mut timedfn) = self.list.pop_front_while(|n| (n.time as ITimePoint) < next) {
             match timedfn.sched_call(self) {
                 TimeResched::Relative(time) => {
+                    //XXX manipulate time
                     reschedule.push_back(timedfn);
                 }
                 TimeResched::ContextRelative(time) => {
+                    //XXX manipulate time
                     reschedule.push_back(timedfn);
                 }
                 TimeResched::None => {
+                    //XXX
                     /*
                     if let Err(_) = self.dispose_sender.try_send(timedfn) {
                         println!("XXX how to note this error??");
@@ -161,17 +164,6 @@ where
                     */
                 }
             }
-            /*
-            if let Some(t) = timedfn.sched_call(self) {
-                timedfn.time = t as ITimePoint + timedfn.time;
-                //XXX clamp bottom to next?
-                reschedule.push_back(timedfn);
-            } else {
-                if let Err(_) = self.dispose_sender.try_send(timedfn) {
-                    println!("XXX how to note this error??");
-                }
-            }
-            */
         }
         for n in reschedule.into_iter() {
             self.list.insert(n, |n, o| n.time <= o.time);
@@ -421,11 +413,12 @@ mod tests {
             TimeSched::Absolute(0),
             Box::new(move |_s: &mut ExecSched<()>| {
                 println!("Closure in schedule");
-                TimeResched::None
+                TimeResched::Relative(3)
             }),
         );
 
         let mut e = e.unwrap();
+        e.run(32);
         e.run(32);
     }
 }
