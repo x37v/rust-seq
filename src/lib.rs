@@ -295,6 +295,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     #[test]
     fn it_works() {
@@ -328,8 +329,12 @@ mod tests {
             }),
         );
 
-        let mut e = e.unwrap();
-        e.run(32);
-        e.run(32);
+        let child = thread::spawn(move || {
+            let mut e = e.unwrap();
+            e.run(32);
+            e.run(32);
+        });
+
+        assert!(child.join().is_ok());
     }
 }
