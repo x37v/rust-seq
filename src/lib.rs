@@ -24,7 +24,7 @@ pub type SchedFn<'a, Cache> = Box<SchedCall<Cache> + 'a>;
 
 //an object that can schedule SchedFn's and provide a Cache with the cache() method
 pub trait Sched<Cache> {
-    fn schedule(&mut self, n: SchedFn<Cache>);
+    fn schedule(&mut self, t: TimeSched, n: SchedFn<Cache>);
     fn cache(&mut self) -> &mut Cache;
 }
 
