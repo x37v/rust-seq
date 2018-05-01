@@ -23,8 +23,8 @@ pub enum TimeResched {
 pub type SchedFn<'a, Cache> = Box<SchedCall<Cache> + 'a>;
 
 //an object that can schedule SchedFn's and provide a Cache with the cache() method
-pub trait Sched<Cache> {
-    fn schedule(&mut self, t: TimeSched, n: SchedFn<Cache>);
+pub trait Sched<'a, Cache> {
+    fn schedule(&mut self, t: TimeSched, func: SchedFn<'a, Cache>);
     fn cache(&mut self) -> &mut Cache;
 }
 
@@ -47,7 +47,7 @@ where
 }
 
 pub struct TimedFn<'a, Cache> {
-    time: ITimePoint,
+    time: UTimePoint,
     func: Option<SchedFn<'a, Cache>>,
 }
 pub type SchedFnNode<'a, Cache> = Box<xnor_llist::Node<TimedFn<'a, Cache>>>;
@@ -178,20 +178,6 @@ impl Sched for SeqSender {
     }
 }
 
-impl Sched for SeqExecuter {
-    fn schedule(&mut self, time: ITimePoint, func: SeqFn) {
-        match self.node_cache_receiver.try_recv() {
-            Ok(mut n) => {
-                n.time = time;
-                n.func = Some(func);
-                self.list.insert(n, |n, o| n.time <= o.time);
-            }
-            Err(_) => {
-                println!("OOPS");
-            }
-        }
-    }
-}
 
 impl SeqSender {
     /// Spawn the helper threads
@@ -288,6 +274,29 @@ impl SeqExecuter {
     }
 }
 */
+
+impl<'a, Cache> Sched<'a, Cache> for Executor<'a, Cache>
+where
+    Cache: NodeCache<'a, Cache> + Default,
+{
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<'a, Cache>) {
+        let t: usize = 0; //XXX translate from time
+        match self.cache.pop_node() {
+            Some(mut n) => {
+                n.time = t;
+                n.func = Some(func);
+                self.list.insert(n, |n, o| n.time <= o.time);
+            }
+            None => {
+                println!("OOPS");
+            }
+        }
+    }
+
+    fn cache(&mut self) -> &mut Cache {
+        &mut self.cache
+    }
+}
 
 #[cfg(test)]
 mod tests {
