@@ -156,8 +156,7 @@ where
                     reschedule.push_back(timedfn);
                 }
                 TimeResched::None => {
-                    //XXX
-                    /*
+                    /* XXX
                     if let Err(_) = self.dispose_sender.try_send(timedfn) {
                         println!("XXX how to note this error??");
                     }
