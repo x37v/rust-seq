@@ -85,7 +85,7 @@ macro_rules! wrap_fn {
 
 pub struct Executor<Cache>
 where
-    Cache: NodeCache<Cache> + Default,
+    Cache: NodeCache<Cache>,
 {
     list: List<TimedFn<Cache>>,
     time: UTimePoint,
@@ -97,7 +97,7 @@ where
 pub struct Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache> + Default,
+    Cache: NodeCache<Cache>,
     Update: CacheUpdate + 'static,
 {
     cache: CacheCreator,
@@ -112,7 +112,7 @@ where
 impl<CacheCreator, Cache, Update> Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache> + Default,
+    Cache: NodeCache<Cache>,
     Update: CacheUpdate + 'static,
 {
     fn new() -> Self {
@@ -165,12 +165,15 @@ where
     }
 
     /// Spawn a thread to fill up the cache so we can get objects in the execution thread
+    /// Note: This calls update once in the current thread in order to get the cache full
+    /// immediately
     pub fn spawn_cache_thread(&mut self) -> () {
         if self.cache_handle.is_some() {
             return;
         }
 
         let mut updater = self.cache.updater().unwrap();
+        updater.update(); //get an initial update
         self.cache_handle = Some(thread::spawn(move || {
             let sleep_time = std::time::Duration::from_millis(5);
             while updater.update() {
@@ -182,7 +185,7 @@ where
 
 impl<Cache: 'static> Executor<Cache>
 where
-    Cache: NodeCache<Cache> + Default,
+    Cache: NodeCache<Cache>,
 {
     pub fn run(&mut self, ticks: UTimePoint) {
         let next = (self.time + ticks) as ITimePoint;
@@ -241,7 +244,7 @@ impl SeqSender {
 impl<CacheCreator, Cache, Update> Sched<Cache> for Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache> + Default,
+    Cache: NodeCache<Cache>,
     Update: CacheUpdate + 'static,
 {
     fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
@@ -256,7 +259,7 @@ where
 
 impl<Cache> Sched<Cache> for Executor<Cache>
 where
-    Cache: NodeCache<Cache> + Default,
+    Cache: NodeCache<Cache>,
 {
     fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
         let t: usize = 0; //XXX translate from time
@@ -275,7 +278,7 @@ where
 
 impl<Cache> ExecSched<Cache> for Executor<Cache>
 where
-    Cache: NodeCache<Cache> + Default,
+    Cache: NodeCache<Cache>,
 {
     fn cache(&mut self) -> &mut Cache {
         &mut self.cache
@@ -286,6 +289,7 @@ where
 mod tests {
     use super::*;
     use std::thread;
+    use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 
     #[test]
     fn it_works() {
@@ -314,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn scheduler() {
+    fn fake_cache() {
         type SImpl = Scheduler<(), (), ()>;
         let mut s = SImpl::new();
         s.spawn_helper_threads();
@@ -323,8 +327,89 @@ mod tests {
         assert!(e.is_some());
         s.schedule(
             TimeSched::Absolute(0),
-            Box::new(move |_s: &mut ExecSched<()>| {
+            Box::new(move |s: &mut ExecSched<()>| {
                 println!("Closure in schedule");
+                assert!(s.cache().pop_node().is_some());
+                TimeResched::Relative(3)
+            }),
+        );
+
+        let child = thread::spawn(move || {
+            let mut e = e.unwrap();
+            e.run(32);
+            e.run(32);
+        });
+
+        assert!(child.join().is_ok());
+    }
+
+    struct TestCache {
+        receiver: Receiver<SchedFnNode<TestCache>>,
+    }
+
+    struct TestCacheUpdater {
+        sender: SyncSender<SchedFnNode<TestCache>>,
+    }
+
+    struct TestCacheCreator {
+        sender: SyncSender<SchedFnNode<TestCache>>,
+        cache: Option<TestCache>,
+    }
+
+    impl NodeCache<TestCache> for TestCache {
+        fn pop_node(&mut self) -> Option<SchedFnNode<TestCache>> {
+            self.receiver.try_recv().ok()
+        }
+    }
+
+    impl CacheUpdate for TestCacheUpdater {
+        fn update(&mut self) -> bool {
+            loop {
+                let f = Node::new_boxed(Default::default());
+                match self.sender.try_send(f) {
+                    Ok(_) => {}
+                    Err(TrySendError::Full(_)) => return true,
+                    Err(TrySendError::Disconnected(_)) => return false,
+                }
+            }
+        }
+    }
+
+    impl CacheCreate<TestCache, TestCacheUpdater> for TestCacheCreator {
+        fn cache(&mut self) -> Option<TestCache> {
+            self.cache.take()
+        }
+
+        fn updater(&mut self) -> Option<TestCacheUpdater> {
+            Some(TestCacheUpdater {
+                sender: self.sender.clone(),
+            })
+        }
+    }
+
+    impl Default for TestCacheCreator {
+        fn default() -> Self {
+            let (sender, receiver) = sync_channel(1024);
+            TestCacheCreator {
+                sender: sender,
+                cache: Some(TestCache { receiver: receiver }),
+            }
+        }
+    }
+
+    #[test]
+    fn real_cache() {
+        type SImpl = Scheduler<TestCacheCreator, TestCache, TestCacheUpdater>;
+        let mut s = SImpl::new();
+        s.spawn_helper_threads();
+
+        let e = s.executor();
+        assert!(e.is_some());
+        s.schedule(
+            TimeSched::Absolute(0),
+            Box::new(move |s: &mut ExecSched<TestCache>| {
+                println!("Closure in schedule");
+                assert!(s.cache().pop_node().is_some());
                 TimeResched::Relative(3)
             }),
         );
