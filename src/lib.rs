@@ -146,8 +146,7 @@ where
         self.spawn_cache_thread();
     }
 
-    /// Spawn a thread that will handle the disposing of boxed items pushed from the schedule
-    /// thread
+    /// Spawn a thread that will handle the disposing of boxed items pushed from the execution thread
     pub fn spawn_dispose_thread(&mut self) -> () {
         if self.dispose_handle.is_some() {
             return;
@@ -165,7 +164,7 @@ where
         }));
     }
 
-    /// Spawn a thread to fill up the node cache so we can schedule in the schedule thread
+    /// Spawn a thread to fill up the cache so we can get objects in the execution thread
     pub fn spawn_cache_thread(&mut self) -> () {
         if self.cache_handle.is_some() {
             return;
