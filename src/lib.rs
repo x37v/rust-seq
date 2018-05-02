@@ -43,7 +43,7 @@ pub trait NodeCache<Cache> {
 }
 
 pub trait CacheUpdate: Send {
-    fn update(&mut self);
+    fn update(&mut self) -> bool;
 }
 
 pub trait CacheCreate<Cache, Update: CacheUpdate> {
@@ -98,9 +98,9 @@ pub struct Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache> + Default,
-    Update: CacheUpdate,
+    Update: CacheUpdate + 'static,
 {
-    cache_updater: CacheCreator,
+    cache: CacheCreator,
     executor: Option<Executor<Cache>>,
     sender: SyncSender<SchedFnNode<Cache>>,
     dispose_receiver: Option<Receiver<Box<Send>>>,
@@ -113,22 +113,22 @@ impl<CacheCreator, Cache, Update> Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache> + Default,
-    Update: CacheUpdate,
+    Update: CacheUpdate + 'static,
 {
     fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
         let (dispose_sender, dispose_receiver) = sync_channel(1024);
-        let mut updater = CacheCreator::default();
+        let mut cache = CacheCreator::default();
         Scheduler {
             executor: Some(Executor {
                 list: List::new(),
                 time: 0,
                 receiver,
-                cache: updater.cache().unwrap(),
+                cache: cache.cache().unwrap(),
                 dispose_sender,
             }),
             sender,
-            cache_updater: updater,
+            cache: cache,
             dispose_receiver: Some(dispose_receiver),
             dispose_handle: None,
             cache_handle: None,
@@ -143,6 +143,7 @@ where
     /// Spawn the helper threads
     pub fn spawn_helper_threads(&mut self) -> () {
         self.spawn_dispose_thread();
+        self.spawn_cache_thread();
     }
 
     /// Spawn a thread that will handle the disposing of boxed items pushed from the schedule
@@ -151,13 +152,7 @@ where
         if self.dispose_handle.is_some() {
             return;
         }
-        if self.dispose_receiver.is_none() {
-            panic!("no dispose receiver!!");
-        }
-
-        let mut receiver = None;
-        std::mem::swap(&mut receiver, &mut self.dispose_receiver);
-        let receiver = receiver.unwrap();
+        let receiver = self.dispose_receiver.take().unwrap();
         self.dispose_handle = Some(thread::spawn(move || loop {
             let r = receiver.recv();
             match r {
@@ -166,6 +161,21 @@ where
                     break;
                 }
                 Ok(_) => println!("got dispose {:?}", thread::current().id()),
+            }
+        }));
+    }
+
+    /// Spawn a thread to fill up the node cache so we can schedule in the schedule thread
+    pub fn spawn_cache_thread(&mut self) -> () {
+        if self.cache_handle.is_some() {
+            return;
+        }
+
+        let mut updater = self.cache.updater().unwrap();
+        self.cache_handle = Some(thread::spawn(move || {
+            let sleep_time = std::time::Duration::from_millis(1);
+            while updater.update() {
+                thread::sleep(sleep_time);
             }
         }));
     }
@@ -226,34 +236,6 @@ impl SeqSender {
         self.spawn_cache_thread();
     }
 
-    /// Spawn a thread to fill up the node cache so we can schedule in the schedule thread
-    pub fn spawn_cache_thread(&mut self) -> () {
-        if self.cache_handle.is_some() {
-            return;
-        }
-        if self.node_cache_sender.is_none() {
-            panic!("no cache sender");
-        }
-
-        let mut sender = None;
-        std::mem::swap(&mut sender, &mut self.node_cache_sender);
-        self.cache_handle = Some(thread::spawn(move || {
-            let sender = sender.unwrap();
-            loop {
-                let r = sender.send(Node::new_boxed(TimedFn {
-                    func: None,
-                    time: 0,
-                }));
-                match r {
-                    Err(_) => {
-                        println!("ditching cache thread");
-                        break;
-                    }
-                    Ok(_) => (),
-                }
-            }
-        }));
-    }
 }
 */
 
@@ -261,7 +243,7 @@ impl<CacheCreator, Cache, Update> Sched<Cache> for Scheduler<CacheCreator, Cache
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache> + Default,
-    Update: CacheUpdate,
+    Update: CacheUpdate + 'static,
 {
     fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
         let t: usize = 0; //XXX translate from time
@@ -318,7 +300,9 @@ mod tests {
     }
 
     impl CacheUpdate for () {
-        fn update(&mut self) {}
+        fn update(&mut self) -> bool {
+            true
+        }
     }
 
     impl CacheCreate<(), ()> for () {
