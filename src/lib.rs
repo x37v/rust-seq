@@ -4,6 +4,8 @@ pub extern crate xnor_llist;
 pub use xnor_llist::{List, Node};
 
 use std::thread;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 pub type ITimePoint = isize;
@@ -88,7 +90,7 @@ where
     Cache: NodeCache<Cache>,
 {
     list: List<TimedFn<Cache>>,
-    time: UTimePoint,
+    time: Arc<AtomicUsize>,
     receiver: Receiver<SchedFnNode<Cache>>,
     cache: Cache,
     dispose_sender: SyncSender<Box<Send>>,
@@ -100,6 +102,7 @@ where
     Cache: NodeCache<Cache>,
     Update: CacheUpdate + 'static,
 {
+    time: Arc<AtomicUsize>,
     cache: CacheCreator,
     executor: Option<Executor<Cache>>,
     sender: SyncSender<SchedFnNode<Cache>>,
@@ -119,10 +122,12 @@ where
         let (sender, receiver) = sync_channel(1024);
         let (dispose_sender, dispose_receiver) = sync_channel(1024);
         let mut cache = CacheCreator::default();
+        let time = Arc::new(AtomicUsize::new(0));
         Scheduler {
+            time: time.clone(),
             executor: Some(Executor {
                 list: List::new(),
-                time: 0,
+                time: time,
                 receiver,
                 cache: cache.cache().unwrap(),
                 dispose_sender,
@@ -188,7 +193,7 @@ where
     Cache: NodeCache<Cache>,
 {
     pub fn run(&mut self, ticks: UTimePoint) {
-        let next = (self.time + ticks) as ITimePoint;
+        let next = (self.time.load(Ordering::SeqCst) + ticks) as ITimePoint;
         //grab new nodes
         while let Ok(n) = self.receiver.try_recv() {
             self.list.insert(n, |n, o| n.time <= o.time);
@@ -215,7 +220,7 @@ where
         for n in reschedule.into_iter() {
             self.list.insert(n, |n, o| n.time <= o.time);
         }
-        self.time = next as UTimePoint;
+        self.time.store(next as usize, Ordering::SeqCst);
     }
 }
 
@@ -229,14 +234,32 @@ impl<Cache> SchedCall<Cache> for TimedFn<Cache> {
     }
 }
 
+fn add_clamped(u: usize, i: isize) -> usize {
+    if i > 0 {
+        i as usize + u
+    } else {
+        let pos = (-i) as usize;
+        if pos > u {
+            0
+        } else {
+            u - pos
+        }
+    }
+}
+
 impl<CacheCreator, Cache, Update> Sched<Cache> for Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache>,
     Update: CacheUpdate + 'static,
 {
-    fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
-        let t: usize = 0; //XXX translate from time
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache>) {
+        let t = match time {
+            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
+            TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
+                add_clamped(self.time.load(Ordering::SeqCst), t)
+            }
+        };
         let f = Node::new_boxed(TimedFn {
             func: Some(func),
             time: t,
