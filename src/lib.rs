@@ -232,14 +232,9 @@ impl<Cache> SchedCall<Cache> for TimedFn<Cache> {
 
 fn add_clamped(u: usize, i: isize) -> usize {
     if i > 0 {
-        i as usize + u
+        u.saturating_add(i as usize)
     } else {
-        let pos = (-i) as usize;
-        if pos > u {
-            0
-        } else {
-            u - pos
-        }
+        u.saturating_sub((-i) as usize)
     }
 }
 
