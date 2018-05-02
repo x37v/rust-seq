@@ -243,6 +243,15 @@ fn add_clamped(u: usize, i: isize) -> usize {
     }
 }
 
+fn add_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
+    match time {
+        &TimeSched::Absolute(t) | &TimeSched::ContextAbsolute(t) => t,
+        &TimeSched::Relative(t) | &TimeSched::ContextRelative(t) => {
+            add_clamped(current.load(Ordering::SeqCst), t)
+        }
+    }
+}
+
 impl<CacheCreator, Cache, Update> Sched<Cache> for Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
@@ -250,15 +259,9 @@ where
     Update: CacheUpdate + 'static,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache>) {
-        let t = match time {
-            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
-            TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
-                add_clamped(self.time.load(Ordering::SeqCst), t)
-            }
-        };
         let f = Node::new_boxed(TimedFn {
             func: Some(func),
-            time: t,
+            time: add_time(&self.time, &time),
         });
         self.sender.send(f).unwrap();
     }
@@ -268,11 +271,10 @@ impl<Cache> Sched<Cache> for Executor<Cache>
 where
     Cache: NodeCache<Cache>,
 {
-    fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
-        let t: usize = 0; //XXX translate from time
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache>) {
         match self.cache.pop_node() {
             Some(mut n) => {
-                n.time = t;
+                n.time = add_time(&self.time, &time); //XXX should we clamp above current time?
                 n.func = Some(func);
                 self.list.insert(n, |n, o| n.time <= o.time);
             }
