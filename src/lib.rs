@@ -173,7 +173,7 @@ where
 
         let mut updater = self.cache.updater().unwrap();
         self.cache_handle = Some(thread::spawn(move || {
-            let sleep_time = std::time::Duration::from_millis(1);
+            let sleep_time = std::time::Duration::from_millis(5);
             while updater.update() {
                 thread::sleep(sleep_time);
             }
