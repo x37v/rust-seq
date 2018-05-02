@@ -65,6 +65,8 @@ impl Default for TestCacheCreator {
 #[test]
 fn real_cache() {
     type SImpl = Scheduler<TestCacheCreator, TestCache, TestCacheUpdater>;
+    type EImpl<'a> = ExecSched<TestCache> + 'a;
+
     let mut s = SImpl::new();
     s.spawn_helper_threads();
 
@@ -72,7 +74,7 @@ fn real_cache() {
     assert!(e.is_some());
     s.schedule(
         TimeSched::Absolute(0),
-        Box::new(move |s: &mut ExecSched<TestCache>| {
+        Box::new(move |s: &mut EImpl| {
             println!("Closure in schedule");
             assert!(s.cache().pop_node().is_some());
             TimeResched::Relative(3)
