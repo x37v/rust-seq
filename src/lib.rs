@@ -202,11 +202,7 @@ where
         let mut reschedule = List::new();
         while let Some(mut timedfn) = self.list.pop_front_while(|n| (n.time as ITimePoint) < next) {
             match timedfn.sched_call(self) {
-                TimeResched::Relative(time) => {
-                    timedfn.time = timedfn.time + time;
-                    reschedule.push_back(timedfn);
-                }
-                TimeResched::ContextRelative(time) => {
+                TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = timedfn.time + time;
                     reschedule.push_back(timedfn);
                 }
