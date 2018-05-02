@@ -115,7 +115,7 @@ where
     Cache: NodeCache<Cache>,
     Update: CacheUpdate + 'static,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
         let (dispose_sender, dispose_receiver) = sync_channel(1024);
         let mut cache = CacheCreator::default();
@@ -136,7 +136,7 @@ where
         }
     }
 
-    fn executor(&mut self) -> Option<Executor<Cache>> {
+    pub fn executor(&mut self) -> Option<Executor<Cache>> {
         self.executor.take()
     }
 
@@ -198,11 +198,11 @@ where
         while let Some(mut timedfn) = self.list.pop_front_while(|n| (n.time as ITimePoint) < next) {
             match timedfn.sched_call(self) {
                 TimeResched::Relative(time) => {
-                    //XXX manipulate time
+                    timedfn.time = timedfn.time + time;
                     reschedule.push_back(timedfn);
                 }
                 TimeResched::ContextRelative(time) => {
-                    //XXX manipulate time
+                    timedfn.time = timedfn.time + time;
                     reschedule.push_back(timedfn);
                 }
                 TimeResched::None => {
@@ -292,8 +292,8 @@ mod tests {
     use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 
     #[test]
-    fn it_works() {
-        let x: Vec<TimedFn<()>> = (0..20).map({ |_| TimedFn::default() }).collect();
+    fn can_vec() {
+        let _x: Vec<TimedFn<()>> = (0..20).map({ |_| TimedFn::default() }).collect();
     }
 
     impl NodeCache<()> for () {
