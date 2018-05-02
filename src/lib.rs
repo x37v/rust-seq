@@ -229,18 +229,6 @@ impl<Cache> SchedCall<Cache> for TimedFn<Cache> {
     }
 }
 
-/*
-
-impl SeqSender {
-    /// Spawn the helper threads
-    pub fn spawn_helper_threads(&mut self) -> () {
-        self.spawn_dispose_thread();
-        self.spawn_cache_thread();
-    }
-
-}
-*/
-
 impl<CacheCreator, Cache, Update> Sched<Cache> for Scheduler<CacheCreator, Cache, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
