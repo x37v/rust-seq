@@ -42,13 +42,13 @@ pub trait NodeCache<Cache> {
     fn pop_node(&mut self) -> Option<SchedFnNode<Cache>>;
 }
 
-pub trait CacheUpdate {
+pub trait CacheUpdate: Send {
     fn update(&mut self);
 }
 
-pub trait CacheCreate<Cache> {
+pub trait CacheCreate<Cache, Update: CacheUpdate> {
     fn cache(&mut self) -> Option<Cache>;
-    fn update(&mut self);
+    fn updater(&mut self) -> Option<Update>;
 }
 
 //implement sched_call for any Fn that with the correct sig
@@ -94,10 +94,11 @@ where
     dispose_sender: SyncSender<Box<Send>>,
 }
 
-pub struct Scheduler<CacheCreator, Cache>
+pub struct Scheduler<CacheCreator, Cache, Update>
 where
-    CacheCreator: CacheCreate<Cache> + Default,
+    CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache> + Default,
+    Update: CacheUpdate,
 {
     cache_updater: CacheCreator,
     executor: Option<Executor<Cache>>,
@@ -105,12 +106,14 @@ where
     dispose_receiver: Option<Receiver<Box<Send>>>,
     dispose_handle: Option<thread::JoinHandle<()>>,
     cache_handle: Option<thread::JoinHandle<()>>,
+    phantom: std::marker::PhantomData<Update>,
 }
 
-impl<CacheCreator, Cache> Scheduler<CacheCreator, Cache>
+impl<CacheCreator, Cache, Update> Scheduler<CacheCreator, Cache, Update>
 where
-    CacheCreator: CacheCreate<Cache> + Default,
+    CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache> + Default,
+    Update: CacheUpdate,
 {
     fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
@@ -129,6 +132,7 @@ where
             dispose_receiver: Some(dispose_receiver),
             dispose_handle: None,
             cache_handle: None,
+            phantom: std::marker::PhantomData,
         }
     }
 
@@ -253,10 +257,11 @@ impl SeqSender {
 }
 */
 
-impl<CacheCreator, Cache> Sched<Cache> for Scheduler<CacheCreator, Cache>
+impl<CacheCreator, Cache, Update> Sched<Cache> for Scheduler<CacheCreator, Cache, Update>
 where
-    CacheCreator: CacheCreate<Cache> + Default,
+    CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache> + Default,
+    Update: CacheUpdate,
 {
     fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
         let t: usize = 0; //XXX translate from time
@@ -312,16 +317,22 @@ mod tests {
         }
     }
 
-    impl CacheCreate<()> for () {
+    impl CacheUpdate for () {
+        fn update(&mut self) {}
+    }
+
+    impl CacheCreate<(), ()> for () {
         fn cache(&mut self) -> Option<()> {
             Some(())
         }
-        fn update(&mut self) {}
+        fn updater(&mut self) -> Option<()> {
+            Some(())
+        }
     }
 
     #[test]
     fn scheduler() {
-        type SImpl = Scheduler<(), ()>;
+        type SImpl = Scheduler<(), (), ()>;
         let mut s = SImpl::new();
         s.spawn_helper_threads();
 
