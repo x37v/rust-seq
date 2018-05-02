@@ -87,26 +87,26 @@ where
     time: UTimePoint,
     receiver: Receiver<SchedFnNode<'a, Cache>>,
     cache: Cache,
-    dispose_sender: SyncSender<Box<Send>>,
+    dispose_sender: SyncSender<Box<Send + 'a>>,
 }
 
 pub struct Scheduler<'a, CacheUpdater, Cache>
 where
-    CacheUpdater: CacheUpdate<'a, Cache> + Default,
+    CacheUpdater: CacheUpdate<'a, Cache> + Default + 'a,
     Cache: NodeCache<'a, Cache> + Default,
 {
     cache_updater: CacheUpdater,
     executor: Option<Executor<'a, Cache>>,
     sender: SyncSender<SchedFnNode<'a, Cache>>,
-    dispose_receiver: Option<Receiver<Box<Send>>>,
+    dispose_receiver: Option<Receiver<Box<Send + 'a>>>,
     dispose_handle: Option<thread::JoinHandle<()>>,
     cache_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl<'a, CacheUpdater, Cache> Scheduler<'a, CacheUpdater, Cache>
 where
-    CacheUpdater: CacheUpdate<'a, Cache> + Default,
-    Cache: NodeCache<'a, Cache> + Default,
+    CacheUpdater: CacheUpdate<'a, Cache> + Default + 'a,
+    Cache: NodeCache<'a, Cache> + Default + 'a,
 {
     fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<'a, Cache> Executor<'a, Cache>
+impl<'a, Cache: 'a> Executor<'a, Cache>
 where
     Cache: NodeCache<'a, Cache> + Default,
 {
@@ -156,11 +156,9 @@ where
                     reschedule.push_back(timedfn);
                 }
                 TimeResched::None => {
-                    /* XXX
                     if let Err(_) = self.dispose_sender.try_send(timedfn) {
                         println!("XXX how to note this error??");
                     }
-                    */
                 }
             }
         }
@@ -250,7 +248,7 @@ impl SeqSender {
 
 impl<'a, CacheUpdater, Cache> Sched<'a, Cache> for Scheduler<'a, CacheUpdater, Cache>
 where
-    CacheUpdater: CacheUpdate<'a, Cache> + Default,
+    CacheUpdater: CacheUpdate<'a, Cache> + Default + 'a,
     Cache: NodeCache<'a, Cache> + Default,
 {
     fn schedule(&mut self, _time: TimeSched, func: SchedFn<'a, Cache>) {
