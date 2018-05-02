@@ -23,7 +23,7 @@ pub enum TimeResched {
 }
 
 //an object to be put into a schedule and called later
-pub type SchedFn<Cache> = Box<SchedCall<Cache> + 'static>;
+pub type SchedFn<Cache> = Box<SchedCall<Cache>>;
 
 //an object that can schedule SchedFn's and provide a Cache with the cache() method
 pub trait Sched<Cache> {
@@ -87,26 +87,26 @@ where
     time: UTimePoint,
     receiver: Receiver<SchedFnNode<Cache>>,
     cache: Cache,
-    dispose_sender: SyncSender<Box<Send + 'static>>,
+    dispose_sender: SyncSender<Box<Send>>,
 }
 
 pub struct Scheduler<CacheUpdater, Cache>
 where
-    CacheUpdater: CacheUpdate<Cache> + Default + 'static,
+    CacheUpdater: CacheUpdate<Cache> + Default,
     Cache: NodeCache<Cache> + Default,
 {
     cache_updater: CacheUpdater,
     executor: Option<Executor<Cache>>,
     sender: SyncSender<SchedFnNode<Cache>>,
-    dispose_receiver: Option<Receiver<Box<Send + 'static>>>,
+    dispose_receiver: Option<Receiver<Box<Send>>>,
     dispose_handle: Option<thread::JoinHandle<()>>,
     cache_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl<CacheUpdater, Cache> Scheduler<CacheUpdater, Cache>
 where
-    CacheUpdater: CacheUpdate<Cache> + Default + 'static,
-    Cache: NodeCache<Cache> + Default + 'static,
+    CacheUpdater: CacheUpdate<Cache> + Default,
+    Cache: NodeCache<Cache> + Default,
 {
     fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
@@ -251,7 +251,7 @@ impl SeqSender {
 
 impl<CacheUpdater, Cache> Sched<Cache> for Scheduler<CacheUpdater, Cache>
 where
-    CacheUpdater: CacheUpdate<Cache> + Default + 'static,
+    CacheUpdater: CacheUpdate<Cache> + Default,
     Cache: NodeCache<Cache> + Default,
 {
     fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
