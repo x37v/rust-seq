@@ -42,7 +42,11 @@ pub trait NodeCache<Cache> {
     fn pop_node(&mut self) -> Option<SchedFnNode<Cache>>;
 }
 
-pub trait CacheUpdate<Cache> {
+pub trait CacheUpdate {
+    fn update(&mut self);
+}
+
+pub trait CacheCreate<Cache> {
     fn cache(&mut self) -> Option<Cache>;
     fn update(&mut self);
 }
@@ -90,12 +94,12 @@ where
     dispose_sender: SyncSender<Box<Send>>,
 }
 
-pub struct Scheduler<CacheUpdater, Cache>
+pub struct Scheduler<CacheCreator, Cache>
 where
-    CacheUpdater: CacheUpdate<Cache> + Default,
+    CacheCreator: CacheCreate<Cache> + Default,
     Cache: NodeCache<Cache> + Default,
 {
-    cache_updater: CacheUpdater,
+    cache_updater: CacheCreator,
     executor: Option<Executor<Cache>>,
     sender: SyncSender<SchedFnNode<Cache>>,
     dispose_receiver: Option<Receiver<Box<Send>>>,
@@ -103,15 +107,15 @@ where
     cache_handle: Option<thread::JoinHandle<()>>,
 }
 
-impl<CacheUpdater, Cache> Scheduler<CacheUpdater, Cache>
+impl<CacheCreator, Cache> Scheduler<CacheCreator, Cache>
 where
-    CacheUpdater: CacheUpdate<Cache> + Default,
+    CacheCreator: CacheCreate<Cache> + Default,
     Cache: NodeCache<Cache> + Default,
 {
     fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
         let (dispose_sender, dispose_receiver) = sync_channel(1024);
-        let mut updater = CacheUpdater::default();
+        let mut updater = CacheCreator::default();
         Scheduler {
             executor: Some(Executor {
                 list: List::new(),
@@ -249,9 +253,9 @@ impl SeqSender {
 }
 */
 
-impl<CacheUpdater, Cache> Sched<Cache> for Scheduler<CacheUpdater, Cache>
+impl<CacheCreator, Cache> Sched<Cache> for Scheduler<CacheCreator, Cache>
 where
-    CacheUpdater: CacheUpdate<Cache> + Default,
+    CacheCreator: CacheCreate<Cache> + Default,
     Cache: NodeCache<Cache> + Default,
 {
     fn schedule(&mut self, _time: TimeSched, func: SchedFn<Cache>) {
@@ -308,7 +312,7 @@ mod tests {
         }
     }
 
-    impl CacheUpdate<()> for () {
+    impl CacheCreate<()> for () {
         fn cache(&mut self) -> Option<()> {
             Some(())
         }
