@@ -8,9 +8,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
-pub type ITimePoint = isize;
-pub type UTimePoint = usize;
-
 pub enum TimeSched {
     Absolute(usize),
     Relative(isize),
@@ -64,7 +61,7 @@ where
 }
 
 pub struct TimedFn<Cache> {
-    time: UTimePoint,
+    time: usize,
     func: Option<SchedFn<Cache>>,
 }
 pub type SchedFnNode<Cache> = Box<xnor_llist::Node<TimedFn<Cache>>>;
@@ -185,15 +182,15 @@ impl<Cache: 'static> Executor<Cache>
 where
     Cache: NodeCache<Cache>,
 {
-    pub fn run(&mut self, ticks: UTimePoint) {
-        let next = (self.time.load(Ordering::SeqCst) + ticks) as ITimePoint;
+    pub fn run(&mut self, ticks: usize) {
+        let next = self.time.load(Ordering::SeqCst) + ticks;
         //grab new nodes
         while let Ok(n) = self.receiver.try_recv() {
             self.list.insert(n, |n, o| n.time <= o.time);
         }
 
         let mut reschedule = List::new();
-        while let Some(mut timedfn) = self.list.pop_front_while(|n| (n.time as ITimePoint) < next) {
+        while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             match timedfn.sched_call(self) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = timedfn.time + time;
@@ -209,7 +206,7 @@ where
         for n in reschedule.into_iter() {
             self.list.insert(n, |n, o| n.time <= o.time);
         }
-        self.time.store(next as usize, Ordering::SeqCst);
+        self.time.store(next, Ordering::SeqCst);
     }
 }
 
