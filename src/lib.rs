@@ -78,13 +78,6 @@ impl<Cache> Default for TimedFn<Cache> {
     }
 }
 
-#[macro_export]
-macro_rules! wrap_fn {
-    ($x:expr) => {
-        Box::new($x)
-    }
-}
-
 pub struct Executor<Cache>
 where
     Cache: NodeCache<Cache>,
@@ -323,6 +316,7 @@ mod tests {
     #[test]
     fn fake_cache() {
         type SImpl = Scheduler<(), (), ()>;
+        type EImpl<'a> = ExecSched<()> + 'a;
         let mut s = SImpl::new();
         s.spawn_helper_threads();
 
@@ -330,7 +324,7 @@ mod tests {
         assert!(e.is_some());
         s.schedule(
             TimeSched::Absolute(0),
-            Box::new(move |s: &mut ExecSched<()>| {
+            Box::new(move |s: &mut EImpl| {
                 println!("Closure in schedule");
                 assert!(s.cache().pop_node().is_some());
                 TimeResched::Relative(3)
