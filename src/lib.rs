@@ -182,11 +182,16 @@ impl<Cache: 'static> Executor<Cache>
 where
     Cache: NodeCache<Cache>,
 {
+    fn add_node(&mut self, node: SchedFnNode<Cache>) {
+        self.list.insert(node, |n, o| n.time <= o.time);
+    }
+
     pub fn run(&mut self, ticks: usize) {
         let next = self.time.load(Ordering::SeqCst) + ticks;
+
         //grab new nodes
         while let Ok(n) = self.receiver.try_recv() {
-            self.list.insert(n, |n, o| n.time <= o.time);
+            self.add_node(n);
         }
 
         let mut reschedule = List::new();
@@ -204,7 +209,7 @@ where
             }
         }
         for n in reschedule.into_iter() {
-            self.list.insert(n, |n, o| n.time <= o.time);
+            self.add_node(n);
         }
         self.time.store(next, Ordering::SeqCst);
     }
