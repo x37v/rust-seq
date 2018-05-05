@@ -39,7 +39,11 @@ pub trait ExecSched<Cache, Context>: Sched<Cache, Context> {
 }
 
 pub trait SchedCall<Cache, Context>: Send {
-    fn sched_call(&mut self, sched: &mut ExecSched<Cache, Context>) -> TimeResched;
+    fn sched_call(
+        &mut self,
+        sched: &mut ExecSched<Cache, Context>,
+        context: &mut Context,
+    ) -> TimeResched;
 }
 
 pub trait NodeCache<Cache, Context> {
@@ -57,15 +61,19 @@ pub trait CacheCreate<Cache, Update: CacheUpdate> {
 
 //implement sched_call for any Fn that with the correct sig
 impl<
-    F: Fn(&mut ExecSched<Cache, Context>) -> TimeResched,
+    F: Fn(&mut ExecSched<Cache, Context>, &mut Context) -> TimeResched,
     Cache,
     Context: ContextInit,
 > SchedCall<Cache, Context> for F
 where
     F: Send,
 {
-    fn sched_call(&mut self, s: &mut ExecSched<Cache, Context>) -> TimeResched {
-        (*self)(s)
+    fn sched_call(
+        &mut self,
+        sched: &mut ExecSched<Cache, Context>,
+        context: &mut Context,
+    ) -> TimeResched {
+        (*self)(sched, context)
     }
 }
 
@@ -211,7 +219,8 @@ where
 
         let mut reschedule = List::new();
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
-            match timedfn.sched_call(self) {
+            let mut context = Context::with_time(0);
+            match timedfn.sched_call(self, &mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = timedfn.time + time;
                     reschedule.push_back(timedfn);
@@ -231,9 +240,13 @@ where
 }
 
 impl<Cache, Context> SchedCall<Cache, Context> for TimedFn<Cache, Context> {
-    fn sched_call(&mut self, s: &mut ExecSched<Cache, Context>) -> TimeResched {
+    fn sched_call(
+        &mut self,
+        s: &mut ExecSched<Cache, Context>,
+        context: &mut Context,
+    ) -> TimeResched {
         if let Some(ref mut f) = self.func {
-            f.sched_call(s)
+            f.sched_call(s, context)
         } else {
             TimeResched::None
         }
@@ -355,7 +368,7 @@ mod tests {
         assert!(e.is_some());
         s.schedule(
             TimeSched::Absolute(0),
-            Box::new(move |s: &mut EImpl| {
+            Box::new(move |s: &mut EImpl, _context: &mut ()| {
                 println!("Closure in schedule");
                 assert!(s.cache().pop_node().is_some());
                 assert_eq!(s.context(), ());

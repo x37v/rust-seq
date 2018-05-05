@@ -36,6 +36,12 @@ impl ContextInit for TestContext {
     }
 }
 
+impl TestContext {
+    fn doit(&self) {
+        println!("TestContext");
+    }
+}
+
 impl CacheUpdate for TestCacheUpdater {
     fn update(&mut self) -> bool {
         loop {
@@ -83,9 +89,10 @@ fn real_cache() {
     assert!(e.is_some());
     s.schedule(
         TimeSched::Absolute(0),
-        Box::new(move |s: &mut EImpl| {
+        Box::new(move |s: &mut EImpl, context: &mut TestContext| {
             println!("Closure in schedule");
             assert!(s.cache().pop_node().is_some());
+            context.doit();
             TimeResched::Relative(3)
         }),
     );
