@@ -21,8 +21,8 @@ pub enum TimeResched {
     None,
 }
 
-pub trait ContextInit<Context> {
-    fn with_time(time: usize) -> Context;
+pub trait ContextInit {
+    fn with_time(time: usize) -> Self;
 }
 
 //an object to be put into a schedule and called later
@@ -59,7 +59,7 @@ pub trait CacheCreate<Cache, Update: CacheUpdate> {
 impl<
     F: Fn(&mut ExecSched<Cache, Context>) -> TimeResched,
     Cache,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 > SchedCall<Cache, Context> for F
 where
     F: Send,
@@ -87,7 +87,7 @@ impl<Cache, Context> Default for TimedFn<Cache, Context> {
 pub struct Executor<Cache, Context>
 where
     Cache: NodeCache<Cache, Context>,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 {
     list: List<TimedFn<Cache, Context>>,
     time: Arc<AtomicUsize>,
@@ -102,7 +102,7 @@ where
     CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache, Context>,
     Update: CacheUpdate + 'static,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 {
     time: Arc<AtomicUsize>,
     cache: CacheCreator,
@@ -119,7 +119,7 @@ where
     CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache, Context>,
     Update: CacheUpdate + 'static,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 {
     pub fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
@@ -195,7 +195,7 @@ where
 impl<Cache: 'static, Context: 'static> Executor<Cache, Context>
 where
     Cache: NodeCache<Cache, Context> + 'static,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 {
     fn add_node(&mut self, node: SchedFnNode<Cache, Context>) {
         self.list.insert(node, |n, o| n.time <= o.time);
@@ -263,7 +263,7 @@ where
     CacheCreator: CacheCreate<Cache, Update> + Default,
     Cache: NodeCache<Cache, Context>,
     Update: CacheUpdate + 'static,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache, Context>) {
         let f = Node::new_boxed(TimedFn {
@@ -277,7 +277,7 @@ where
 impl<Cache, Context> Sched<Cache, Context> for Executor<Cache, Context>
 where
     Cache: NodeCache<Cache, Context>,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache, Context>) {
         match self.cache.pop_node() {
@@ -296,7 +296,7 @@ where
 impl<Cache, Context> ExecSched<Cache, Context> for Executor<Cache, Context>
 where
     Cache: NodeCache<Cache, Context>,
-    Context: ContextInit<Context>,
+    Context: ContextInit,
 {
     fn cache(&mut self) -> &mut Cache {
         &mut self.cache
@@ -329,7 +329,7 @@ mod tests {
         }
     }
 
-    impl ContextInit<()> for () {
+    impl ContextInit for () {
         fn with_time(_time: usize) -> () {
             ()
         }

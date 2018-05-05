@@ -30,7 +30,7 @@ impl NodeCache<TestCache, TestContext> for TestCache {
     }
 }
 
-impl ContextInit<TestContext> for TestContext {
+impl ContextInit for TestContext {
     fn with_time(_time: usize) -> TestContext {
         TestContext
     }
