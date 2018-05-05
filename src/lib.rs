@@ -22,23 +22,24 @@ pub enum TimeResched {
 }
 
 //an object to be put into a schedule and called later
-pub type SchedFn<Cache> = Box<SchedCall<Cache>>;
+pub type SchedFn<Cache, Sink, Context> = Box<SchedCall<Cache, Sink, Context>>;
 
 //an object that can schedule SchedFn's and provide a Cache with the cache() method
-pub trait Sched<Cache> {
-    fn schedule(&mut self, t: TimeSched, func: SchedFn<Cache>);
+pub trait Sched<Cache, Sink, Context> {
+    fn schedule(&mut self, t: TimeSched, func: SchedFn<Cache, Sink, Context>);
 }
 
-pub trait ExecSched<Cache>: Sched<Cache> {
+pub trait ExecSched<Cache, Sink, Context>: Sched<Cache, Sink, Context> {
     fn cache(&mut self) -> &mut Cache;
+    fn sink(&mut self) -> &mut Sink;
 }
 
-pub trait SchedCall<Cache>: Send {
-    fn sched_call(&mut self, sched: &mut ExecSched<Cache>) -> TimeResched;
+pub trait SchedCall<Cache, Sink, Context>: Send {
+    fn sched_call(&mut self, sched: &mut ExecSched<Cache, Sink, Context>) -> TimeResched;
 }
 
-pub trait NodeCache<Cache> {
-    fn pop_node(&mut self) -> Option<SchedFnNode<Cache>>;
+pub trait NodeCache<Cache, Sink, Context> {
+    fn pop_node(&mut self) -> Option<SchedFnNode<Cache, Sink, Context>>;
 }
 
 pub trait CacheUpdate: Send {
@@ -51,22 +52,27 @@ pub trait CacheCreate<Cache, Update: CacheUpdate> {
 }
 
 //implement sched_call for any Fn that with the correct sig
-impl<F: Fn(&mut ExecSched<Cache>) -> TimeResched, Cache> SchedCall<Cache> for F
+impl<
+    F: Fn(&mut ExecSched<Cache, Sink, Context>) -> TimeResched,
+    Cache,
+    Sink,
+    Context,
+> SchedCall<Cache, Sink, Context> for F
 where
     F: Send,
 {
-    fn sched_call(&mut self, s: &mut ExecSched<Cache>) -> TimeResched {
+    fn sched_call(&mut self, s: &mut ExecSched<Cache, Sink, Context>) -> TimeResched {
         (*self)(s)
     }
 }
 
-pub struct TimedFn<Cache> {
+pub struct TimedFn<Cache, Sink, Context> {
     time: usize,
-    func: Option<SchedFn<Cache>>,
+    func: Option<SchedFn<Cache, Sink, Context>>,
 }
-pub type SchedFnNode<Cache> = Box<xnor_llist::Node<TimedFn<Cache>>>;
+pub type SchedFnNode<Cache, Sink, Context> = Box<xnor_llist::Node<TimedFn<Cache, Sink, Context>>>;
 
-impl<Cache> Default for TimedFn<Cache> {
+impl<Cache, Sink, Context> Default for TimedFn<Cache, Sink, Context> {
     fn default() -> Self {
         TimedFn {
             time: 0,
@@ -75,38 +81,43 @@ impl<Cache> Default for TimedFn<Cache> {
     }
 }
 
-pub struct Executor<Cache>
+pub struct Executor<Cache, Sink, Context>
 where
-    Cache: NodeCache<Cache>,
+    Cache: NodeCache<Cache, Sink, Context>,
+    Sink: Default + 'static,
 {
-    list: List<TimedFn<Cache>>,
+    list: List<TimedFn<Cache, Sink, Context>>,
     time: Arc<AtomicUsize>,
-    receiver: Receiver<SchedFnNode<Cache>>,
+    receiver: Receiver<SchedFnNode<Cache, Sink, Context>>,
     cache: Cache,
+    sink: Sink,
     dispose_sender: SyncSender<Box<Send>>,
 }
 
-pub struct Scheduler<CacheCreator, Cache, Update>
+pub struct Scheduler<CacheCreator, Cache, Sink, Context, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache>,
+    Cache: NodeCache<Cache, Sink, Context>,
     Update: CacheUpdate + 'static,
+    Sink: Default + 'static,
 {
     time: Arc<AtomicUsize>,
     cache: CacheCreator,
-    executor: Option<Executor<Cache>>,
-    sender: SyncSender<SchedFnNode<Cache>>,
+    executor: Option<Executor<Cache, Sink, Context>>,
+    sender: SyncSender<SchedFnNode<Cache, Sink, Context>>,
     dispose_receiver: Option<Receiver<Box<Send>>>,
     dispose_handle: Option<thread::JoinHandle<()>>,
     cache_handle: Option<thread::JoinHandle<()>>,
-    phantom: std::marker::PhantomData<Update>,
+    phantom_update: std::marker::PhantomData<Update>,
 }
 
-impl<CacheCreator, Cache, Update> Scheduler<CacheCreator, Cache, Update>
+impl<CacheCreator, Cache, Sink, Context, Update>
+    Scheduler<CacheCreator, Cache, Sink, Context, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache>,
+    Cache: NodeCache<Cache, Sink, Context>,
     Update: CacheUpdate + 'static,
+    Sink: Default + 'static,
 {
     pub fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
@@ -119,6 +130,7 @@ where
                 list: List::new(),
                 time: time,
                 receiver,
+                sink: Default::default(),
                 cache: cache.cache().unwrap(),
                 dispose_sender,
             }),
@@ -127,11 +139,11 @@ where
             dispose_receiver: Some(dispose_receiver),
             dispose_handle: None,
             cache_handle: None,
-            phantom: std::marker::PhantomData,
+            phantom_update: std::marker::PhantomData,
         }
     }
 
-    pub fn executor(&mut self) -> Option<Executor<Cache>> {
+    pub fn executor(&mut self) -> Option<Executor<Cache, Sink, Context>> {
         self.executor.take()
     }
 
@@ -178,11 +190,12 @@ where
     }
 }
 
-impl<Cache: 'static> Executor<Cache>
+impl<Cache, Sink, Context: 'static> Executor<Cache, Sink, Context>
 where
-    Cache: NodeCache<Cache>,
+    Cache: NodeCache<Cache, Sink, Context> + 'static,
+    Sink: Default + 'static,
 {
-    fn add_node(&mut self, node: SchedFnNode<Cache>) {
+    fn add_node(&mut self, node: SchedFnNode<Cache, Sink, Context>) {
         self.list.insert(node, |n, o| n.time <= o.time);
     }
 
@@ -215,8 +228,8 @@ where
     }
 }
 
-impl<Cache> SchedCall<Cache> for TimedFn<Cache> {
-    fn sched_call(&mut self, s: &mut ExecSched<Cache>) -> TimeResched {
+impl<Cache, Sink, Context> SchedCall<Cache, Sink, Context> for TimedFn<Cache, Sink, Context> {
+    fn sched_call(&mut self, s: &mut ExecSched<Cache, Sink, Context>) -> TimeResched {
         if let Some(ref mut f) = self.func {
             f.sched_call(s)
         } else {
@@ -242,13 +255,15 @@ fn add_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
     }
 }
 
-impl<CacheCreator, Cache, Update> Sched<Cache> for Scheduler<CacheCreator, Cache, Update>
+impl<CacheCreator, Cache, Sink, Context, Update> Sched<Cache, Sink, Context>
+    for Scheduler<CacheCreator, Cache, Sink, Context, Update>
 where
     CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache>,
+    Cache: NodeCache<Cache, Sink, Context>,
     Update: CacheUpdate + 'static,
+    Sink: Default + 'static,
 {
-    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache>) {
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache, Sink, Context>) {
         let f = Node::new_boxed(TimedFn {
             func: Some(func),
             time: add_time(&self.time, &time),
@@ -257,11 +272,12 @@ where
     }
 }
 
-impl<Cache> Sched<Cache> for Executor<Cache>
+impl<Cache, Sink, Context> Sched<Cache, Sink, Context> for Executor<Cache, Sink, Context>
 where
-    Cache: NodeCache<Cache>,
+    Cache: NodeCache<Cache, Sink, Context>,
+    Sink: Default + 'static,
 {
-    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache>) {
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache, Sink, Context>) {
         match self.cache.pop_node() {
             Some(mut n) => {
                 n.time = add_time(&self.time, &time); //XXX should we clamp above current time?
@@ -275,12 +291,17 @@ where
     }
 }
 
-impl<Cache> ExecSched<Cache> for Executor<Cache>
+impl<Cache, Sink, Context> ExecSched<Cache, Sink, Context> for Executor<Cache, Sink, Context>
 where
-    Cache: NodeCache<Cache>,
+    Cache: NodeCache<Cache, Sink, Context>,
+    Sink: Default + 'static,
 {
     fn cache(&mut self) -> &mut Cache {
         &mut self.cache
+    }
+
+    fn sink(&mut self) -> &mut Sink {
+        &mut self.sink
     }
 }
 
@@ -291,11 +312,11 @@ mod tests {
 
     #[test]
     fn can_vec() {
-        let _x: Vec<TimedFn<()>> = (0..20).map({ |_| TimedFn::default() }).collect();
+        let _x: Vec<TimedFn<(), (), ()>> = (0..20).map({ |_| TimedFn::default() }).collect();
     }
 
-    impl NodeCache<()> for () {
-        fn pop_node(&mut self) -> Option<SchedFnNode<()>> {
+    impl NodeCache<(), (), ()> for () {
+        fn pop_node(&mut self) -> Option<SchedFnNode<(), (), ()>> {
             Some(Node::new_boxed(Default::default()))
         }
     }
@@ -317,8 +338,8 @@ mod tests {
 
     #[test]
     fn fake_cache() {
-        type SImpl = Scheduler<(), (), ()>;
-        type EImpl<'a> = ExecSched<()> + 'a;
+        type SImpl = Scheduler<(), (), (), (), ()>;
+        type EImpl<'a> = ExecSched<(), (), ()> + 'a;
         let mut s = SImpl::new();
         s.spawn_helper_threads();
 
