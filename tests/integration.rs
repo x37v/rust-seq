@@ -8,21 +8,24 @@ use xnor_seq::{CacheCreate, CacheUpdate, ExecSched, Node, NodeCache, Sched, Sche
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;
 
+type TestSink = ();
+type TestContext = ();
+
 struct TestCache {
-    receiver: Receiver<SchedFnNode<TestCache>>,
+    receiver: Receiver<SchedFnNode<TestCache, TestSink, TestContext>>,
 }
 
 struct TestCacheUpdater {
-    sender: SyncSender<SchedFnNode<TestCache>>,
+    sender: SyncSender<SchedFnNode<TestCache, TestSink, TestContext>>,
 }
 
 struct TestCacheCreator {
-    sender: SyncSender<SchedFnNode<TestCache>>,
+    sender: SyncSender<SchedFnNode<TestCache, TestSink, TestContext>>,
     cache: Option<TestCache>,
 }
 
-impl NodeCache<TestCache> for TestCache {
-    fn pop_node(&mut self) -> Option<SchedFnNode<TestCache>> {
+impl NodeCache<TestCache, TestSink, TestContext> for TestCache {
+    fn pop_node(&mut self) -> Option<SchedFnNode<TestCache, TestSink, TestContext>> {
         self.receiver.try_recv().ok()
     }
 }
@@ -64,8 +67,8 @@ impl Default for TestCacheCreator {
 
 #[test]
 fn real_cache() {
-    type SImpl = Scheduler<TestCacheCreator, TestCache, TestCacheUpdater>;
-    type EImpl<'a> = ExecSched<TestCache> + 'a;
+    type SImpl = Scheduler<TestCacheCreator, TestCache, TestSink, TestContext, TestCacheUpdater>;
+    type EImpl<'a> = ExecSched<TestCache, TestSink, TestContext> + 'a;
 
     let mut s = SImpl::new();
     s.spawn_helper_threads();
@@ -77,6 +80,7 @@ fn real_cache() {
         Box::new(move |s: &mut EImpl| {
             println!("Closure in schedule");
             assert!(s.cache().pop_node().is_some());
+            assert_eq!(s.sink(), &());
             TimeResched::Relative(3)
         }),
     );
