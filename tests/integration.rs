@@ -3,30 +3,36 @@
 
 extern crate xnor_seq;
 
-use xnor_seq::{CacheCreate, CacheUpdate, ExecSched, Node, NodeCache, Sched, SchedFnNode,
-               Scheduler, TimeResched, TimeSched};
+use xnor_seq::{CacheCreate, CacheUpdate, ContextInit, ExecSched, Node, NodeCache, Sched,
+               SchedFnNode, Scheduler, TimeResched, TimeSched};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;
 
-type TestSink = ();
-type TestContext = ();
+#[derive(Debug)]
+struct TestContext;
 
 struct TestCache {
-    receiver: Receiver<SchedFnNode<TestCache, TestSink, TestContext>>,
+    receiver: Receiver<SchedFnNode<TestCache, TestContext>>,
 }
 
 struct TestCacheUpdater {
-    sender: SyncSender<SchedFnNode<TestCache, TestSink, TestContext>>,
+    sender: SyncSender<SchedFnNode<TestCache, TestContext>>,
 }
 
 struct TestCacheCreator {
-    sender: SyncSender<SchedFnNode<TestCache, TestSink, TestContext>>,
+    sender: SyncSender<SchedFnNode<TestCache, TestContext>>,
     cache: Option<TestCache>,
 }
 
-impl NodeCache<TestCache, TestSink, TestContext> for TestCache {
-    fn pop_node(&mut self) -> Option<SchedFnNode<TestCache, TestSink, TestContext>> {
+impl NodeCache<TestCache, TestContext> for TestCache {
+    fn pop_node(&mut self) -> Option<SchedFnNode<TestCache, TestContext>> {
         self.receiver.try_recv().ok()
+    }
+}
+
+impl ContextInit<TestContext> for TestContext {
+    fn with_time(_time: usize) -> TestContext {
+        TestContext
     }
 }
 
@@ -67,8 +73,8 @@ impl Default for TestCacheCreator {
 
 #[test]
 fn real_cache() {
-    type SImpl = Scheduler<TestCacheCreator, TestCache, TestSink, TestContext, TestCacheUpdater>;
-    type EImpl<'a> = ExecSched<TestCache, TestSink, TestContext> + 'a;
+    type SImpl = Scheduler<TestCacheCreator, TestCache, TestContext, TestCacheUpdater>;
+    type EImpl<'a> = ExecSched<TestCache, TestContext> + 'a;
 
     let mut s = SImpl::new();
     s.spawn_helper_threads();
@@ -80,7 +86,6 @@ fn real_cache() {
         Box::new(move |s: &mut EImpl| {
             println!("Closure in schedule");
             assert!(s.cache().pop_node().is_some());
-            assert_eq!(s.sink(), &());
             TimeResched::Relative(3)
         }),
     );
