@@ -3,8 +3,8 @@
 
 extern crate xnor_seq;
 
-use xnor_seq::{ContextInit, ExecSched, Node, NodeSrcSnk, Sched, SchedFnNode, Scheduler,
-               SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched};
+use xnor_seq::{ContextInit, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler, SrcSnkCreate,
+               SrcSnkUpdate, TimeResched, TimeSched};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;
 
@@ -24,7 +24,7 @@ struct TestSrcSnkCreator {
     src_sink: Option<TestSrcSnk>,
 }
 
-impl NodeSrcSnk<TestSrcSnk, TestContext> for TestSrcSnk {
+impl NodeSrc<TestSrcSnk, TestContext> for TestSrcSnk {
     fn pop_node(&mut self) -> Option<SchedFnNode<TestSrcSnk, TestContext>> {
         self.receiver.try_recv().ok()
     }

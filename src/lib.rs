@@ -46,7 +46,7 @@ pub trait SchedCall<SrcSnk, Context>: Send {
     ) -> TimeResched;
 }
 
-pub trait NodeSrcSnk<SrcSnk, Context> {
+pub trait NodeSrc<SrcSnk, Context> {
     fn pop_node(&mut self) -> Option<SchedFnNode<SrcSnk, Context>>;
 }
 
@@ -94,7 +94,7 @@ impl<SrcSnk, Context> Default for TimedFn<SrcSnk, Context> {
 
 pub struct Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context>,
     Context: ContextInit,
 {
     list: List<TimedFn<SrcSnk, Context>>,
@@ -108,7 +108,7 @@ where
 pub struct Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
-    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context>,
     Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
@@ -125,7 +125,7 @@ where
 impl<SrcSnkCreator, SrcSnk, Context, Update> Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
-    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context>,
     Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
@@ -202,7 +202,7 @@ where
 
 impl<SrcSnk: 'static, Context: 'static> Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrcSnk<SrcSnk, Context> + 'static,
+    SrcSnk: NodeSrc<SrcSnk, Context> + 'static,
     Context: ContextInit,
 {
     fn add_node(&mut self, node: SchedFnNode<SrcSnk, Context>) {
@@ -274,7 +274,7 @@ impl<SrcSnkCreator, SrcSnk, Context, Update> Sched<SrcSnk, Context>
     for Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
-    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context>,
     Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
@@ -289,7 +289,7 @@ where
 
 impl<SrcSnk, Context> Sched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context>,
     Context: ContextInit,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn<SrcSnk, Context>) {
@@ -308,7 +308,7 @@ where
 
 impl<SrcSnk, Context> ExecSched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context>,
     Context: ContextInit,
 {
     fn src_sink(&mut self) -> &mut SrcSnk {
@@ -330,7 +330,7 @@ mod tests {
         let _x: Vec<TimedFn<(), ()>> = (0..20).map({ |_| TimedFn::default() }).collect();
     }
 
-    impl NodeSrcSnk<(), ()> for () {
+    impl NodeSrc<(), ()> for () {
         fn pop_node(&mut self) -> Option<SchedFnNode<(), ()>> {
             Some(Node::new_boxed(Default::default()))
         }
