@@ -3,8 +3,8 @@
 
 extern crate xnor_seq;
 
-use xnor_seq::{ContextInit, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler, SrcSnkCreate,
-               SrcSnkUpdate, TimeResched, TimeSched};
+use xnor_seq::{ContextInit, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
+               SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;
 
@@ -13,20 +13,28 @@ struct TestContext;
 
 struct TestSrcSnk {
     receiver: Receiver<SchedFnNode<TestSrcSnk, TestContext>>,
+    dispose_send: SyncSender<Box<Send>>,
 }
 
 struct TestSrcSnkUpdater {
     sender: SyncSender<SchedFnNode<TestSrcSnk, TestContext>>,
+    dispose_recv: Receiver<Box<Send>>,
 }
 
 struct TestSrcSnkCreator {
-    sender: SyncSender<SchedFnNode<TestSrcSnk, TestContext>>,
+    updater: Option<TestSrcSnkUpdater>,
     src_sink: Option<TestSrcSnk>,
 }
 
 impl NodeSrc<TestSrcSnk, TestContext> for TestSrcSnk {
     fn pop_node(&mut self) -> Option<SchedFnNode<TestSrcSnk, TestContext>> {
         self.receiver.try_recv().ok()
+    }
+}
+
+impl DisposeSink for TestSrcSnk {
+    fn dispose(&mut self, item: Box<Send>) {
+        self.dispose_send.try_send(item).ok();
     }
 }
 
@@ -45,11 +53,19 @@ impl TestContext {
 impl SrcSnkUpdate for TestSrcSnkUpdater {
     fn update(&mut self) -> bool {
         loop {
+            let mut ret = None;
             let f = Node::new_boxed(Default::default());
             match self.sender.try_send(f) {
                 Ok(_) => {}
-                Err(TrySendError::Full(_)) => return true,
-                Err(TrySendError::Disconnected(_)) => return false,
+                Err(TrySendError::Full(_)) => ret = Some(true),
+                Err(TrySendError::Disconnected(_)) => ret = Some(false),
+            }
+            //ditch boxed items, letting them be dropped
+            if let Ok(_) = self.dispose_recv.try_recv() {
+                println!("got dispose");
+            }
+            if let Some(v) = ret {
+                return v;
             }
         }
     }
@@ -61,18 +77,23 @@ impl SrcSnkCreate<TestSrcSnk, TestSrcSnkUpdater> for TestSrcSnkCreator {
     }
 
     fn updater(&mut self) -> Option<TestSrcSnkUpdater> {
-        Some(TestSrcSnkUpdater {
-            sender: self.sender.clone(),
-        })
+        self.updater.take()
     }
 }
 
 impl Default for TestSrcSnkCreator {
     fn default() -> Self {
         let (sender, receiver) = sync_channel(1024);
+        let (dispose_send, dispose_recv) = sync_channel(1024);
         TestSrcSnkCreator {
-            sender: sender,
-            src_sink: Some(TestSrcSnk { receiver: receiver }),
+            updater: Some(TestSrcSnkUpdater {
+                sender,
+                dispose_recv,
+            }),
+            src_sink: Some(TestSrcSnk {
+                receiver: receiver,
+                dispose_send,
+            }),
         }
     }
 }

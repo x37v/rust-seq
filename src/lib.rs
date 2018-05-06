@@ -50,6 +50,10 @@ pub trait NodeSrc<SrcSnk, Context> {
     fn pop_node(&mut self) -> Option<SchedFnNode<SrcSnk, Context>>;
 }
 
+pub trait DisposeSink {
+    fn dispose(&mut self, item: Box<Send>);
+}
+
 pub trait SrcSnkUpdate: Send {
     fn update(&mut self) -> bool;
 }
@@ -94,21 +98,20 @@ impl<SrcSnk, Context> Default for TimedFn<SrcSnk, Context> {
 
 pub struct Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrc<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Context: ContextInit,
 {
     list: List<TimedFn<SrcSnk, Context>>,
     time: Arc<AtomicUsize>,
     receiver: Receiver<SchedFnNode<SrcSnk, Context>>,
     src_sink: SrcSnk,
-    dispose_sender: SyncSender<Box<Send>>,
     phantom_context: std::marker::PhantomData<Context>,
 }
 
 pub struct Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
-    SrcSnk: NodeSrc<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
@@ -116,8 +119,6 @@ where
     src_sink: SrcSnkCreator,
     executor: Option<Executor<SrcSnk, Context>>,
     sender: SyncSender<SchedFnNode<SrcSnk, Context>>,
-    dispose_receiver: Option<Receiver<Box<Send>>>,
-    dispose_handle: Option<thread::JoinHandle<()>>,
     src_sink_handle: Option<thread::JoinHandle<()>>,
     phantom_update: std::marker::PhantomData<Update>,
 }
@@ -125,13 +126,12 @@ where
 impl<SrcSnkCreator, SrcSnk, Context, Update> Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
-    SrcSnk: NodeSrc<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
     pub fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
-        let (dispose_sender, dispose_receiver) = sync_channel(1024);
         let mut src_sink = SrcSnkCreator::default();
         let time = Arc::new(AtomicUsize::new(0));
         Scheduler {
@@ -141,13 +141,10 @@ where
                 time: time,
                 receiver,
                 src_sink: src_sink.src_sink().unwrap(),
-                dispose_sender,
                 phantom_context: std::marker::PhantomData,
             }),
             sender,
             src_sink: src_sink,
-            dispose_receiver: Some(dispose_receiver),
-            dispose_handle: None,
             src_sink_handle: None,
             phantom_update: std::marker::PhantomData,
         }
@@ -159,26 +156,7 @@ where
 
     /// Spawn the helper threads
     pub fn spawn_helper_threads(&mut self) -> () {
-        self.spawn_dispose_thread();
         self.spawn_src_sink_thread();
-    }
-
-    /// Spawn a thread that will handle the disposing of boxed items pushed from the execution thread
-    pub fn spawn_dispose_thread(&mut self) -> () {
-        if self.dispose_handle.is_some() {
-            return;
-        }
-        let receiver = self.dispose_receiver.take().unwrap();
-        self.dispose_handle = Some(thread::spawn(move || loop {
-            let r = receiver.recv();
-            match r {
-                Err(_) => {
-                    println!("ditching dispose thread");
-                    break;
-                }
-                Ok(_) => println!("got dispose {:?}", thread::current().id()),
-            }
-        }));
     }
 
     /// Spawn a thread to fill up the src_sink so we can get objects in the execution thread
@@ -202,7 +180,7 @@ where
 
 impl<SrcSnk: 'static, Context: 'static> Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrc<SrcSnk, Context> + 'static,
+    SrcSnk: NodeSrc<SrcSnk, Context> + 'static + DisposeSink,
     Context: ContextInit,
 {
     fn add_node(&mut self, node: SchedFnNode<SrcSnk, Context>) {
@@ -226,9 +204,7 @@ where
                     reschedule.push_back(timedfn);
                 }
                 TimeResched::None => {
-                    if let Err(_) = self.dispose_sender.try_send(timedfn) {
-                        println!("XXX how to note this error??");
-                    }
+                    self.src_sink().dispose(timedfn);
                 }
             }
         }
@@ -274,7 +250,7 @@ impl<SrcSnkCreator, SrcSnk, Context, Update> Sched<SrcSnk, Context>
     for Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
-    SrcSnk: NodeSrc<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
@@ -289,7 +265,7 @@ where
 
 impl<SrcSnk, Context> Sched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrc<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Context: ContextInit,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn<SrcSnk, Context>) {
@@ -308,7 +284,7 @@ where
 
 impl<SrcSnk, Context> ExecSched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
-    SrcSnk: NodeSrc<SrcSnk, Context>,
+    SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Context: ContextInit,
 {
     fn src_sink(&mut self) -> &mut SrcSnk {
@@ -333,6 +309,12 @@ mod tests {
     impl NodeSrc<(), ()> for () {
         fn pop_node(&mut self) -> Option<SchedFnNode<(), ()>> {
             Some(Node::new_boxed(Default::default()))
+        }
+    }
+
+    impl DisposeSink for () {
+        fn dispose(&mut self, _item: Box<Send>) {
+            //drop
         }
     }
 
