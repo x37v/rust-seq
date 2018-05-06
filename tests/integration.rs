@@ -3,29 +3,29 @@
 
 extern crate xnor_seq;
 
-use xnor_seq::{CacheCreate, CacheUpdate, ContextInit, ExecSched, Node, NodeCache, Sched,
-               SchedFnNode, Scheduler, TimeResched, TimeSched};
+use xnor_seq::{ContextInit, ExecSched, Node, NodeSrcSnk, Sched, SchedFnNode, Scheduler,
+               SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;
 
 #[derive(Debug)]
 struct TestContext;
 
-struct TestCache {
-    receiver: Receiver<SchedFnNode<TestCache, TestContext>>,
+struct TestSrcSnk {
+    receiver: Receiver<SchedFnNode<TestSrcSnk, TestContext>>,
 }
 
-struct TestCacheUpdater {
-    sender: SyncSender<SchedFnNode<TestCache, TestContext>>,
+struct TestSrcSnkUpdater {
+    sender: SyncSender<SchedFnNode<TestSrcSnk, TestContext>>,
 }
 
-struct TestCacheCreator {
-    sender: SyncSender<SchedFnNode<TestCache, TestContext>>,
-    cache: Option<TestCache>,
+struct TestSrcSnkCreator {
+    sender: SyncSender<SchedFnNode<TestSrcSnk, TestContext>>,
+    src_sink: Option<TestSrcSnk>,
 }
 
-impl NodeCache<TestCache, TestContext> for TestCache {
-    fn pop_node(&mut self) -> Option<SchedFnNode<TestCache, TestContext>> {
+impl NodeSrcSnk<TestSrcSnk, TestContext> for TestSrcSnk {
+    fn pop_node(&mut self) -> Option<SchedFnNode<TestSrcSnk, TestContext>> {
         self.receiver.try_recv().ok()
     }
 }
@@ -42,7 +42,7 @@ impl TestContext {
     }
 }
 
-impl CacheUpdate for TestCacheUpdater {
+impl SrcSnkUpdate for TestSrcSnkUpdater {
     fn update(&mut self) -> bool {
         loop {
             let f = Node::new_boxed(Default::default());
@@ -55,32 +55,32 @@ impl CacheUpdate for TestCacheUpdater {
     }
 }
 
-impl CacheCreate<TestCache, TestCacheUpdater> for TestCacheCreator {
-    fn cache(&mut self) -> Option<TestCache> {
-        self.cache.take()
+impl SrcSnkCreate<TestSrcSnk, TestSrcSnkUpdater> for TestSrcSnkCreator {
+    fn src_sink(&mut self) -> Option<TestSrcSnk> {
+        self.src_sink.take()
     }
 
-    fn updater(&mut self) -> Option<TestCacheUpdater> {
-        Some(TestCacheUpdater {
+    fn updater(&mut self) -> Option<TestSrcSnkUpdater> {
+        Some(TestSrcSnkUpdater {
             sender: self.sender.clone(),
         })
     }
 }
 
-impl Default for TestCacheCreator {
+impl Default for TestSrcSnkCreator {
     fn default() -> Self {
         let (sender, receiver) = sync_channel(1024);
-        TestCacheCreator {
+        TestSrcSnkCreator {
             sender: sender,
-            cache: Some(TestCache { receiver: receiver }),
+            src_sink: Some(TestSrcSnk { receiver: receiver }),
         }
     }
 }
 
 #[test]
-fn real_cache() {
-    type SImpl = Scheduler<TestCacheCreator, TestCache, TestContext, TestCacheUpdater>;
-    type EImpl<'a> = ExecSched<TestCache, TestContext> + 'a;
+fn real_src_sink() {
+    type SImpl = Scheduler<TestSrcSnkCreator, TestSrcSnk, TestContext, TestSrcSnkUpdater>;
+    type EImpl<'a> = ExecSched<TestSrcSnk, TestContext> + 'a;
 
     let mut s = SImpl::new();
     s.spawn_helper_threads();
@@ -91,7 +91,7 @@ fn real_cache() {
         TimeSched::Absolute(0),
         Box::new(move |s: &mut EImpl, context: &mut TestContext| {
             println!("Closure in schedule");
-            assert!(s.cache().pop_node().is_some());
+            assert!(s.src_sink().pop_node().is_some());
             context.doit();
             TimeResched::Relative(3)
         }),

@@ -26,64 +26,64 @@ pub trait ContextInit {
 }
 
 //an object to be put into a schedule and called later
-pub type SchedFn<Cache, Context> = Box<SchedCall<Cache, Context>>;
+pub type SchedFn<SrcSnk, Context> = Box<SchedCall<SrcSnk, Context>>;
 
-//an object that can schedule SchedFn's and provide a Cache with the cache() method
-pub trait Sched<Cache, Context> {
-    fn schedule(&mut self, t: TimeSched, func: SchedFn<Cache, Context>);
+//an object that can schedule SchedFn's and provide a SrcSnk with the src_sink() method
+pub trait Sched<SrcSnk, Context> {
+    fn schedule(&mut self, t: TimeSched, func: SchedFn<SrcSnk, Context>);
 }
 
-pub trait ExecSched<Cache, Context>: Sched<Cache, Context> {
-    fn cache(&mut self) -> &mut Cache;
+pub trait ExecSched<SrcSnk, Context>: Sched<SrcSnk, Context> {
+    fn src_sink(&mut self) -> &mut SrcSnk;
     fn context(&mut self) -> Context;
 }
 
-pub trait SchedCall<Cache, Context>: Send {
+pub trait SchedCall<SrcSnk, Context>: Send {
     fn sched_call(
         &mut self,
-        sched: &mut ExecSched<Cache, Context>,
+        sched: &mut ExecSched<SrcSnk, Context>,
         context: &mut Context,
     ) -> TimeResched;
 }
 
-pub trait NodeCache<Cache, Context> {
-    fn pop_node(&mut self) -> Option<SchedFnNode<Cache, Context>>;
+pub trait NodeSrcSnk<SrcSnk, Context> {
+    fn pop_node(&mut self) -> Option<SchedFnNode<SrcSnk, Context>>;
 }
 
-pub trait CacheUpdate: Send {
+pub trait SrcSnkUpdate: Send {
     fn update(&mut self) -> bool;
 }
 
-pub trait CacheCreate<Cache, Update: CacheUpdate> {
-    fn cache(&mut self) -> Option<Cache>;
+pub trait SrcSnkCreate<SrcSnk, Update: SrcSnkUpdate> {
+    fn src_sink(&mut self) -> Option<SrcSnk>;
     fn updater(&mut self) -> Option<Update>;
 }
 
 //implement sched_call for any Fn that with the correct sig
 impl<
-    F: Fn(&mut ExecSched<Cache, Context>, &mut Context) -> TimeResched,
-    Cache,
+    F: Fn(&mut ExecSched<SrcSnk, Context>, &mut Context) -> TimeResched,
+    SrcSnk,
     Context: ContextInit,
-> SchedCall<Cache, Context> for F
+> SchedCall<SrcSnk, Context> for F
 where
     F: Send,
 {
     fn sched_call(
         &mut self,
-        sched: &mut ExecSched<Cache, Context>,
+        sched: &mut ExecSched<SrcSnk, Context>,
         context: &mut Context,
     ) -> TimeResched {
         (*self)(sched, context)
     }
 }
 
-pub struct TimedFn<Cache, Context> {
+pub struct TimedFn<SrcSnk, Context> {
     time: usize,
-    func: Option<SchedFn<Cache, Context>>,
+    func: Option<SchedFn<SrcSnk, Context>>,
 }
-pub type SchedFnNode<Cache, Context> = Box<xnor_llist::Node<TimedFn<Cache, Context>>>;
+pub type SchedFnNode<SrcSnk, Context> = Box<xnor_llist::Node<TimedFn<SrcSnk, Context>>>;
 
-impl<Cache, Context> Default for TimedFn<Cache, Context> {
+impl<SrcSnk, Context> Default for TimedFn<SrcSnk, Context> {
     fn default() -> Self {
         TimedFn {
             time: 0,
@@ -92,47 +92,47 @@ impl<Cache, Context> Default for TimedFn<Cache, Context> {
     }
 }
 
-pub struct Executor<Cache, Context>
+pub struct Executor<SrcSnk, Context>
 where
-    Cache: NodeCache<Cache, Context>,
+    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
     Context: ContextInit,
 {
-    list: List<TimedFn<Cache, Context>>,
+    list: List<TimedFn<SrcSnk, Context>>,
     time: Arc<AtomicUsize>,
-    receiver: Receiver<SchedFnNode<Cache, Context>>,
-    cache: Cache,
+    receiver: Receiver<SchedFnNode<SrcSnk, Context>>,
+    src_sink: SrcSnk,
     dispose_sender: SyncSender<Box<Send>>,
     phantom_context: std::marker::PhantomData<Context>,
 }
 
-pub struct Scheduler<CacheCreator, Cache, Context, Update>
+pub struct Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
-    CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache, Context>,
-    Update: CacheUpdate + 'static,
+    SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
+    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
     time: Arc<AtomicUsize>,
-    cache: CacheCreator,
-    executor: Option<Executor<Cache, Context>>,
-    sender: SyncSender<SchedFnNode<Cache, Context>>,
+    src_sink: SrcSnkCreator,
+    executor: Option<Executor<SrcSnk, Context>>,
+    sender: SyncSender<SchedFnNode<SrcSnk, Context>>,
     dispose_receiver: Option<Receiver<Box<Send>>>,
     dispose_handle: Option<thread::JoinHandle<()>>,
-    cache_handle: Option<thread::JoinHandle<()>>,
+    src_sink_handle: Option<thread::JoinHandle<()>>,
     phantom_update: std::marker::PhantomData<Update>,
 }
 
-impl<CacheCreator, Cache, Context, Update> Scheduler<CacheCreator, Cache, Context, Update>
+impl<SrcSnkCreator, SrcSnk, Context, Update> Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
-    CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache, Context>,
-    Update: CacheUpdate + 'static,
+    SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
+    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
     pub fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
         let (dispose_sender, dispose_receiver) = sync_channel(1024);
-        let mut cache = CacheCreator::default();
+        let mut src_sink = SrcSnkCreator::default();
         let time = Arc::new(AtomicUsize::new(0));
         Scheduler {
             time: time.clone(),
@@ -140,27 +140,27 @@ where
                 list: List::new(),
                 time: time,
                 receiver,
-                cache: cache.cache().unwrap(),
+                src_sink: src_sink.src_sink().unwrap(),
                 dispose_sender,
                 phantom_context: std::marker::PhantomData,
             }),
             sender,
-            cache: cache,
+            src_sink: src_sink,
             dispose_receiver: Some(dispose_receiver),
             dispose_handle: None,
-            cache_handle: None,
+            src_sink_handle: None,
             phantom_update: std::marker::PhantomData,
         }
     }
 
-    pub fn executor(&mut self) -> Option<Executor<Cache, Context>> {
+    pub fn executor(&mut self) -> Option<Executor<SrcSnk, Context>> {
         self.executor.take()
     }
 
     /// Spawn the helper threads
     pub fn spawn_helper_threads(&mut self) -> () {
         self.spawn_dispose_thread();
-        self.spawn_cache_thread();
+        self.spawn_src_sink_thread();
     }
 
     /// Spawn a thread that will handle the disposing of boxed items pushed from the execution thread
@@ -181,17 +181,17 @@ where
         }));
     }
 
-    /// Spawn a thread to fill up the cache so we can get objects in the execution thread
-    /// Note: This calls update once in the current thread in order to get the cache full
+    /// Spawn a thread to fill up the src_sink so we can get objects in the execution thread
+    /// Note: This calls update once in the current thread in order to get the src_sink full
     /// immediately
-    pub fn spawn_cache_thread(&mut self) -> () {
-        if self.cache_handle.is_some() {
+    pub fn spawn_src_sink_thread(&mut self) -> () {
+        if self.src_sink_handle.is_some() {
             return;
         }
 
-        let mut updater = self.cache.updater().unwrap();
+        let mut updater = self.src_sink.updater().unwrap();
         updater.update(); //get an initial update
-        self.cache_handle = Some(thread::spawn(move || {
+        self.src_sink_handle = Some(thread::spawn(move || {
             let sleep_time = std::time::Duration::from_millis(5);
             while updater.update() {
                 thread::sleep(sleep_time);
@@ -200,12 +200,12 @@ where
     }
 }
 
-impl<Cache: 'static, Context: 'static> Executor<Cache, Context>
+impl<SrcSnk: 'static, Context: 'static> Executor<SrcSnk, Context>
 where
-    Cache: NodeCache<Cache, Context> + 'static,
+    SrcSnk: NodeSrcSnk<SrcSnk, Context> + 'static,
     Context: ContextInit,
 {
-    fn add_node(&mut self, node: SchedFnNode<Cache, Context>) {
+    fn add_node(&mut self, node: SchedFnNode<SrcSnk, Context>) {
         self.list.insert(node, |n, o| n.time <= o.time);
     }
 
@@ -239,10 +239,10 @@ where
     }
 }
 
-impl<Cache, Context> SchedCall<Cache, Context> for TimedFn<Cache, Context> {
+impl<SrcSnk, Context> SchedCall<SrcSnk, Context> for TimedFn<SrcSnk, Context> {
     fn sched_call(
         &mut self,
-        s: &mut ExecSched<Cache, Context>,
+        s: &mut ExecSched<SrcSnk, Context>,
         context: &mut Context,
     ) -> TimeResched {
         if let Some(ref mut f) = self.func {
@@ -270,15 +270,15 @@ fn add_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
     }
 }
 
-impl<CacheCreator, Cache, Context, Update> Sched<Cache, Context>
-    for Scheduler<CacheCreator, Cache, Context, Update>
+impl<SrcSnkCreator, SrcSnk, Context, Update> Sched<SrcSnk, Context>
+    for Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
 where
-    CacheCreator: CacheCreate<Cache, Update> + Default,
-    Cache: NodeCache<Cache, Context>,
-    Update: CacheUpdate + 'static,
+    SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
+    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
+    Update: SrcSnkUpdate + 'static,
     Context: ContextInit,
 {
-    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache, Context>) {
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<SrcSnk, Context>) {
         let f = Node::new_boxed(TimedFn {
             func: Some(func),
             time: add_time(&self.time, &time),
@@ -287,13 +287,13 @@ where
     }
 }
 
-impl<Cache, Context> Sched<Cache, Context> for Executor<Cache, Context>
+impl<SrcSnk, Context> Sched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
-    Cache: NodeCache<Cache, Context>,
+    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
     Context: ContextInit,
 {
-    fn schedule(&mut self, time: TimeSched, func: SchedFn<Cache, Context>) {
-        match self.cache.pop_node() {
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<SrcSnk, Context>) {
+        match self.src_sink.pop_node() {
             Some(mut n) => {
                 n.time = add_time(&self.time, &time); //XXX should we clamp above current time?
                 n.func = Some(func);
@@ -306,13 +306,13 @@ where
     }
 }
 
-impl<Cache, Context> ExecSched<Cache, Context> for Executor<Cache, Context>
+impl<SrcSnk, Context> ExecSched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
-    Cache: NodeCache<Cache, Context>,
+    SrcSnk: NodeSrcSnk<SrcSnk, Context>,
     Context: ContextInit,
 {
-    fn cache(&mut self) -> &mut Cache {
-        &mut self.cache
+    fn src_sink(&mut self) -> &mut SrcSnk {
+        &mut self.src_sink
     }
 
     fn context(&mut self) -> Context {
@@ -330,13 +330,13 @@ mod tests {
         let _x: Vec<TimedFn<(), ()>> = (0..20).map({ |_| TimedFn::default() }).collect();
     }
 
-    impl NodeCache<(), ()> for () {
+    impl NodeSrcSnk<(), ()> for () {
         fn pop_node(&mut self) -> Option<SchedFnNode<(), ()>> {
             Some(Node::new_boxed(Default::default()))
         }
     }
 
-    impl CacheUpdate for () {
+    impl SrcSnkUpdate for () {
         fn update(&mut self) -> bool {
             true
         }
@@ -348,8 +348,8 @@ mod tests {
         }
     }
 
-    impl CacheCreate<(), ()> for () {
-        fn cache(&mut self) -> Option<()> {
+    impl SrcSnkCreate<(), ()> for () {
+        fn src_sink(&mut self) -> Option<()> {
             Some(())
         }
         fn updater(&mut self) -> Option<()> {
@@ -358,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn fake_cache() {
+    fn fake_src_sink() {
         type SImpl = Scheduler<(), (), (), ()>;
         type EImpl<'a> = ExecSched<(), ()> + 'a;
         let mut s = SImpl::new();
@@ -370,7 +370,7 @@ mod tests {
             TimeSched::Absolute(0),
             Box::new(move |s: &mut EImpl, _context: &mut ()| {
                 println!("Closure in schedule");
-                assert!(s.cache().pop_node().is_some());
+                assert!(s.src_sink().pop_node().is_some());
                 assert_eq!(s.context(), ());
                 TimeResched::Relative(3)
             }),
