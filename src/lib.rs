@@ -188,28 +188,26 @@ where
     }
 
     pub fn run(&mut self, ticks: usize) {
-        let next = self.time.load(Ordering::SeqCst) + ticks;
+        let now = self.time.load(Ordering::SeqCst);
+        let next = now + ticks;
 
         //grab new nodes
         while let Ok(n) = self.receiver.try_recv() {
             self.add_node(n);
         }
 
-        let mut reschedule = List::new();
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
-            let mut context = Context::with_time(0);
+            let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
+            let mut context = Context::with_time(current);
             match timedfn.sched_call(self, &mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
-                    timedfn.time = timedfn.time + time;
-                    reschedule.push_back(timedfn);
+                    timedfn.time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
+                    self.add_node(timedfn);
                 }
                 TimeResched::None => {
                     self.src_sink().dispose(timedfn);
                 }
             }
-        }
-        for n in reschedule.into_iter() {
-            self.add_node(n);
         }
         self.time.store(next, Ordering::SeqCst);
     }
