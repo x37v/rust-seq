@@ -11,6 +11,8 @@ use sched::{
 use sched_tree::Clock;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug)]
 struct TestContext {
@@ -118,12 +120,16 @@ fn real_src_sink() {
 
     let e = s.executor();
     assert!(e.is_some());
+    let period = Arc::new(AtomicUsize::new(1));
+    let pc = period.clone();
     s.schedule(
         TimeSched::Absolute(0),
         Box::new(Clock::new(
-            128,
+            period,
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
-                println!("Clocked Closure in schedule: {}", context.now());
+                let p = pc.load(Ordering::SeqCst);
+                println!("Clocked Closure in schedule: {}, period {}", context.now(), p);
+                pc.store(p * 2, Ordering::SeqCst);
                 if context.now() < 700 {
                     TimeResched::Relative(0)
                 } else {
