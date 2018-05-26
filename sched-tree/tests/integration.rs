@@ -124,7 +124,12 @@ fn real_src_sink() {
             128,
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
                 println!("Clocked Closure in schedule: {}", context.now());
-                TimeResched::Relative(0)
+                if context.now() < 700 {
+                    TimeResched::Relative(0)
+                } else {
+                    println!("UNSCHED");
+                    TimeResched::None
+                }
             }),
         )),
     );
