@@ -6,7 +6,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sched-tree"
+name = "sched_tree"
 version = "0.1.0"
 dependencies = [
  "sched 0.1.0",
