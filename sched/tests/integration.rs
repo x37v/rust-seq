@@ -1,9 +1,9 @@
 #![feature(specialization)]
 #![feature(nll)]
 
-extern crate xnor_seq;
+extern crate sched;
 
-use xnor_seq::{ContextInit, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
+use sched::{ContextInit, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
                SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;

@@ -1,5 +1,5 @@
 [package]
-name = "xnor_seq"
+name = "sched"
 version = "0.1.0"
 authors = ["Alex Norman <alex@x37v.info>"]
 
