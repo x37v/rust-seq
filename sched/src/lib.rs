@@ -21,8 +21,9 @@ pub enum TimeResched {
     None,
 }
 
-pub trait ContextInit {
+pub trait ContextBase {
     fn with_time(time: usize, ticks_per_second: usize) -> Self;
+    fn ticks_per_second(&self) -> usize;
 }
 
 //an object to be put into a schedule and called later
@@ -67,7 +68,7 @@ pub trait SrcSnkCreate<SrcSnk, Update: SrcSnkUpdate> {
 impl<
     F: Fn(&mut ExecSched<SrcSnk, Context>, &mut Context) -> TimeResched,
     SrcSnk,
-    Context: ContextInit,
+    Context: ContextBase,
 > SchedCall<SrcSnk, Context> for F
 where
     F: Send,
@@ -99,7 +100,7 @@ impl<SrcSnk, Context> Default for TimedFn<SrcSnk, Context> {
 pub struct Executor<SrcSnk, Context>
 where
     SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
-    Context: ContextInit,
+    Context: ContextBase,
 {
     list: List<TimedFn<SrcSnk, Context>>,
     time: Arc<AtomicUsize>,
@@ -113,7 +114,7 @@ where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
     SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Update: SrcSnkUpdate + 'static,
-    Context: ContextInit,
+    Context: ContextBase,
 {
     time: Arc<AtomicUsize>,
     src_sink: SrcSnkCreator,
@@ -128,7 +129,7 @@ where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
     SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Update: SrcSnkUpdate + 'static,
-    Context: ContextInit,
+    Context: ContextBase,
 {
     pub fn new() -> Self {
         let (sender, receiver) = sync_channel(1024);
@@ -181,7 +182,7 @@ where
 impl<SrcSnk: 'static, Context: 'static> Executor<SrcSnk, Context>
 where
     SrcSnk: NodeSrc<SrcSnk, Context> + 'static + DisposeSink,
-    Context: ContextInit,
+    Context: ContextBase,
 {
     fn add_node(&mut self, node: SchedFnNode<SrcSnk, Context>) {
         self.list.insert(node, |n, o| n.time <= o.time);
@@ -250,7 +251,7 @@ where
     SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
     SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
     Update: SrcSnkUpdate + 'static,
-    Context: ContextInit,
+    Context: ContextBase,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn<SrcSnk, Context>) {
         let f = Node::new_boxed(TimedFn {
@@ -264,7 +265,7 @@ where
 impl<SrcSnk, Context> Sched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
     SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
-    Context: ContextInit,
+    Context: ContextBase,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn<SrcSnk, Context>) {
         match self.src_sink.pop_node() {
@@ -283,7 +284,7 @@ where
 impl<SrcSnk, Context> ExecSched<SrcSnk, Context> for Executor<SrcSnk, Context>
 where
     SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
-    Context: ContextInit,
+    Context: ContextBase,
 {
     fn src_sink(&mut self) -> &mut SrcSnk {
         &mut self.src_sink
@@ -322,7 +323,7 @@ mod tests {
         }
     }
 
-    impl ContextInit for () {
+    impl ContextBase for () {
         fn with_time(_time: usize, _ticks_per_second: usize) -> () {
             ()
         }
