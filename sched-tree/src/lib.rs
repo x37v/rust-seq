@@ -23,7 +23,7 @@ impl<SrcSnk, Context: ContextBase> SchedCall<SrcSnk, Context> for Clock<SrcSnk, 
 }
 
 impl<SrcSnk, Context> Clock<SrcSnk, Context> {
-    pub fn new(period_micros: Arc<AtomicUsize>, sched: SchedFn<SrcSnk, Context>) -> Self {
+    pub fn new_micros(period_micros: Arc<AtomicUsize>, sched: SchedFn<SrcSnk, Context>) -> Self {
         Clock { period_micros, sched }
     }
 }

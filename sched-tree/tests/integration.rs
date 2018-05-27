@@ -126,7 +126,7 @@ fn real_src_sink() {
     let pc = period.clone();
     s.schedule(
         TimeSched::Absolute(0),
-        Box::new(Clock::new(
+        Box::new(Clock::new_micros(
             period,
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
                 let p = pc.load(Ordering::SeqCst);
