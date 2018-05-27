@@ -132,7 +132,7 @@ fn real_src_sink() {
                 let p = pc.load(Ordering::SeqCst);
                 println!("Clocked Closure in schedule: {}, period {}", context.now(), p);
                 pc.store(p + 1_000, Ordering::SeqCst);
-                if context.now() < 700 {
+                if context.now() < 441000 {
                     TimeResched::Relative(0)
                 } else {
                     println!("UNSCHED");
