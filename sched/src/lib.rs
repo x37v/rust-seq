@@ -22,7 +22,7 @@ pub enum TimeResched {
 }
 
 pub trait ContextInit {
-    fn with_time(time: usize) -> Self;
+    fn with_time(time: usize, ticks_per_second: usize) -> Self;
 }
 
 //an object to be put into a schedule and called later
@@ -187,7 +187,7 @@ where
         self.list.insert(node, |n, o| n.time <= o.time);
     }
 
-    pub fn run(&mut self, ticks: usize) {
+    pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
         let now = self.time.load(Ordering::SeqCst);
         let next = now + ticks;
 
@@ -198,7 +198,7 @@ where
 
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
-            let mut context = Context::with_time(current);
+            let mut context = Context::with_time(current, ticks_per_second);
             match timedfn.sched_call(self, &mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
@@ -290,7 +290,7 @@ where
     }
 
     fn context(&mut self) -> Context {
-        Context::with_time(0)
+        Context::with_time(0, 0)
     }
 }
 
@@ -323,7 +323,7 @@ mod tests {
     }
 
     impl ContextInit for () {
-        fn with_time(_time: usize) -> () {
+        fn with_time(_time: usize, _ticks_per_second: usize) -> () {
             ()
         }
     }
@@ -358,8 +358,8 @@ mod tests {
 
         let child = thread::spawn(move || {
             let mut e = e.unwrap();
-            e.run(32);
-            e.run(32);
+            e.run(32, 44100);
+            e.run(32, 44100);
         });
 
         assert!(child.join().is_ok());

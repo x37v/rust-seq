@@ -39,7 +39,7 @@ impl DisposeSink for TestSrcSnk {
 }
 
 impl ContextInit for TestContext {
-    fn with_time(_time: usize) -> TestContext {
+    fn with_time(_time: usize, _ticks_per_second: usize) -> TestContext {
         TestContext
     }
 }
@@ -120,8 +120,8 @@ fn real_src_sink() {
 
     let child = thread::spawn(move || {
         let mut e = e.unwrap();
-        e.run(32);
-        e.run(32);
+        e.run(32, 44100);
+        e.run(32, 44100);
     });
 
     assert!(child.join().is_ok());

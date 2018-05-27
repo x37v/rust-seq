@@ -17,6 +17,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug)]
 struct TestContext {
     time: usize,
+    ticks_per_second: usize
 }
 
 struct TestSrcSnk {
@@ -47,8 +48,8 @@ impl DisposeSink for TestSrcSnk {
 }
 
 impl ContextInit for TestContext {
-    fn with_time(time: usize) -> TestContext {
-        TestContext { time }
+    fn with_time(time: usize, ticks_per_second: usize) -> TestContext {
+        TestContext { time, ticks_per_second }
     }
 }
 
@@ -142,7 +143,7 @@ fn real_src_sink() {
 
     let child = thread::spawn(move || {
         let mut e = e.unwrap();
-        e.run(1024);
+        e.run(1024, 44100);
     });
 
     assert!(child.join().is_ok());
