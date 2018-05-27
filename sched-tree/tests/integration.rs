@@ -5,7 +5,7 @@ extern crate sched;
 extern crate sched_tree;
 
 use sched::{
-    ContextInit, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
+    ContextBase, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
     SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched,
 };
 use sched_tree::Clock;
@@ -47,10 +47,11 @@ impl DisposeSink for TestSrcSnk {
     }
 }
 
-impl ContextInit for TestContext {
+impl ContextBase for TestContext {
     fn with_time(time: usize, ticks_per_second: usize) -> TestContext {
         TestContext { time, ticks_per_second }
     }
+    fn ticks_per_second(&self) -> usize { self.ticks_per_second }
 }
 
 impl TestContext {
@@ -121,7 +122,7 @@ fn real_src_sink() {
 
     let e = s.executor();
     assert!(e.is_some());
-    let period = Arc::new(AtomicUsize::new(1));
+    let period = Arc::new(AtomicUsize::new(5_000));
     let pc = period.clone();
     s.schedule(
         TimeSched::Absolute(0),
@@ -130,7 +131,7 @@ fn real_src_sink() {
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
                 let p = pc.load(Ordering::SeqCst);
                 println!("Clocked Closure in schedule: {}, period {}", context.now(), p);
-                pc.store(p * 2, Ordering::SeqCst);
+                pc.store(p + 1_000, Ordering::SeqCst);
                 if context.now() < 700 {
                     TimeResched::Relative(0)
                 } else {
@@ -143,7 +144,9 @@ fn real_src_sink() {
 
     let child = thread::spawn(move || {
         let mut e = e.unwrap();
-        e.run(1024, 44100);
+        for _ in (1..100) {
+            e.run(44100, 44100);
+        }
     });
 
     assert!(child.join().is_ok());
