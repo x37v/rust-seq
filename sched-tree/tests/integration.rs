@@ -9,15 +9,15 @@ use sched::{
     SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched,
 };
 use sched_tree::Clock;
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
-use std::thread;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
+use std::sync::Arc;
+use std::thread;
 
 #[derive(Debug)]
 struct TestContext {
     time: usize,
-    ticks_per_second: usize
+    ticks_per_second: usize,
 }
 
 struct TestSrcSnk {
@@ -49,9 +49,14 @@ impl DisposeSink for TestSrcSnk {
 
 impl ContextBase for TestContext {
     fn with_time(time: usize, ticks_per_second: usize) -> TestContext {
-        TestContext { time, ticks_per_second }
+        TestContext {
+            time,
+            ticks_per_second,
+        }
     }
-    fn ticks_per_second(&self) -> usize { self.ticks_per_second }
+    fn ticks_per_second(&self) -> usize {
+        self.ticks_per_second
+    }
 }
 
 impl TestContext {
@@ -124,13 +129,29 @@ fn real_src_sink() {
     assert!(e.is_some());
     let period = Arc::new(AtomicUsize::new(5_000));
     let pc = period.clone();
+
+    /*
+    let (ctl, clk) = Clock::new(10_000,
+            Box::new(move |s: &mut EImpl, context: &mut TestContext| {
+                println!("BLASDF");
+                TimeResched::Relative(0)
+            })
+    );
+
+    s.schedule(TimeSched::Absolute(10_000), Box::new(clk));
+    */
+
     s.schedule(
         TimeSched::Absolute(0),
         Box::new(Clock::new_micros(
             period,
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
                 let p = pc.load(Ordering::SeqCst);
-                println!("Clocked Closure in schedule: {}, period {}", context.now(), p);
+                println!(
+                    "Clocked Closure in schedule: {}, period {}",
+                    context.now(),
+                    p
+                );
                 pc.store(p + 1_000, Ordering::SeqCst);
                 if context.now() < 441000 {
                     TimeResched::Relative(0)
