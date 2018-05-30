@@ -130,16 +130,20 @@ fn real_src_sink() {
     let period = Arc::new(AtomicUsize::new(5_000));
     let pc = period.clone();
 
-    /*
-    let (ctl, clk) = Clock::new(10_000,
+    let (mut ctl, clk) = Clock::new(10_000,
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
-                println!("BLASDF");
-                TimeResched::Relative(0)
+                println!("controlled {}", context.now());
+                if context.now() < 1_000_000 {
+                    TimeResched::Relative(0)
+                } else {
+                    TimeResched::None
+                }
             })
     );
 
     s.schedule(TimeSched::Absolute(10_000), Box::new(clk));
-    */
+
+    ctl.set_period(1_000_000);
 
     s.schedule(
         TimeSched::Absolute(0),

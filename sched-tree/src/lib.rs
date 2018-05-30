@@ -13,6 +13,12 @@ pub struct ClockControl {
     period_micros: Arc<AtomicUsize>,
 }
 
+impl ClockControl {
+    pub fn set_period(&self, micros: usize) {
+        self.period_micros.store(micros, Ordering::SeqCst);
+    }
+}
+
 pub struct BPMClock {
     clock_tick: usize,
     ticks_per_beat: usize, //AKA PPQ/TPQN
