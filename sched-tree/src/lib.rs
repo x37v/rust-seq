@@ -83,7 +83,7 @@ impl BPMClock {
         self.clock_tick = tick;
     }
 
-    fn set_pos(&mut self, pos: MeasureBeatTick) {
+    fn set_pos(&mut self, pos: &MeasureBeatTick) {
         self.clock_tick = pos.measure() * self.ticks_per_beat * self.beats_per_measure
             + pos.beat() * self.ticks_per_beat
             + pos.tick();
