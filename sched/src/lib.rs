@@ -139,13 +139,13 @@ where
             time: time.clone(),
             executor: Some(Executor {
                 list: List::new(),
-                time: time,
+                time,
                 receiver,
                 src_sink: src_sink.src_sink().unwrap(),
                 phantom_context: std::marker::PhantomData,
             }),
             sender,
-            src_sink: src_sink,
+            src_sink,
             src_sink_handle: None,
             phantom_update: std::marker::PhantomData,
         }
@@ -237,9 +237,9 @@ fn add_clamped(u: usize, i: isize) -> usize {
 }
 
 fn add_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
-    match time {
-        &TimeSched::Absolute(t) | &TimeSched::ContextAbsolute(t) => t,
-        &TimeSched::Relative(t) | &TimeSched::ContextRelative(t) => {
+    match *time {
+        TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
+        TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
             add_clamped(current.load(Ordering::SeqCst), t)
         }
     }
