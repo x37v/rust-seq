@@ -186,14 +186,14 @@ mod tests {
         clock.set_ticks(1920 * 2 + 960 + 2);
         assert_eq!((1, 1, 2), clock.pos().into());
 
-        clock.set_pos((0, 1, 2).into());
+        clock.set_pos(&((0, 1, 2).into()));
         assert_eq!((0, 1, 2), clock.pos().into());
 
         //overflows
-        clock.set_pos((0, 4, 959).into());
+        clock.set_pos(&((0, 4, 959).into()));
         assert_eq!((1, 0, 959), clock.pos().into());
 
-        clock.set_pos((0, 4, 962).into());
+        clock.set_pos(&((0, 4, 962).into()));
         assert_eq!((1, 1, 2), clock.pos().into());
 
         assert_eq!(MeasureBeatTick::from((1, 1, 2)), clock.pos());
