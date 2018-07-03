@@ -130,7 +130,7 @@ fn real_src_sink() {
     let period = Arc::new(AtomicUsize::new(5_000));
     let pc = period.clone();
 
-    let (mut ctl, clk) = Clock::new(10_000,
+    let (ctl, clk) = Clock::new(10_000,
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
                 println!("controlled {}", context.now());
                 if context.now() < 1_000_000 {
