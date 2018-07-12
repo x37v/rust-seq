@@ -3,7 +3,6 @@ extern crate spinlock;
 
 use sched::{ContextBase, ExecSched, SchedCall, SchedFn, TimeResched};
 use std::cell::Cell;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 pub struct ParamBinding<T: Copy> {
