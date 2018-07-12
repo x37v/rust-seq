@@ -2,50 +2,37 @@ extern crate sched;
 extern crate spinlock;
 
 use sched::{ContextBase, ExecSched, SchedCall, SchedFn, TimeResched};
+use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::cell::Cell;
 
 pub struct ParamBinding<T: Copy> {
-    lock: spinlock::Mutex<Cell<T>>
+    lock: spinlock::Mutex<Cell<T>>,
 }
 
 impl<T: Copy> ParamBinding<T> {
-    fn new(value: T) -> Self {
+    pub fn new(value: T) -> Self {
         ParamBinding {
-            lock: spinlock::Mutex::new(Cell::new(value))
+            lock: spinlock::Mutex::new(Cell::new(value)),
         }
     }
 
-    fn set(&self, value: T) {
+    pub fn set(&self, value: T) {
         self.lock.lock().set(value);
     }
 
-    fn get(&self) -> T {
+    pub fn get(&self) -> T {
         self.lock.lock().get()
     }
 }
 
+type FloatBinding = Arc<ParamBinding<f64>>;
+
 pub struct Clock<SrcSnk, Context> {
-    period_micros: Arc<AtomicUsize>,
+    tick: usize,
+    tick_sub: f64,
+    period_micros: FloatBinding,
     sched: SchedFn<SrcSnk, Context>,
-}
-
-pub struct ClockControl {
-    period_micros: Arc<AtomicUsize>,
-}
-
-impl ClockControl {
-    pub fn set_period(&self, micros: usize) {
-        self.period_micros.store(micros, Ordering::SeqCst);
-    }
-}
-
-pub struct BPMClock {
-    clock_tick: usize,
-    ticks_per_beat: usize, //AKA PPQ/TPQN
-    beats_per_measure: usize,
-    beats_per_minute: f32,
 }
 
 #[derive(Debug, PartialEq)]
@@ -91,85 +78,40 @@ impl Into<(usize, usize, usize)> for MeasureBeatTick {
     }
 }
 
-impl BPMClock {
-    fn new() -> Self {
-        BPMClock {
-            clock_tick: 0,
-            ticks_per_beat: 960,
-            beats_per_measure: 4,
-            beats_per_minute: 120.0,
-        }
-    }
-
-    fn set_ticks(&mut self, tick: usize) {
-        self.clock_tick = tick;
-    }
-
-    fn set_pos(&mut self, pos: &MeasureBeatTick) {
-        self.clock_tick = pos.measure() * self.ticks_per_beat * self.beats_per_measure
-            + pos.beat() * self.ticks_per_beat
-            + pos.tick();
-    }
-
-    fn bpm(&mut self, value: f32) {
-        self.beats_per_minute = value;
-    }
-
-    fn ppq(&self) -> usize {
-        self.ticks_per_beat
-    }
-
-    fn micros_per_tick(&self) -> f32 {
-        (60e6 as f64 / (self.ticks_per_beat as f64 * self.beats_per_minute as f64)) as f32
-    }
-
-    //measure, beat, tick
-    fn pos(&self) -> MeasureBeatTick {
-        let ticks_per_measure = self.ticks_per_beat * self.beats_per_measure;
-        let measure = self.clock_tick / ticks_per_measure;
-
-        let rem = self.clock_tick - ticks_per_measure * measure;
-        let beat = rem / self.ticks_per_beat;
-
-        let tick = rem - beat * self.ticks_per_beat;
-
-        MeasureBeatTick::new(measure, beat, tick)
-    }
-}
-
 impl<SrcSnk, Context: ContextBase> SchedCall<SrcSnk, Context> for Clock<SrcSnk, Context> {
     fn sched_call(
         &mut self,
         s: &mut ExecSched<SrcSnk, Context>,
         context: &mut Context,
     ) -> TimeResched {
-        match self.sched.sched_call(s, context) {
+        assert!(
+            context.ticks_per_second() > 0,
+            "need ticks greater than zero"
+        );
+        let mut child_context = Context::with_time(self.tick, 0); //XXX ticks per second?
+        match self.sched.sched_call(s, &mut child_context) {
             TimeResched::None => TimeResched::None,
-            _ => TimeResched::ContextRelative(std::cmp::max(
-                1,
-                (self.period_micros.load(Ordering::SeqCst) * context.ticks_per_second())
-                    / 1_000_000usize,
-            )),
+            _ => {
+                let next = self.tick_sub
+                    + (context.ticks_per_second() as f64 * self.period_micros.get()) / 1_000_000f64;
+                self.tick_sub = next.fract();
+                self.tick += 1;
+                //XXX what if next is less than 1?
+                assert!(next >= 1f64, "tick less than sample size not supported");
+                TimeResched::ContextRelative(std::cmp::max(1, next.floor() as usize))
+            }
         }
     }
 }
 
 impl<SrcSnk, Context> Clock<SrcSnk, Context> {
-    pub fn new_micros(period_micros: Arc<AtomicUsize>, sched: SchedFn<SrcSnk, Context>) -> Self {
+    pub fn new(period_micros: FloatBinding, sched: SchedFn<SrcSnk, Context>) -> Self {
         Clock {
             period_micros,
             sched,
+            tick: 0,
+            tick_sub: 0f64,
         }
-    }
-
-    pub fn new(period_micros: usize, sched: SchedFn<SrcSnk, Context>) -> (ClockControl, Self) {
-        let a = Arc::new(AtomicUsize::new(period_micros));
-        (
-            ClockControl {
-                period_micros: a.clone(),
-            },
-            Self::new_micros(a, sched),
-        )
     }
 }
 
@@ -206,6 +148,7 @@ mod tests {
 
     #[test]
     fn it_works() {
+        /*
         let mut clock = BPMClock::new();
         println!("{}", clock.micros_per_tick());
 
@@ -247,5 +190,6 @@ mod tests {
 
         assert_eq!(MeasureBeatTick::from((1, 1, 2)), clock.pos());
         assert_eq!((1, 1, 2), clock.pos().into());
+        */
     }
 }

@@ -8,7 +8,7 @@ use sched::{
     ContextBase, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
     SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched,
 };
-use sched_tree::Clock;
+use sched_tree::{Clock, ParamBinding};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
@@ -127,37 +127,37 @@ fn real_src_sink() {
 
     let e = s.executor();
     assert!(e.is_some());
-    let period = Arc::new(AtomicUsize::new(5_000));
-    let pc = period.clone();
 
-    let (ctl, clk) = Clock::new(10_000,
-            Box::new(move |s: &mut EImpl, context: &mut TestContext| {
-                println!("controlled {}", context.now());
-                if context.now() < 1_000_000 {
-                    TimeResched::Relative(0)
-                } else {
-                    TimeResched::None
-                }
-            })
+    let period = Arc::new(ParamBinding::new(234f64));
+    let clk = Clock::new(
+        period.clone(),
+        Box::new(move |s: &mut EImpl, context: &mut TestContext| {
+            println!("controlled {}", context.now());
+            if context.now() < 40 {
+                TimeResched::Relative(0)
+            } else {
+                TimeResched::None
+            }
+        }),
     );
 
-    s.schedule(TimeSched::Absolute(10_000), Box::new(clk));
-
-    ctl.set_period(1_000_000);
+    period.set(100f64);
+    s.schedule(TimeSched::Absolute(0), Box::new(clk));
+    let pc = period.clone();
 
     s.schedule(
-        TimeSched::Absolute(0),
-        Box::new(Clock::new_micros(
-            period,
+        TimeSched::Absolute(1),
+        Box::new(Clock::new(
+            period.clone(),
             Box::new(move |s: &mut EImpl, context: &mut TestContext| {
-                let p = pc.load(Ordering::SeqCst);
+                let p = pc.get();
                 println!(
                     "Clocked Closure in schedule: {}, period {}",
                     context.now(),
                     p
                 );
-                pc.store(p + 1_000, Ordering::SeqCst);
-                if context.now() < 441000 {
+                pc.set(p + 1_000.0);
+                if context.now() < 20 {
                     TimeResched::Relative(0)
                 } else {
                     println!("UNSCHED");
