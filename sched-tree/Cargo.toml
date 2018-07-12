@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Alex Norman <alex@x37v.info>"]
 
 [dependencies]
+spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop" }
 
 [dependencies.sched]
 path = "../sched"

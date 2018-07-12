@@ -1,8 +1,30 @@
 extern crate sched;
+extern crate spinlock;
 
 use sched::{ContextBase, ExecSched, SchedCall, SchedFn, TimeResched};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::cell::Cell;
+
+pub struct ParamBinding<T: Copy> {
+    lock: spinlock::Mutex<Cell<T>>
+}
+
+impl<T: Copy> ParamBinding<T> {
+    fn new(value: T) -> Self {
+        ParamBinding {
+            lock: spinlock::Mutex::new(Cell::new(value))
+        }
+    }
+
+    fn set(&self, value: T) {
+        self.lock.lock().set(value);
+    }
+
+    fn get(&self) -> T {
+        self.lock.lock().get()
+    }
+}
 
 pub struct Clock<SrcSnk, Context> {
     period_micros: Arc<AtomicUsize>,
@@ -154,6 +176,33 @@ impl<SrcSnk, Context> Clock<SrcSnk, Context> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
+
+    #[test]
+    fn param() {
+        let x = ParamBinding::new(234);
+        assert_eq!(234, x.get());
+        x.set(3040);
+        assert_eq!(3040, x.get());
+
+        let mut r = Arc::new(ParamBinding::new(234));
+        assert_eq!(234, r.get());
+        r.set(3040);
+        assert_eq!(3040, r.get());
+
+        //clone gets updates
+        let mut c = r.clone();
+        assert_eq!(3040, c.get());
+        r.set(3041);
+        assert_eq!(3041, c.get());
+        assert_eq!(3041, r.get());
+
+        let child = thread::spawn(move || {
+            c.set(2084);
+        });
+        assert!(child.join().is_ok());
+        assert_eq!(2084, r.get());
+    }
 
     #[test]
     fn it_works() {

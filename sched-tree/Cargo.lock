@@ -10,7 +10,13 @@ name = "sched_tree"
 version = "0.1.0"
 dependencies = [
  "sched 0.1.0",
+ "spinlock 0.1.1 (git+https://github.com/x37v/rust-spinlock-mutex?branch=develop)",
 ]
+
+[[package]]
+name = "spinlock"
+version = "0.1.1"
+source = "git+https://github.com/x37v/rust-spinlock-mutex?branch=develop#febbe6d1878c4975770b6b9852b5b80a1762d844"
 
 [[package]]
 name = "xnor_llist"
@@ -18,4 +24,5 @@ version = "0.1.0"
 source = "git+https://github.com/x37v/rust-llist?branch=develop#e2eaaccd6467f9ca4b0546bd623cacd513f42316"
 
 [metadata]
+"checksum spinlock 0.1.1 (git+https://github.com/x37v/rust-spinlock-mutex?branch=develop)" = "<none>"
 "checksum xnor_llist 0.1.0 (git+https://github.com/x37v/rust-llist?branch=develop)" = "<none>"
