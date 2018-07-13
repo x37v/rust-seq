@@ -25,6 +25,7 @@ pub trait ContextBase {
     fn from_root(tick: usize, ticks_per_second: usize) -> Self;
     fn from_parent<T: ContextBase>(parent: &T) -> Self;
     fn with_tick<T: ContextBase>(tick: usize, parent: &T) -> Self;
+    fn tick(&self) -> usize;
     fn ticks_per_second(&self) -> Option<usize>;
 }
 
@@ -348,6 +349,9 @@ mod tests {
         }
         fn with_tick<T: ContextBase>(_tick: usize, _parent: &T) -> Self {
             ()
+        }
+        fn tick(&self) -> usize {
+            0
         }
         fn ticks_per_second(&self) -> Option<usize> {
             None

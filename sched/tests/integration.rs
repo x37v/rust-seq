@@ -50,6 +50,9 @@ impl ContextBase for TestContext {
     fn with_tick<T: ContextBase>(_tick: usize, _parent: &T) -> Self {
         TestContext
     }
+    fn tick(&self) -> usize {
+        0
+    }
     fn ticks_per_second(&self) -> Option<usize> {
         Some(44100)
     }
