@@ -3,8 +3,10 @@
 
 extern crate sched;
 
-use sched::{ContextBase, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
-               SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched};
+use sched::{
+    ContextBase, DisposeSink, ExecSched, Node, NodeSrc, Sched, SchedFnNode, Scheduler,
+    SrcSnkCreate, SrcSnkUpdate, TimeResched, TimeSched,
+};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::thread;
 
@@ -39,11 +41,17 @@ impl DisposeSink for TestSrcSnk {
 }
 
 impl ContextBase for TestContext {
-    fn with_time(_time: usize, _ticks_per_second: usize) -> TestContext {
+    fn from_root(_tick: usize, _ticks_per_second: usize) -> Self {
         TestContext
     }
-    fn ticks_per_second(&self) -> usize {
-        44100
+    fn from_parent<T: ContextBase>(_parent: &T) -> Self {
+        TestContext
+    }
+    fn with_tick<T: ContextBase>(_tick: usize, _parent: &T) -> Self {
+        TestContext
+    }
+    fn ticks_per_second(&self) -> Option<usize> {
+        Some(44100)
     }
 }
 
