@@ -3,10 +3,10 @@ pub extern crate xnor_llist;
 
 pub use xnor_llist::{List, Node};
 
-use std::thread;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::Arc;
+use std::thread;
 
 pub enum TimeSched {
     Absolute(usize),
@@ -22,8 +22,10 @@ pub enum TimeResched {
 }
 
 pub trait ContextBase {
-    fn with_time(time: usize, ticks_per_second: usize) -> Self;
-    fn ticks_per_second(&self) -> usize;
+    fn from_root(tick: usize, ticks_per_second: usize) -> Self;
+    fn from_parent<T: ContextBase>(parent: &T) -> Self;
+    fn with_tick<T: ContextBase>(tick: usize, parent: &T) -> Self;
+    fn ticks_per_second(&self) -> Option<usize>;
 }
 
 //an object to be put into a schedule and called later
@@ -66,10 +68,10 @@ pub trait SrcSnkCreate<SrcSnk, Update: SrcSnkUpdate> {
 
 //implement sched_call for any Fn that with the correct sig
 impl<
-    F: Fn(&mut ExecSched<SrcSnk, Context>, &mut Context) -> TimeResched,
-    SrcSnk,
-    Context: ContextBase,
-> SchedCall<SrcSnk, Context> for F
+        F: Fn(&mut ExecSched<SrcSnk, Context>, &mut Context) -> TimeResched,
+        SrcSnk,
+        Context: ContextBase,
+    > SchedCall<SrcSnk, Context> for F
 where
     F: Send,
 {
@@ -179,6 +181,19 @@ where
     }
 }
 
+impl<SrcSnkCreator, SrcSnk, Context, Update> Default
+    for Scheduler<SrcSnkCreator, SrcSnk, Context, Update>
+where
+    SrcSnkCreator: SrcSnkCreate<SrcSnk, Update> + Default,
+    SrcSnk: NodeSrc<SrcSnk, Context> + DisposeSink,
+    Update: SrcSnkUpdate + 'static,
+    Context: ContextBase,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<SrcSnk: 'static, Context: 'static> Executor<SrcSnk, Context>
 where
     SrcSnk: NodeSrc<SrcSnk, Context> + 'static + DisposeSink,
@@ -199,7 +214,7 @@ where
 
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
-            let mut context = Context::with_time(current, ticks_per_second);
+            let mut context = Context::from_root(current, ticks_per_second);
             match timedfn.sched_call(self, &mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
@@ -291,7 +306,7 @@ where
     }
 
     fn context(&mut self) -> Context {
-        Context::with_time(0, 0)
+        Context::from_root(0, 0)
     }
 }
 
@@ -324,8 +339,18 @@ mod tests {
     }
 
     impl ContextBase for () {
-        fn with_time(_time: usize, _ticks_per_second: usize) -> () {
+        fn from_root(_tick: usize, _ticks_per_second: usize) -> Self {
             ()
+        }
+
+        fn from_parent<T: ContextBase>(_parent: &T) -> Self {
+            ()
+        }
+        fn with_tick<T: ContextBase>(_tick: usize, _parent: &T) -> Self {
+            ()
+        }
+        fn ticks_per_second(&self) -> Option<usize> {
+            None
         }
     }
 
