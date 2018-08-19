@@ -75,6 +75,7 @@ where
     }
 }
 
+/*
 #[derive(Debug, PartialEq)]
 pub struct MeasureBeatTick {
     measure: usize,
@@ -117,6 +118,7 @@ impl Into<(usize, usize, usize)> for MeasureBeatTick {
         (self.measure, self.beat, self.tick)
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
