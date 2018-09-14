@@ -16,7 +16,7 @@ use std::thread;
 
 #[derive(Debug)]
 struct TestContext {
-    time: usize,
+    tick: usize,
     ticks_per_second: usize,
 }
 
@@ -48,14 +48,33 @@ impl DisposeSink for TestSrcSnk {
 }
 
 impl ContextBase for TestContext {
-    fn with_time(time: usize, ticks_per_second: usize) -> TestContext {
+    fn from_root(tick: usize, ticks_per_second: usize) -> Self {
         TestContext {
-            time,
+            tick,
             ticks_per_second,
         }
     }
-    fn ticks_per_second(&self) -> usize {
-        self.ticks_per_second
+    fn from_parent<T: ContextBase>(parent: &T) -> Self {
+        TestContext {
+            tick: parent.tick(),
+            ticks_per_second: 0,
+        }
+    }
+    fn with_tick<T: ContextBase>(tick: usize, parent: &T) -> Self {
+        TestContext {
+            tick,
+            ticks_per_second: 0,
+        }
+    }
+    fn tick(&self) -> usize {
+        self.tick
+    }
+    fn ticks_per_second(&self) -> Option<usize> {
+        if self.ticks_per_second <= 0 {
+            None
+        } else {
+            Some(self.ticks_per_second)
+        }
     }
 }
 
@@ -65,7 +84,7 @@ impl TestContext {
     }
 
     fn now(&self) -> usize {
-        self.time
+        self.tick
     }
 }
 

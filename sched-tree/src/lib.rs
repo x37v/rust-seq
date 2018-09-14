@@ -3,7 +3,6 @@ extern crate spinlock;
 
 use sched::{ContextBase, ExecSched, SchedCall, SchedFn, TimeResched};
 use std::cell::Cell;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 pub struct ParamBinding<T: Copy> {
@@ -46,32 +45,37 @@ impl<SrcSnk, Context> Clock<SrcSnk, Context> {
     }
 }
 
-impl<SrcSnk, Context: ContextBase> SchedCall<SrcSnk, Context> for Clock<SrcSnk, Context> {
+impl<SrcSnk, Context> SchedCall<SrcSnk, Context> for Clock<SrcSnk, Context>
+where
+    Context: ContextBase,
+{
     fn sched_call(
         &mut self,
         s: &mut ExecSched<SrcSnk, Context>,
         context: &mut Context,
     ) -> TimeResched {
-        assert!(
-            context.ticks_per_second() > 0,
-            "need ticks greater than zero"
-        );
-        let mut child_context = Context::with_time(self.tick, 0); //XXX ticks per second?
-        match self.sched.sched_call(s, &mut child_context) {
-            TimeResched::None => TimeResched::None,
-            _ => {
-                let next = self.tick_sub
-                    + (context.ticks_per_second() as f64 * self.period_micros.get()) / 1_000_000f64;
-                self.tick_sub = next.fract();
-                self.tick += 1;
-                //XXX what if next is less than 1?
-                assert!(next >= 1f64, "tick less than sample size not supported");
-                TimeResched::ContextRelative(std::cmp::max(1, next.floor() as usize))
+        if let Some(ticks_per_second) = context.ticks_per_second() {
+            assert!(ticks_per_second > 0, "need ticks greater than zero");
+            let mut child_context = Context::with_tick(self.tick, context);
+            match self.sched.sched_call(s, &mut child_context) {
+                TimeResched::None => TimeResched::None,
+                _ => {
+                    let next = self.tick_sub
+                        + (ticks_per_second as f64 * self.period_micros.get()) / 1_000_000f64;
+                    self.tick_sub = next.fract();
+                    self.tick += 1;
+                    //XXX what if next is less than 1?
+                    assert!(next >= 1f64, "tick less than sample size not supported");
+                    TimeResched::ContextRelative(std::cmp::max(1, next.floor() as usize))
+                }
             }
+        } else {
+            TimeResched::None
         }
     }
 }
 
+/*
 #[derive(Debug, PartialEq)]
 pub struct MeasureBeatTick {
     measure: usize,
@@ -114,6 +118,7 @@ impl Into<(usize, usize, usize)> for MeasureBeatTick {
         (self.measure, self.beat, self.tick)
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
