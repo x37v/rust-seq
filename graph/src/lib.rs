@@ -4,22 +4,22 @@ extern crate spinlock;
 extern crate xnor_llist;
 
 use std::sync::Arc;
-use xnor_llist::Node as LNode;
 use xnor_llist::List;
+use xnor_llist::Node as LNode;
 
 pub type ANodeP<T> = Arc<spinlock::Mutex<Node<T>>>;
 pub type AChildP<T> = Box<LNode<ANodeP<T>>>;
 
 pub struct Node<T> {
     data: T,
-    children: List<ANodeP<T>>
+    children: List<ANodeP<T>>,
 }
 
 impl<T> Node<T> {
     fn new(data: T) -> Self {
-        Node{
+        Node {
             data,
-            children: List::new()
+            children: List::new(),
         }
     }
 
@@ -31,12 +31,17 @@ impl<T> Node<T> {
         LNode::new_boxed(node)
     }
 
-    pub fn push_child(&mut self, child: AChildP<T>) {
-        self.children.push_back(child);
+    pub fn children(&self) -> &List<ANodeP<T>> {
+        &self.children
+    }
+
+    pub fn children_mut(&mut self) -> &mut List<ANodeP<T>> {
+        &mut self.children
     }
 
     pub fn traverse<F>(&self, f: &F)
-        where F: Fn(&T)
+    where
+        F: Fn(&T),
     {
         f(&self.data);
         for c in self.children.iter() {
@@ -57,11 +62,13 @@ mod tests {
         let x = v.clone();
         {
             let z = Node::new_p(20);
-            v.lock().push_child(Node::new_child(z));
+            v.lock().children_mut().push_front(Node::new_child(z));
 
             let mut g = n.lock();
-            g.push_child(Node::new_child(x));
-            g.push_child(Node::new_child(v));
+            g.children_mut().push_front(Node::new_child(x));
+
+            g.children_mut().push_front(Node::new_child(v.clone()));
+            g.children_mut().push_front(Node::new_child(v));
         }
         n.lock().traverse(&|d| println!("node: {}", d));
     }
@@ -73,10 +80,12 @@ mod tests {
         let c = Node::new_child(Node::new_p(4345));
         let child = thread::spawn(move || {
             let mut g = n.lock();
-            g.push_child(Node::new_child(Node::new_p(20)));
-            g.push_child(c);
+            g.children_mut().push_back(Node::new_child(Node::new_p(20)));
+            g.children_mut().push_front(c);
         });
-        x.lock().push_child(Node::new_child(Node::new_p(200)));
+        x.lock()
+            .children_mut()
+            .push_back(Node::new_child(Node::new_p(200)));
         assert!(child.join().is_ok());
         x.lock().traverse(&|d| println!("node: {}", d));
     }
