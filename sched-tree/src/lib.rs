@@ -25,7 +25,8 @@ impl<T: Copy> ParamBinding<T> {
     }
 }
 
-type FloatBinding = Arc<ParamBinding<f64>>;
+pub type BindingP<T> = Arc<ParamBinding<T>>;
+pub type FloatBinding = BindingP<f64>;
 
 pub struct Clock<SrcSnk, Context> {
     tick: usize,
