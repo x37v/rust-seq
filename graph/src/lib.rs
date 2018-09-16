@@ -82,11 +82,12 @@ mod tests {
             let mut g = n.lock();
             g.children_mut().push_back(Node::new_child(Node::new_p(20)));
             g.children_mut().push_front(c);
+            g.traverse(&|d| println!("node: {}", d));
         });
+        assert!(child.join().is_ok());
         x.lock()
             .children_mut()
             .push_back(Node::new_child(Node::new_p(200)));
-        assert!(child.join().is_ok());
         x.lock().traverse(&|d| println!("node: {}", d));
     }
 }
