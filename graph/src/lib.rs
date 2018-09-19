@@ -3,16 +3,19 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use xnor_llist::List;
+pub use xnor_llist::List;
 use xnor_llist::Node as LNode;
 
 pub type ANodeP<T> = Arc<spinlock::Mutex<Node<T>>>;
 pub type AChildP<T> = Box<LNode<ANodeP<T>>>;
+pub type ChildList<T> = List<ANodeP<T>>;
 
+#[derive(Debug)]
 pub struct Node<T> {
     data: T,
-    children: List<ANodeP<T>>,
+    children: ChildList<T>,
 }
 
 impl<T> Node<T> {
@@ -50,6 +53,19 @@ impl<T> Node<T> {
     }
 }
 
+impl<T> Deref for Node<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.data
+    }
+}
+
+impl<T> DerefMut for Node<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.data
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,6 +75,12 @@ mod tests {
     fn it_works() {
         let n = Node::new_p(1);
         let v = Node::new_p(2);
+        assert_eq!(n.lock().deref().deref(), &1);
+        assert_eq!(v.lock().deref().deref(), &2);
+        assert_eq!(**n.lock(), 1);
+        assert_eq!(**v.lock(), 2);
+        **v.lock() = 7;
+        assert_eq!(**v.lock(), 7);
         let x = v.clone();
         {
             let z = Node::new_p(20);
