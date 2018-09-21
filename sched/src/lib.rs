@@ -132,10 +132,10 @@ impl<'a> SchedContext for Context<'a> {
         self.context_tick_period_micros
     }
     fn trigger(&mut self, _time: TimeSched, _index: usize) {}
-    fn schedule(&mut self, _time: TimeSched, func: SchedFn) {
+    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.pop_node() {
             Some(mut n) => {
-                n.time = 0; //XXX
+                n.time = add_time(self.base_tick, &time);
                 n.func = Some(func);
                 self.list.insert(n, |n, o| n.time <= o.time);
             }
@@ -271,12 +271,14 @@ fn add_clamped(u: usize, i: isize) -> usize {
     }
 }
 
-fn add_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
+fn add_atomic_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
+    add_time(current.load(Ordering::SeqCst), time)
+}
+
+fn add_time(current: usize, time: &TimeSched) -> usize {
     match *time {
         TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
-        TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
-            add_clamped(current.load(Ordering::SeqCst), t)
-        }
+        TimeSched::Relative(t) | TimeSched::ContextRelative(t) => add_clamped(current, t),
     }
 }
 
@@ -284,7 +286,7 @@ impl Sched for Scheduler {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         let f = LNode::new_boxed(TimedFn {
             func: Some(func),
-            time: add_time(&self.time, &time),
+            time: add_atomic_time(&self.time, &time),
         });
         self.schedule_sender.send(f).unwrap();
     }
@@ -294,7 +296,7 @@ impl Sched for Executor {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.pop_node() {
             Some(mut n) => {
-                n.time = add_time(&self.time, &time); //XXX should we clamp above current time?
+                n.time = add_atomic_time(&self.time, &time); //XXX should we clamp above current time?
                 n.func = Some(func);
                 self.list.insert(n, |n, o| n.time <= o.time);
             }
@@ -330,11 +332,12 @@ mod tests {
                     context.base_tick(),
                     context.base_tick_period_micros()
                 );
+                let at = context.base_tick();
                 context.schedule(
                     TimeSched::Relative(12),
                     //XXX shouldn't actually allocate this
-                    Box::new(move |_: &mut dyn SchedContext| {
-                        println!("inner dog");
+                    Box::new(move |context: &mut dyn SchedContext| {
+                        println!("inner dog {}, scheduled at {}", context.base_tick(), at);
                         TimeResched::None
                     }),
                 );
