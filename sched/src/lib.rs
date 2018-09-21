@@ -1,6 +1,5 @@
 #![feature(nll)]
 
-#[doc(hidden)]
 pub extern crate xnor_llist;
 
 pub use xnor_llist::List as LList;
