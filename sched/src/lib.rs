@@ -92,6 +92,7 @@ pub struct Context<'a> {
     base_tick_period_micros: f32,
     context_tick_period_micros: f32,
     list: &'a mut LList<TimedFn>,
+    context_list: Option<&'a mut LList<TimedFn>>,
     node_cache: &'a mut Receiver<SchedFnNode>,
 }
 
@@ -109,6 +110,7 @@ impl<'a> Context<'a> {
             base_tick_period_micros: tpm,
             context_tick_period_micros: tpm,
             list,
+            context_list: None,
             node_cache,
         }
     }
