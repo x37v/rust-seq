@@ -171,19 +171,28 @@ impl Scheduler {
     pub fn spawn_helper_threads(&mut self) {
         let dispose_schedule_receiver = self.dispose_schedule_receiver.take().unwrap();
         let node_cache_updater = self.node_cache_updater.take().unwrap();
-        self.helper_handle = Some(thread::spawn(move || {
-            let sleep_time = std::time::Duration::from_millis(5);
+        let update = move || -> bool {
             loop {
                 match dispose_schedule_receiver.try_recv() {
                     Ok(_) => continue,
                     Err(TryRecvError::Empty) => (),
-                    Err(TryRecvError::Disconnected) => break,
+                    Err(TryRecvError::Disconnected) => return false,
                 }
                 match node_cache_updater.try_send(LNode::new_boxed(Default::default())) {
                     Ok(_) => continue,
                     Err(TrySendError::Full(_)) => (),
-                    Err(TrySendError::Disconnected(_)) => break,
+                    Err(TrySendError::Disconnected(_)) => return false,
                 }
+                break;
+            }
+            true
+        };
+
+        //fill the caches, then spawn a thread to keep it updated
+        update();
+        self.helper_handle = Some(thread::spawn(move || {
+            let sleep_time = std::time::Duration::from_millis(5);
+            while update() {
                 thread::sleep(sleep_time);
             }
         }));
