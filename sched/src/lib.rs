@@ -332,6 +332,7 @@ mod tests {
                 );
                 context.schedule(
                     TimeSched::Relative(12),
+                    //XXX shouldn't actually allocate this
                     Box::new(move |_: &mut dyn SchedContext| {
                         println!("inner dog");
                         TimeResched::None
