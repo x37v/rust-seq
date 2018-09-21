@@ -76,6 +76,7 @@ pub struct Executor {
     node_cache: Receiver<SchedFnNode>,
     dispose_schedule_sender: SyncSender<Box<dyn Send>>,
     trigger_sender: SyncSender<(usize, usize)>,
+    trigger_receiver: Receiver<(usize, usize)>,
 }
 
 pub struct Scheduler {
@@ -84,7 +85,6 @@ pub struct Scheduler {
     schedule_sender: SyncSender<SchedFnNode>,
     node_cache_updater: Option<SyncSender<SchedFnNode>>,
     dispose_schedule_receiver: Option<Receiver<Box<dyn Send>>>,
-    trigger_receiver: Option<Receiver<(usize, usize)>>,
     helper_handle: Option<thread::JoinHandle<()>>,
 }
 
@@ -194,12 +194,12 @@ impl Scheduler {
                 dispose_schedule_sender,
                 node_cache,
                 trigger_sender,
+                trigger_receiver: trigger_receiver,
             }),
             schedule_sender,
             dispose_schedule_receiver: Some(dispose_schedule_receiver),
             node_cache_updater: Some(node_cache_updater),
             helper_handle: None,
-            trigger_receiver: Some(trigger_receiver),
         }
     }
 
@@ -257,6 +257,12 @@ impl Executor {
         let _ = self.dispose_schedule_sender.send(item);
     }
 
+    fn eval_triggers(&mut self) {
+        while let Some((t, i)) = self.trigger_receiver.try_recv().ok() {
+            println!("trigger {} at {}", i, t);
+        }
+    }
+
     pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
         let now = self.time.load(Ordering::SeqCst);
         let next = now + ticks;
@@ -286,6 +292,7 @@ impl Executor {
             }
         }
         self.time.store(next, Ordering::SeqCst);
+        self.eval_triggers();
     }
 }
 
