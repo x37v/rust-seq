@@ -1,7 +1,8 @@
 #[doc(hidden)]
 pub extern crate xnor_llist;
 
-pub use xnor_llist::{List, Node};
+pub use xnor_llist::List as LList;
+pub use xnor_llist::Node as LNode;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
@@ -55,7 +56,7 @@ pub struct TimedFn {
     time: usize,
     func: Option<SchedFn>,
 }
-pub type SchedFnNode = Box<xnor_llist::Node<TimedFn>>;
+pub type SchedFnNode = Box<LNode<TimedFn>>;
 
 impl Default for TimedFn {
     fn default() -> Self {
@@ -67,7 +68,7 @@ impl Default for TimedFn {
 }
 
 pub struct Executor {
-    list: List<TimedFn>,
+    list: LList<TimedFn>,
     time: Arc<AtomicUsize>,
     schedule_receiver: Receiver<SchedFnNode>,
     node_cache: Receiver<SchedFnNode>,
@@ -128,7 +129,7 @@ impl Scheduler {
         Scheduler {
             time: time.clone(),
             executor: Some(Executor {
-                list: List::new(),
+                list: LList::new(),
                 time,
                 schedule_receiver,
                 dispose_schedule_sender,
@@ -151,7 +152,7 @@ impl Scheduler {
                     break;
                 }
                 if let Err(TrySendError::Disconnected(_)) =
-                    node_cache_updater.try_send(Node::new_boxed(Default::default()))
+                    node_cache_updater.try_send(LNode::new_boxed(Default::default()))
                 {
                     break;
                 }
@@ -239,7 +240,7 @@ fn add_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
 
 impl Sched for Scheduler {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        let f = Node::new_boxed(TimedFn {
+        let f = LNode::new_boxed(TimedFn {
             func: Some(func),
             time: add_time(&self.time, &time),
         });
