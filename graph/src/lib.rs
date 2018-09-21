@@ -42,6 +42,13 @@ impl<T> Node<T> {
         &mut self.children
     }
 
+    pub fn exec<F>(&mut self, f: &F)
+    where
+        F: Fn(&mut Node<T>),
+    {
+        f(self)
+    }
+
     pub fn traverse<F>(&self, f: &F)
     where
         F: Fn(&T),
