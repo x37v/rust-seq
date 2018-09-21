@@ -75,6 +75,7 @@ pub struct Executor {
     schedule_receiver: Receiver<SchedFnNode>,
     node_cache: Receiver<SchedFnNode>,
     dispose_schedule_sender: SyncSender<Box<dyn Send>>,
+    trigger_sender: SyncSender<(usize, usize)>,
 }
 
 pub struct Scheduler {
@@ -83,6 +84,7 @@ pub struct Scheduler {
     schedule_sender: SyncSender<SchedFnNode>,
     node_cache_updater: Option<SyncSender<SchedFnNode>>,
     dispose_schedule_receiver: Option<Receiver<Box<dyn Send>>>,
+    trigger_receiver: Option<Receiver<(usize, usize)>>,
     helper_handle: Option<thread::JoinHandle<()>>,
 }
 
@@ -94,6 +96,7 @@ pub struct Context<'a> {
     list: &'a mut LList<TimedFn>,
     context_list: Option<&'a mut LList<TimedFn>>,
     node_cache: &'a mut Receiver<SchedFnNode>,
+    trigger_sender: &'a mut SyncSender<(usize, usize)>,
 }
 
 impl<'a> Context<'a> {
@@ -102,6 +105,7 @@ impl<'a> Context<'a> {
         ticks_per_second: usize,
         list: &'a mut LList<TimedFn>,
         node_cache: &'a mut Receiver<SchedFnNode>,
+        trigger_sender: &'a mut SyncSender<(usize, usize)>,
     ) -> Self {
         let tpm = 1e6f32 / (ticks_per_second as f32);
         Context {
@@ -112,6 +116,7 @@ impl<'a> Context<'a> {
             list,
             context_list: None,
             node_cache,
+            trigger_sender,
         }
     }
 
@@ -154,7 +159,10 @@ impl<'a> SchedContext for Context<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.context_tick_period_micros
     }
-    fn trigger(&mut self, _time: TimeSched, _index: usize) {}
+    fn trigger(&mut self, _time: TimeSched, index: usize) {
+        let t = self.base_tick; //XXX use actual tick
+        self.trigger_sender.try_send((t, index));
+    }
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.pop_node() {
             Some(mut n) => {
@@ -175,6 +183,7 @@ impl Scheduler {
         let (schedule_sender, schedule_receiver) = sync_channel(1024);
         let (dispose_schedule_sender, dispose_schedule_receiver) = sync_channel(1024);
         let (node_cache_updater, node_cache) = sync_channel(1024);
+        let (trigger_sender, trigger_receiver) = sync_channel(1024);
         let time = Arc::new(AtomicUsize::new(0));
         Scheduler {
             time: time.clone(),
@@ -184,11 +193,13 @@ impl Scheduler {
                 schedule_receiver,
                 dispose_schedule_sender,
                 node_cache,
+                trigger_sender,
             }),
             schedule_sender,
             dispose_schedule_receiver: Some(dispose_schedule_receiver),
             node_cache_updater: Some(node_cache_updater),
             helper_handle: None,
+            trigger_receiver: Some(trigger_receiver),
         }
     }
 
@@ -262,6 +273,7 @@ impl Executor {
                 ticks_per_second,
                 &mut self.list,
                 &mut self.node_cache,
+                &mut self.trigger_sender,
             );
             match timedfn.sched_call(&mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
@@ -362,6 +374,7 @@ mod tests {
                     //XXX shouldn't actually allocate this
                     Box::new(move |context: &mut dyn SchedContext| {
                         println!("inner dog {}, scheduled at {}", context.base_tick(), at);
+                        context.trigger(TimeSched::Relative(0), 1);
                         TimeResched::None
                     }),
                 );
