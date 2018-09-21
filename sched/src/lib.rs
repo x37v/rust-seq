@@ -23,14 +23,12 @@ pub enum TimeResched {
 
 pub trait ContextBase {
     fn from_root(tick: usize, ticks_per_second: usize) -> Self;
-    fn from_parent<T: ContextBase>(parent: &T) -> Self;
-    fn with_tick<T: ContextBase>(tick: usize, parent: &T) -> Self;
     fn tick(&self) -> usize;
     fn ticks_per_second(&self) -> Option<usize>;
 }
 
 //an object to be put into a schedule and called later
-pub type SchedFn<SrcSnk, Context> = Box<SchedCall<SrcSnk, Context>>;
+pub type SchedFn<SrcSnk, Context> = Box<dyn SchedCall<SrcSnk, Context>>;
 
 //an object that can schedule SchedFn's and provide a SrcSnk with the src_sink() method
 pub trait Sched<SrcSnk, Context> {
@@ -344,12 +342,6 @@ mod tests {
             ()
         }
 
-        fn from_parent<T: ContextBase>(_parent: &T) -> Self {
-            ()
-        }
-        fn with_tick<T: ContextBase>(_tick: usize, _parent: &T) -> Self {
-            ()
-        }
         fn tick(&self) -> usize {
             0
         }

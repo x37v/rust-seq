@@ -1,8 +1,14 @@
+#![feature(nll)]
+extern crate graph;
 extern crate sched;
 extern crate spinlock;
 
-use sched::{ContextBase, ExecSched, SchedCall, SchedFn, TimeResched};
+use graph::ANodeP;
+use graph::ChildList;
+use sched::{ContextBase, ExecSched, Sched, SchedCall, SchedFn, TimeResched, TimeSched};
 use std::cell::Cell;
+use std::ops::DerefMut;
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
 
 pub struct ParamBinding<T: Copy> {
@@ -27,6 +33,121 @@ impl<T: Copy> ParamBinding<T> {
 
 pub type BindingP<T> = Arc<ParamBinding<T>>;
 pub type FloatBinding = BindingP<f64>;
+pub type SchedGraphNode<SrcSnk, Context> = ANodeP<SchedFn<SrcSnk, Context>>;
+
+pub type Micro = f32;
+pub trait ContextGraph<SrcSnk, Context>
+where
+    Context: ContextGraph<SrcSnk, Context>,
+{
+    fn period_micros(&self) -> Micro;
+    fn base_period_micros(&self) -> Micro;
+    fn tick(&self) -> usize;
+    /*
+    fn graph_children(&mut self) -> &mut ChildList<SchedFn<SrcSnk, Context>>;
+    fn graph_root(&mut self) -> &mut ANodeP<SchedFn<SrcSnk, Context>>;
+    */
+}
+
+pub trait Cmd: Send {
+    fn exec(&self);
+}
+
+//implment command for a Fn
+impl<F: Fn()> Cmd for F
+where
+    F: Send,
+{
+    fn exec(&self) {
+        (*self)();
+    }
+}
+
+pub type CmdP = Box<dyn Cmd>;
+
+pub struct ContextGraphRoot {
+    tick: usize,
+}
+
+impl ContextGraphRoot {
+    fn new(tick: usize) -> Self {
+        Self { tick }
+    }
+}
+
+impl<SrcSnk, Context> ContextGraph<SrcSnk, Context> for ContextGraphRoot
+where
+    Context: ContextGraph<SrcSnk, Context>,
+{
+    fn period_micros(&self) -> Micro {
+        0f32
+    }
+    fn base_period_micros(&self) -> Micro {
+        0f32
+    }
+    fn tick(&self) -> usize {
+        0
+    }
+}
+
+pub struct SchedGraphRoot<SrcSnk, Context> {
+    children: ChildList<SchedFn<SrcSnk, Context>>,
+    cmd_channel: Receiver<CmdP>,
+}
+
+impl<SrcSnk, Context> SchedGraphRoot<SrcSnk, Context> {
+    pub fn create() -> (SyncSender<CmdP>, Box<Self>) {
+        let (sender, receiver) = sync_channel(1024);
+        (
+            sender,
+            Box::new(Self {
+                children: ChildList::new(),
+                cmd_channel: receiver,
+            }),
+        )
+    }
+}
+
+//XXX feels like the generics are too much of a pain,
+//maybe we just need generics for the SrcSync and we can let the context be non generic
+
+impl<SrcSnk, Context> Sched<SrcSnk, Context> for SchedGraphRoot<SrcSnk, Context>
+where
+    Context: ContextGraph<SrcSnk, Context>,
+{
+    fn schedule(&mut self, time: TimeSched, func: SchedFn<SrcSnk, Context>) {}
+}
+
+impl<SrcSnk, Context> ExecSched<SrcSnk, Context> for SchedGraphRoot<SrcSnk, Context>
+where
+    Context: ContextGraph<SrcSnk, Context>,
+{
+    fn src_sink(&mut self) -> &mut SrcSnk {}
+    fn context(&mut self) -> Context {}
+}
+
+impl<SrcSnk, Context> SchedCall<SrcSnk, Context> for SchedGraphRoot<SrcSnk, Context>
+where
+    Context: ContextBase,
+{
+    fn sched_call(
+        &mut self,
+        s: &mut ExecSched<SrcSnk, Context>,
+        context: &mut Context,
+    ) -> TimeResched {
+        //exec any commands we have
+        while let Ok(cmd) = self.cmd_channel.try_recv() {
+            (*cmd).exec();
+        }
+        for c in &mut self.children.iter() {
+            let mut gcontext = ContextGraphRoot::new(0);
+            c.lock().exec(&|n| {
+                n.deref_mut().sched_call(&mut self, &gcontext);
+            });
+        }
+        TimeResched::Relative(1)
+    }
+}
 
 pub struct Clock<SrcSnk, Context> {
     tick: usize,
@@ -48,13 +169,14 @@ impl<SrcSnk, Context> Clock<SrcSnk, Context> {
 
 impl<SrcSnk, Context> SchedCall<SrcSnk, Context> for Clock<SrcSnk, Context>
 where
-    Context: ContextBase,
+    Context: ContextGraph<SrcSnk, Context>,
 {
     fn sched_call(
         &mut self,
         s: &mut ExecSched<SrcSnk, Context>,
         context: &mut Context,
     ) -> TimeResched {
+        /*
         if let Some(ticks_per_second) = context.ticks_per_second() {
             assert!(ticks_per_second > 0, "need ticks greater than zero");
             let mut child_context = Context::with_tick(self.tick, context);
@@ -73,6 +195,8 @@ where
         } else {
             TimeResched::None
         }
+        */
+        TimeResched::None
     }
 }
 

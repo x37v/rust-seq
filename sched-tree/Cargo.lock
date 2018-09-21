@@ -1,4 +1,12 @@
 [[package]]
+name = "graph"
+version = "0.1.0"
+dependencies = [
+ "spinlock 0.1.1 (git+https://github.com/x37v/rust-spinlock-mutex?branch=develop)",
+ "xnor_llist 0.1.0 (git+https://github.com/x37v/rust-llist?branch=develop)",
+]
+
+[[package]]
 name = "sched"
 version = "0.1.0"
 dependencies = [
@@ -9,6 +17,7 @@ dependencies = [
 name = "sched_tree"
 version = "0.1.0"
 dependencies = [
+ "graph 0.1.0",
  "sched 0.1.0",
  "spinlock 0.1.1 (git+https://github.com/x37v/rust-spinlock-mutex?branch=develop)",
 ]

@@ -8,3 +8,6 @@ spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "deve
 
 [dependencies.sched]
 path = "../sched"
+
+[dependencies.graph]
+path = "../graph"
