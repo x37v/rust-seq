@@ -1,3 +1,5 @@
+#![feature(nll)]
+
 #[doc(hidden)]
 pub extern crate xnor_llist;
 
@@ -84,21 +86,23 @@ pub struct Scheduler {
     helper_handle: Option<thread::JoinHandle<()>>,
 }
 
-pub struct Context {
+pub struct Context<'a> {
     base_tick: usize,
     context_tick: usize,
     base_tick_period_micros: f32,
     context_tick_period_micros: f32,
+    list: &'a LList<TimedFn>,
 }
 
-impl Context {
-    fn new_root(tick: usize, ticks_per_second: usize) -> Self {
+impl<'a> Context<'a> {
+    fn new_root(tick: usize, ticks_per_second: usize, list: &'a mut LList<TimedFn>) -> Self {
         let tpm = 1e6f32 / (ticks_per_second as f32);
         Context {
             base_tick: tick,
             context_tick: tick,
             base_tick_period_micros: tpm,
             context_tick_period_micros: tpm,
+            list,
         }
     }
 }
