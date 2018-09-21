@@ -118,6 +118,27 @@ impl<'a> Context<'a> {
     pub fn pop_node(&mut self) -> Option<SchedFnNode> {
         self.node_cache.try_recv().ok()
     }
+
+    fn list_and_tick(&mut self, time: &TimeSched) -> (&mut LList<TimedFn>, usize) {
+        match *time {
+            TimeSched::Absolute(t) => (self.list, t),
+            TimeSched::ContextAbsolute(t) => {
+                if let Some(l) = &mut self.context_list {
+                    (l, t)
+                } else {
+                    (self.list, t)
+                }
+            }
+            TimeSched::Relative(t) => (self.list, add_clamped(self.base_tick, t)),
+            TimeSched::ContextRelative(t) => {
+                if let Some(l) = &mut self.context_list {
+                    (l, add_clamped(self.context_tick, t))
+                } else {
+                    (self.list, add_clamped(self.base_tick, t))
+                }
+            }
+        }
+    }
 }
 
 impl<'a> SchedContext for Context<'a> {
@@ -137,9 +158,10 @@ impl<'a> SchedContext for Context<'a> {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.pop_node() {
             Some(mut n) => {
-                n.time = add_time(self.base_tick, &time);
                 n.func = Some(func);
-                self.list.insert(n, |n, o| n.time <= o.time);
+                let (l, t) = self.list_and_tick(&time);
+                n.time = t;
+                l.insert(n, |n, o| n.time <= o.time);
             }
             None => {
                 println!("OOPS");
