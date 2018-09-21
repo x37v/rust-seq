@@ -161,7 +161,7 @@ impl<'a> SchedContext for Context<'a> {
     }
     fn trigger(&mut self, _time: TimeSched, index: usize) {
         let t = self.base_tick; //XXX use actual tick
-        self.trigger_sender.try_send((t, index));
+        let _ = self.trigger_sender.try_send((t, index));
     }
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.pop_node() {
@@ -194,7 +194,7 @@ impl Scheduler {
                 dispose_schedule_sender,
                 node_cache,
                 trigger_sender,
-                trigger_receiver: trigger_receiver,
+                trigger_receiver,
             }),
             schedule_sender,
             dispose_schedule_receiver: Some(dispose_schedule_receiver),
