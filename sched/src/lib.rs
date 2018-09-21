@@ -4,8 +4,9 @@ pub extern crate xnor_llist;
 pub use xnor_llist::{List, Node};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::sync::Arc;
+use std::thread;
 
 pub enum TimeSched {
     Absolute(usize),
@@ -77,8 +78,9 @@ pub struct Scheduler {
     time: Arc<AtomicUsize>,
     executor: Option<Executor>,
     sender: SyncSender<SchedFnNode>,
-    node_cache_updater: SyncSender<SchedFnNode>,
-    dispose_receiver: Receiver<Box<dyn Send>>,
+    node_cache_updater: Option<SyncSender<SchedFnNode>>,
+    dispose_receiver: Option<Receiver<Box<dyn Send>>>,
+    helper_handle: Option<thread::JoinHandle<()>>,
 }
 
 pub struct Context {
@@ -90,7 +92,7 @@ pub struct Context {
 
 impl Context {
     fn new_root(tick: usize, ticks_per_second: usize) -> Self {
-        let tpm = 1e-6f32 / (ticks_per_second as f32);
+        let tpm = 1e6f32 / (ticks_per_second as f32);
         Context {
             base_tick: tick,
             context_tick: tick,
@@ -133,9 +135,29 @@ impl Scheduler {
                 node_cache,
             }),
             sender,
-            dispose_receiver,
-            node_cache_updater,
+            dispose_receiver: Some(dispose_receiver),
+            node_cache_updater: Some(node_cache_updater),
+            helper_handle: None,
         }
+    }
+
+    pub fn spawn_helper_threads(&mut self) {
+        let dispose_receiver = self.dispose_receiver.take().unwrap();
+        let node_cache_updater = self.node_cache_updater.take().unwrap();
+        self.helper_handle = Some(thread::spawn(move || {
+            let sleep_time = std::time::Duration::from_millis(5);
+            loop {
+                if let Err(TryRecvError::Disconnected) = dispose_receiver.try_recv() {
+                    break;
+                }
+                if let Err(TrySendError::Disconnected(_)) =
+                    node_cache_updater.try_send(Node::new_boxed(Default::default()))
+                {
+                    break;
+                }
+                thread::sleep(sleep_time);
+            }
+        }));
     }
 
     pub fn executor(&mut self) -> Option<Executor> {
@@ -162,7 +184,7 @@ impl Executor {
         let _ = self.dispose_sender.send(item);
     }
 
-    pub fn run(&mut self, ticks: usize, _ticks_per_second: usize) {
+    pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
         let now = self.time.load(Ordering::SeqCst);
         let next = now + ticks;
 
@@ -173,7 +195,7 @@ impl Executor {
 
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
-            let mut context = Context::new_root(0, 0);
+            let mut context = Context::new_root(current, ticks_per_second);
             match timedfn.sched_call(&mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
@@ -240,7 +262,6 @@ impl Sched for Executor {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -248,64 +269,24 @@ mod tests {
 
     #[test]
     fn can_vec() {
-        let _x: Vec<TimedFn<(), ()>> = (0..20).map({ |_| TimedFn::default() }).collect();
-    }
-
-    impl NodeSrc<(), ()> for () {
-        fn pop_node(&mut self) -> Option<SchedFnNode<(), ()>> {
-            Some(Node::new_boxed(Default::default()))
-        }
-    }
-
-    impl DisposeSink for () {
-        fn dispose(&mut self, _item: Box<Send>) {
-            //drop
-        }
-    }
-
-    impl SrcSnkUpdate for () {
-        fn update(&mut self) -> bool {
-            true
-        }
-    }
-
-    impl ContextBase for () {
-        fn from_root(_tick: usize, _ticks_per_second: usize) -> Self {
-            ()
-        }
-
-        fn tick(&self) -> usize {
-            0
-        }
-        fn ticks_per_second(&self) -> Option<usize> {
-            None
-        }
-    }
-
-    impl SrcSnkCreate<(), ()> for () {
-        fn src_sink(&mut self) -> Option<()> {
-            Some(())
-        }
-        fn updater(&mut self) -> Option<()> {
-            Some(())
-        }
+        let _x: Vec<TimedFn> = (0..20).map({ |_| TimedFn::default() }).collect();
     }
 
     #[test]
-    fn fake_src_sink() {
-        type SImpl = Scheduler<(), (), (), ()>;
-        type EImpl<'a> = ExecSched<(), ()> + 'a;
-        let mut s = SImpl::new();
+    fn basic_test() {
+        let mut s = Scheduler::new();
         s.spawn_helper_threads();
 
         let e = s.executor();
         assert!(e.is_some());
         s.schedule(
             TimeSched::Absolute(0),
-            Box::new(move |s: &mut EImpl, _context: &mut ()| {
-                println!("Closure in schedule");
-                assert!(s.src_sink().pop_node().is_some());
-                assert_eq!(s.context(), ());
+            Box::new(move |context: &mut dyn SchedContext| {
+                println!(
+                    "Closure in schedule {}, {}",
+                    context.base_tick(),
+                    context.base_tick_period_micros()
+                );
                 TimeResched::Relative(3)
             }),
         );
@@ -319,4 +300,3 @@ mod tests {
         assert!(child.join().is_ok());
     }
 }
-*/
