@@ -91,11 +91,17 @@ pub struct Context<'a> {
     context_tick: usize,
     base_tick_period_micros: f32,
     context_tick_period_micros: f32,
-    list: &'a LList<TimedFn>,
+    list: &'a mut LList<TimedFn>,
+    node_cache: &'a mut Receiver<SchedFnNode>,
 }
 
 impl<'a> Context<'a> {
-    fn new_root(tick: usize, ticks_per_second: usize, list: &'a mut LList<TimedFn>) -> Self {
+    fn new_root(
+        tick: usize,
+        ticks_per_second: usize,
+        list: &'a mut LList<TimedFn>,
+        node_cache: &'a mut Receiver<SchedFnNode>,
+    ) -> Self {
         let tpm = 1e6f32 / (ticks_per_second as f32);
         Context {
             base_tick: tick,
@@ -103,11 +109,16 @@ impl<'a> Context<'a> {
             base_tick_period_micros: tpm,
             context_tick_period_micros: tpm,
             list,
+            node_cache,
         }
+    }
+
+    pub fn pop_node(&mut self) -> Option<SchedFnNode> {
+        self.node_cache.try_recv().ok()
     }
 }
 
-impl SchedContext for Context {
+impl<'a> SchedContext for Context<'a> {
     fn base_tick(&self) -> usize {
         self.base_tick
     }
@@ -121,7 +132,18 @@ impl SchedContext for Context {
         self.context_tick_period_micros
     }
     fn trigger(&mut self, _time: TimeSched, _index: usize) {}
-    fn schedule(&mut self, _t: TimeSched, _func: SchedFn) {}
+    fn schedule(&mut self, _time: TimeSched, func: SchedFn) {
+        match self.pop_node() {
+            Some(mut n) => {
+                n.time = 0; //XXX
+                n.func = Some(func);
+                self.list.insert(n, |n, o| n.time <= o.time);
+            }
+            None => {
+                println!("OOPS");
+            }
+        }
+    }
 }
 
 impl Scheduler {
@@ -152,13 +174,15 @@ impl Scheduler {
         self.helper_handle = Some(thread::spawn(move || {
             let sleep_time = std::time::Duration::from_millis(5);
             loop {
-                if let Err(TryRecvError::Disconnected) = dispose_schedule_receiver.try_recv() {
-                    break;
+                match dispose_schedule_receiver.try_recv() {
+                    Ok(_) => continue,
+                    Err(TryRecvError::Empty) => (),
+                    Err(TryRecvError::Disconnected) => break,
                 }
-                if let Err(TrySendError::Disconnected(_)) =
-                    node_cache_updater.try_send(LNode::new_boxed(Default::default()))
-                {
-                    break;
+                match node_cache_updater.try_send(LNode::new_boxed(Default::default())) {
+                    Ok(_) => continue,
+                    Err(TrySendError::Full(_)) => (),
+                    Err(TrySendError::Disconnected(_)) => break,
                 }
                 thread::sleep(sleep_time);
             }
@@ -200,7 +224,12 @@ impl Executor {
 
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
-            let mut context = Context::new_root(current, ticks_per_second);
+            let mut context = Context::new_root(
+                current,
+                ticks_per_second,
+                &mut self.list,
+                &mut self.node_cache,
+            );
             match timedfn.sched_call(&mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
@@ -291,6 +320,13 @@ mod tests {
                     "Closure in schedule {}, {}",
                     context.base_tick(),
                     context.base_tick_period_micros()
+                );
+                context.schedule(
+                    TimeSched::Relative(12),
+                    Box::new(move |_: &mut dyn SchedContext| {
+                        println!("inner dog");
+                        TimeResched::None
+                    }),
                 );
                 TimeResched::Relative(3)
             }),
