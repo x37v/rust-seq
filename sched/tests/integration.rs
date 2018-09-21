@@ -1,6 +1,7 @@
 #![feature(specialization)]
 #![feature(nll)]
 
+/*
 extern crate sched;
 
 use sched::{
@@ -140,3 +141,4 @@ fn real_src_sink() {
 
     assert!(child.join().is_ok());
 }
+*/
