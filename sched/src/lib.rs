@@ -109,8 +109,8 @@ impl SchedContext for Context {
     fn context_tick_period_micros(&self) -> f32 {
         0f32
     }
-    fn trigger(&mut self, time: TimeSched, index: usize) {}
-    fn schedule(&mut self, t: TimeSched, func: SchedFn) {}
+    fn trigger(&mut self, _time: TimeSched, _index: usize) {}
+    fn schedule(&mut self, _t: TimeSched, _func: SchedFn) {}
 }
 
 impl Scheduler {
@@ -158,7 +158,7 @@ impl Executor {
         self.dispose_sender.send(item);
     }
 
-    pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
+    pub fn run(&mut self, ticks: usize, _ticks_per_second: usize) {
         let now = self.time.load(Ordering::SeqCst);
         let next = now + ticks;
 
