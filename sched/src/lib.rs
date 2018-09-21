@@ -6,7 +6,6 @@ pub use xnor_llist::{List, Node};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
-use std::thread;
 
 pub enum TimeSched {
     Absolute(usize),
@@ -82,32 +81,37 @@ pub struct Scheduler {
     dispose_receiver: Receiver<Box<dyn Send>>,
 }
 
-pub struct Context {}
-
-impl Context {
-    fn new() -> Self {
-        Context {}
-    }
+pub struct Context {
+    base_tick: usize,
+    context_tick: usize,
+    base_tick_period_micros: f32,
+    context_tick_period_micros: f32,
 }
 
-impl Default for Context {
-    fn default() -> Self {
-        Self::new()
+impl Context {
+    fn new_root(tick: usize, ticks_per_second: usize) -> Self {
+        let tpm = 1e-6f32 / (ticks_per_second as f32);
+        Context {
+            base_tick: tick,
+            context_tick: tick,
+            base_tick_period_micros: tpm,
+            context_tick_period_micros: tpm,
+        }
     }
 }
 
 impl SchedContext for Context {
     fn base_tick(&self) -> usize {
-        0
+        self.base_tick
     }
     fn context_tick(&self) -> usize {
-        0
+        self.context_tick
     }
     fn base_tick_period_micros(&self) -> f32 {
-        0f32
+        self.base_tick_period_micros
     }
     fn context_tick_period_micros(&self) -> f32 {
-        0f32
+        self.context_tick_period_micros
     }
     fn trigger(&mut self, _time: TimeSched, _index: usize) {}
     fn schedule(&mut self, _t: TimeSched, _func: SchedFn) {}
@@ -155,7 +159,7 @@ impl Executor {
     }
 
     pub fn dispose(&mut self, item: Box<Send>) {
-        self.dispose_sender.send(item);
+        let _ = self.dispose_sender.send(item);
     }
 
     pub fn run(&mut self, ticks: usize, _ticks_per_second: usize) {
@@ -169,7 +173,7 @@ impl Executor {
 
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
-            let mut context = Context::new();
+            let mut context = Context::new_root(0, 0);
             match timedfn.sched_call(&mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
                     timedfn.time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
