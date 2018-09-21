@@ -69,17 +69,17 @@ impl Default for TimedFn {
 pub struct Executor {
     list: List<TimedFn>,
     time: Arc<AtomicUsize>,
-    receiver: Receiver<SchedFnNode>,
+    schedule_receiver: Receiver<SchedFnNode>,
     node_cache: Receiver<SchedFnNode>,
-    dispose_sender: SyncSender<Box<dyn Send>>,
+    dispose_schedule_sender: SyncSender<Box<dyn Send>>,
 }
 
 pub struct Scheduler {
     time: Arc<AtomicUsize>,
     executor: Option<Executor>,
-    sender: SyncSender<SchedFnNode>,
+    schedule_sender: SyncSender<SchedFnNode>,
     node_cache_updater: Option<SyncSender<SchedFnNode>>,
-    dispose_receiver: Option<Receiver<Box<dyn Send>>>,
+    dispose_schedule_receiver: Option<Receiver<Box<dyn Send>>>,
     helper_handle: Option<thread::JoinHandle<()>>,
 }
 
@@ -121,8 +121,8 @@ impl SchedContext for Context {
 
 impl Scheduler {
     pub fn new() -> Self {
-        let (sender, receiver) = sync_channel(1024);
-        let (dispose_sender, dispose_receiver) = sync_channel(1024);
+        let (schedule_sender, schedule_receiver) = sync_channel(1024);
+        let (dispose_schedule_sender, dispose_schedule_receiver) = sync_channel(1024);
         let (node_cache_updater, node_cache) = sync_channel(1024);
         let time = Arc::new(AtomicUsize::new(0));
         Scheduler {
@@ -130,24 +130,24 @@ impl Scheduler {
             executor: Some(Executor {
                 list: List::new(),
                 time,
-                receiver,
-                dispose_sender,
+                schedule_receiver,
+                dispose_schedule_sender,
                 node_cache,
             }),
-            sender,
-            dispose_receiver: Some(dispose_receiver),
+            schedule_sender,
+            dispose_schedule_receiver: Some(dispose_schedule_receiver),
             node_cache_updater: Some(node_cache_updater),
             helper_handle: None,
         }
     }
 
     pub fn spawn_helper_threads(&mut self) {
-        let dispose_receiver = self.dispose_receiver.take().unwrap();
+        let dispose_schedule_receiver = self.dispose_schedule_receiver.take().unwrap();
         let node_cache_updater = self.node_cache_updater.take().unwrap();
         self.helper_handle = Some(thread::spawn(move || {
             let sleep_time = std::time::Duration::from_millis(5);
             loop {
-                if let Err(TryRecvError::Disconnected) = dispose_receiver.try_recv() {
+                if let Err(TryRecvError::Disconnected) = dispose_schedule_receiver.try_recv() {
                     break;
                 }
                 if let Err(TrySendError::Disconnected(_)) =
@@ -181,7 +181,7 @@ impl Executor {
     }
 
     pub fn dispose(&mut self, item: Box<Send>) {
-        let _ = self.dispose_sender.send(item);
+        let _ = self.dispose_schedule_sender.send(item);
     }
 
     pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
@@ -189,7 +189,7 @@ impl Executor {
         let next = now + ticks;
 
         //grab new nodes
-        while let Ok(n) = self.receiver.try_recv() {
+        while let Ok(n) = self.schedule_receiver.try_recv() {
             self.add_node(n);
         }
 
@@ -243,7 +243,7 @@ impl Sched for Scheduler {
             func: Some(func),
             time: add_time(&self.time, &time),
         });
-        self.sender.send(f).unwrap();
+        self.schedule_sender.send(f).unwrap();
     }
 }
 
