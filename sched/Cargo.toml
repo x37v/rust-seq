@@ -5,6 +5,7 @@ authors = ["Alex Norman <alex@x37v.info>"]
 
 [dependencies]
 xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop" }
+spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop" }
 
 [features]
 specialization = []

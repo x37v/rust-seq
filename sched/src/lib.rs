@@ -1,10 +1,12 @@
 #![feature(nll)]
 
+pub extern crate spinlock;
 pub extern crate xnor_llist;
 
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
+use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::sync::Arc;
@@ -22,6 +24,35 @@ pub enum TimeResched {
     ContextRelative(usize),
     None,
 }
+
+pub trait ParamBinding<T> {
+    fn set(&mut self, value: T);
+    fn get(&self) -> T;
+}
+
+pub struct SpinlockParamBinding<T: Copy> {
+    lock: spinlock::Mutex<Cell<T>>,
+}
+
+impl<T: Copy> SpinlockParamBinding<T> {
+    pub fn new(value: T) -> Self {
+        SpinlockParamBinding {
+            lock: spinlock::Mutex::new(Cell::new(value)),
+        }
+    }
+}
+
+impl<T: Copy> ParamBinding<T> for SpinlockParamBinding<T> {
+    fn set(&mut self, value: T) {
+        self.lock.lock().set(value);
+    }
+
+    fn get(&self) -> T {
+        self.lock.lock().get()
+    }
+}
+
+pub type BindingP<T> = Arc<SpinlockParamBinding<T>>;
 
 pub trait Sched {
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
