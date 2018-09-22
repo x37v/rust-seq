@@ -218,7 +218,7 @@ impl<'a> SchedContext for Context<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.context_tick_period_micros
     }
-    fn trigger(&mut self, _time: TimeSched, index: usize) {
+    fn trigger(&mut self, _time: TimeSched, _index: usize) {
         /*
         let t = self.base_tick; //XXX use actual tick
         let _ = self.trigger_sender.try_send((t, index));
