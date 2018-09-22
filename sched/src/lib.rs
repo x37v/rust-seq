@@ -54,6 +54,28 @@ impl<T: Copy> ParamBinding<T> for SpinlockParamBinding<T> {
 
 pub type BindingP<T> = Arc<SpinlockParamBinding<T>>;
 
+pub trait ValueSetBinding {
+    //store the value into the binding
+    fn store(&mut self);
+}
+
+pub struct SpinlockValueSetBinding<T: Copy> {
+    binding: SpinlockParamBinding<T>,
+    value: T,
+}
+
+impl<T: Copy> SpinlockValueSetBinding<T> {
+    pub fn new(binding: SpinlockParamBinding<T>, value: T) -> Self {
+        SpinlockValueSetBinding { binding, value }
+    }
+}
+
+impl<T: Copy> ValueSetBinding for SpinlockValueSetBinding<T> {
+    fn store(&mut self) {
+        self.binding.set(self.value);
+    }
+}
+
 pub trait Sched {
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
 }
