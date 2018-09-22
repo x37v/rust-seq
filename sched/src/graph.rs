@@ -51,7 +51,7 @@ mod tests {
             println!("ONCE");
             false
         }
-        fn child_append(&mut self, child: AChildP) {}
+        fn child_append(&mut self, _child: AChildP) {}
     }
 
     #[test]
