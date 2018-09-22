@@ -1,13 +1,13 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
-use base::{Context, LList, SchedContext, SrcSink};
+use base::{LList, SchedContext, SrcSink};
 use std::sync::Arc;
 use xnor_llist::List;
 use xnor_llist::Node as LNode;
 
 pub trait GraphExec: Send {
-    fn exec(&mut self, context: &mut Context) -> bool;
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
     fn child_append(&mut self, child: AChildP);
 }
 
@@ -27,7 +27,7 @@ mod tests {
     struct Y {}
 
     impl GraphExec for X {
-        fn exec(&mut self, context: &mut Context) -> bool {
+        fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
             println!("XES");
 
             let mut tmp = List::new();
@@ -46,7 +46,7 @@ mod tests {
     }
 
     impl GraphExec for Y {
-        fn exec(&mut self, _context: &mut Context) -> bool {
+        fn exec(&mut self, _context: &mut dyn SchedContext) -> bool {
             println!("ONCE");
             false
         }
