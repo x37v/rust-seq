@@ -126,24 +126,31 @@ pub struct TimedValueSetBinding {
     binding: Box<dyn ValueSetBinding>,
 }
 
+pub struct SrcSink {
+    node_cache: Receiver<SchedFnNode>,
+    dispose_schedule_sender: SyncSender<Box<dyn Send>>,
+    updater: Option<SrcSinkUpdater>,
+}
+
+pub struct SrcSinkUpdater {
+    node_cache_updater: SyncSender<SchedFnNode>,
+    dispose_schedule_receiver: Receiver<Box<dyn Send>>,
+}
+
 pub struct Executor {
     list: LList<TimedFn>,
     trigger_list: LList<(usize, usize)>,
     value_set_list: LList<Box<TimedValueSetBinding>>,
     time: Arc<AtomicUsize>,
     schedule_receiver: Receiver<SchedFnNode>,
-    node_cache: Receiver<SchedFnNode>,
-    dispose_schedule_sender: SyncSender<Box<dyn Send>>,
-    trigger_sender: SyncSender<(usize, usize)>,
-    trigger_receiver: Receiver<(usize, usize)>,
+    src_sink: SrcSink,
 }
 
 pub struct Scheduler {
     time: Arc<AtomicUsize>,
     executor: Option<Executor>,
     schedule_sender: SyncSender<SchedFnNode>,
-    node_cache_updater: Option<SyncSender<SchedFnNode>>,
-    dispose_schedule_receiver: Option<Receiver<Box<dyn Send>>>,
+    updater: Option<SrcSinkUpdater>,
     helper_handle: Option<thread::JoinHandle<()>>,
 }
 
@@ -237,13 +244,63 @@ impl<'a> SchedContext for Context<'a> {
     }
 }
 
+impl SrcSinkUpdater {
+    pub fn new(
+        node_cache_updater: SyncSender<SchedFnNode>,
+        dispose_schedule_receiver: Receiver<Box<dyn Send>>,
+    ) -> Self {
+        Self {
+            node_cache_updater,
+            dispose_schedule_receiver,
+        }
+    }
+
+    pub fn update(&self) -> bool {
+        loop {
+            match self.dispose_schedule_receiver.try_recv() {
+                Ok(_) => continue,
+                Err(TryRecvError::Empty) => (),
+                Err(TryRecvError::Disconnected) => return false,
+            }
+            match self
+                .node_cache_updater
+                .try_send(LNode::new_boxed(Default::default()))
+            {
+                Ok(_) => continue,
+                Err(TrySendError::Full(_)) => (),
+                Err(TrySendError::Disconnected(_)) => return false,
+            }
+            break;
+        }
+        true
+    }
+}
+
+impl SrcSink {
+    pub fn new() -> Self {
+        let (dispose_schedule_sender, dispose_schedule_receiver) = sync_channel(1024);
+        let (node_cache_updater, node_cache) = sync_channel(1024);
+        Self {
+            node_cache,
+            dispose_schedule_sender,
+            updater: Some(SrcSinkUpdater::new(
+                node_cache_updater,
+                dispose_schedule_receiver,
+            )),
+        }
+    }
+
+    pub fn updater(&mut self) -> Option<SrcSinkUpdater> {
+        self.updater.take()
+    }
+}
+
 impl Scheduler {
     pub fn new() -> Self {
         let (schedule_sender, schedule_receiver) = sync_channel(1024);
-        let (dispose_schedule_sender, dispose_schedule_receiver) = sync_channel(1024);
-        let (node_cache_updater, node_cache) = sync_channel(1024);
-        let (trigger_sender, trigger_receiver) = sync_channel(1024);
         let time = Arc::new(AtomicUsize::new(0));
+        let mut src_sink = SrcSink::new();
+        let updater = src_sink.updater();
         Scheduler {
             time: time.clone(),
             executor: Some(Executor {
@@ -252,46 +309,25 @@ impl Scheduler {
                 value_set_list: LList::new(),
                 time,
                 schedule_receiver,
-                dispose_schedule_sender,
-                node_cache,
-                trigger_sender,
-                trigger_receiver,
+                src_sink,
             }),
             schedule_sender,
-            dispose_schedule_receiver: Some(dispose_schedule_receiver),
-            node_cache_updater: Some(node_cache_updater),
+            updater,
             helper_handle: None,
         }
     }
 
     pub fn spawn_helper_threads(&mut self) {
-        let dispose_schedule_receiver = self.dispose_schedule_receiver.take().unwrap();
-        let node_cache_updater = self.node_cache_updater.take().unwrap();
-        let update = move || -> bool {
-            loop {
-                match dispose_schedule_receiver.try_recv() {
-                    Ok(_) => continue,
-                    Err(TryRecvError::Empty) => (),
-                    Err(TryRecvError::Disconnected) => return false,
+        if let Some(updater) = self.updater.take() {
+            //fill the caches, then spawn a thread to keep it updated
+            updater.update();
+            self.helper_handle = Some(thread::spawn(move || {
+                let sleep_time = std::time::Duration::from_millis(5);
+                while updater.update() {
+                    thread::sleep(sleep_time);
                 }
-                match node_cache_updater.try_send(LNode::new_boxed(Default::default())) {
-                    Ok(_) => continue,
-                    Err(TrySendError::Full(_)) => (),
-                    Err(TrySendError::Disconnected(_)) => return false,
-                }
-                break;
-            }
-            true
-        };
-
-        //fill the caches, then spawn a thread to keep it updated
-        update();
-        self.helper_handle = Some(thread::spawn(move || {
-            let sleep_time = std::time::Duration::from_millis(5);
-            while update() {
-                thread::sleep(sleep_time);
-            }
-        }));
+            }));
+        }
     }
 
     pub fn executor(&mut self) -> Option<Executor> {
