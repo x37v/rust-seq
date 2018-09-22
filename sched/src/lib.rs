@@ -54,7 +54,7 @@ impl<T: Copy> ParamBinding<T> for SpinlockParamBinding<T> {
 
 pub type BindingP<T> = Arc<SpinlockParamBinding<T>>;
 
-pub trait ValueSetBinding {
+pub trait ValueSetBinding: Send {
     //store the value into the binding
     fn store(&self);
 }
@@ -70,7 +70,7 @@ impl<T: Copy> SpinlockValueSetBinding<T> {
     }
 }
 
-impl<T: Copy> ValueSetBinding for SpinlockValueSetBinding<T> {
+impl<T: Copy + Send> ValueSetBinding for SpinlockValueSetBinding<T> {
     fn store(&self) {
         self.binding.set(self.value);
     }
@@ -121,8 +121,15 @@ impl Default for TimedFn {
     }
 }
 
+pub struct TimedValueSetBinding {
+    time: usize,
+    binding: Box<dyn ValueSetBinding>,
+}
+
 pub struct Executor {
     list: LList<TimedFn>,
+    trigger_list: LList<(usize, usize)>,
+    value_set_list: LList<Box<TimedValueSetBinding>>,
     time: Arc<AtomicUsize>,
     schedule_receiver: Receiver<SchedFnNode>,
     node_cache: Receiver<SchedFnNode>,
@@ -241,6 +248,8 @@ impl Scheduler {
             time: time.clone(),
             executor: Some(Executor {
                 list: LList::new(),
+                trigger_list: LList::new(),
+                value_set_list: LList::new(),
                 time,
                 schedule_receiver,
                 dispose_schedule_sender,
