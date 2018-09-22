@@ -166,7 +166,7 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    fn new_root(
+    pub fn new_root(
         tick: usize,
         ticks_per_second: usize,
         list: &'a mut LList<TimedFn>,
