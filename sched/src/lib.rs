@@ -87,11 +87,12 @@ pub trait SchedContext {
     fn context_tick_period_micros(&self) -> f32;
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
     fn schedule_trigger(&mut self, time: TimeSched, index: usize);
-    fn schedule_value(&mut self, time: TimeSched, value: Arc<ValueSetBinding>);
+    fn schedule_value(&mut self, time: TimeSched, value: ValueSetP);
 }
 
 //an object to be put into a schedule and called later
 pub type SchedFn = Box<dyn SchedCall>;
+pub type ValueSetP = Box<dyn ValueSetBinding>;
 
 pub trait SchedCall: Send {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched;
@@ -220,7 +221,7 @@ impl<'a> SchedContext for Context<'a> {
         self.context_tick_period_micros
     }
     fn schedule_trigger(&mut self, time: TimeSched, index: usize) {}
-    fn schedule_value(&mut self, time: TimeSched, value: Arc<ValueSetBinding>) {}
+    fn schedule_value(&mut self, time: TimeSched, value: ValueSetP) {}
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.src_sink.pop_node() {
             Some(mut n) => {
