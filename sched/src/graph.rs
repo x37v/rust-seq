@@ -1,7 +1,7 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
-use base::{LList, SchedContext, SrcSink};
+use base::SchedContext;
 use std::sync::Arc;
 use xnor_llist::List;
 use xnor_llist::Node as LNode;
