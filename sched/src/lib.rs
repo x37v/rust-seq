@@ -298,6 +298,12 @@ impl SrcSink {
     }
 }
 
+impl Default for SrcSink {
+    fn default() -> SrcSink {
+        SrcSink::new()
+    }
+}
+
 impl Scheduler {
     pub fn new() -> Self {
         let (schedule_sender, schedule_receiver) = sync_channel(1024);
