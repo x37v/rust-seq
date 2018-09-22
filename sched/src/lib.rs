@@ -85,8 +85,9 @@ pub trait SchedContext {
     fn context_tick(&self) -> usize;
     fn base_tick_period_micros(&self) -> f32;
     fn context_tick_period_micros(&self) -> f32;
-    fn trigger(&mut self, time: TimeSched, index: usize);
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
+    fn schedule_trigger(&mut self, time: TimeSched, index: usize);
+    fn schedule_value(&mut self, time: TimeSched, value: Arc<ValueSetBinding>);
 }
 
 //an object to be put into a schedule and called later
@@ -218,12 +219,8 @@ impl<'a> SchedContext for Context<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.context_tick_period_micros
     }
-    fn trigger(&mut self, _time: TimeSched, _index: usize) {
-        /*
-        let t = self.base_tick; //XXX use actual tick
-        let _ = self.trigger_sender.try_send((t, index));
-        */
-    }
+    fn schedule_trigger(&mut self, time: TimeSched, index: usize) {}
+    fn schedule_value(&mut self, time: TimeSched, value: Arc<ValueSetBinding>) {}
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.src_sink.pop_node() {
             Some(mut n) => {
@@ -500,7 +497,7 @@ mod tests {
                     //XXX shouldn't actually allocate this
                     Box::new(move |context: &mut dyn SchedContext| {
                         println!("inner dog {}, scheduled at {}", context.base_tick(), at);
-                        context.trigger(TimeSched::Relative(0), 1);
+                        context.schedule_trigger(TimeSched::Relative(0), 1);
                         TimeResched::None
                     }),
                 );
