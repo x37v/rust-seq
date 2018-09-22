@@ -7,7 +7,7 @@ use xnor_llist::List;
 use xnor_llist::Node as LNode;
 
 pub trait GraphExec: Send {
-    fn exec(&self, context: &mut Context) -> bool;
+    fn exec(&mut self, context: &mut Context) -> bool;
     fn child_append(&mut self, child: AChildP);
 }
 
@@ -27,12 +27,18 @@ mod tests {
     struct Y {}
 
     impl GraphExec for X {
-        fn exec(&self, context: &mut Context) -> bool {
+        fn exec(&mut self, context: &mut Context) -> bool {
             println!("XES");
-            for c in self.children.iter() {
-                c.lock().exec(context);
+
+            let mut tmp = List::new();
+            std::mem::swap(&mut self.children, &mut tmp);
+            for c in tmp.into_iter() {
+                if c.lock().exec(context) {
+                    self.children.push_back(c);
+                }
             }
-            false
+
+            self.children.count() > 0
         }
         fn child_append(&mut self, child: AChildP) {
             self.children.push_back(child);
@@ -40,48 +46,15 @@ mod tests {
     }
 
     impl GraphExec for Y {
-        fn exec(&self, _context: &mut Context) -> bool {
-            println!("YES");
-            true
+        fn exec(&mut self, _context: &mut Context) -> bool {
+            println!("ONCE");
+            false
         }
         fn child_append(&mut self, child: AChildP) {}
     }
 
     #[test]
-    fn with_mutex() {
-        type M<T> = std::sync::Mutex<T>;
-
-        let x = Arc::new(M::new(X {
-            children: List::new(),
-        }));
-        let y = Arc::new(M::new(Y {}));
-
-        let mut l: LList<std::sync::Arc<M<dyn GraphExec>>> = List::new();
-        l.push_back(LNode::new_boxed(y.clone()));
-        l.push_back(LNode::new_boxed(x.clone()));
-
-        let mut v: Vec<Box<LNode<std::sync::Arc<M<dyn GraphExec>>>>> = Vec::new();
-        v.push(LNode::new_boxed(y));
-        v.push(LNode::new_boxed(x));
-
-        let mut src_sink = SrcSink::new();
-        let mut list = LList::new();
-
-        let mut c = Context::new_root(0, 0, &mut list, &mut src_sink);
-
-        for i in l.iter() {
-            let g = i.lock().unwrap();
-            g.exec(&mut c);
-        }
-
-        for i in v.iter() {
-            let g = i.lock().unwrap();
-            g.exec(&mut c);
-        }
-    }
-
-    #[test]
-    fn with_my_mutex() {
+    fn works() {
         type M<T> = spinlock::Mutex<T>;
 
         let x = Arc::new(M::new(X {
@@ -90,12 +63,8 @@ mod tests {
         let y = Arc::new(M::new(Y {}));
 
         let mut l: LList<std::sync::Arc<M<dyn GraphExec>>> = List::new();
-        l.push_back(LNode::new_boxed(y.clone()));
         l.push_back(LNode::new_boxed(x.clone()));
-
-        let mut v: Vec<Box<LNode<std::sync::Arc<M<dyn GraphExec>>>>> = Vec::new();
-        v.push(LNode::new_boxed(y));
-        v.push(LNode::new_boxed(x));
+        x.lock().child_append(LNode::new_boxed(y.clone()));
 
         let mut src_sink = SrcSink::new();
         let mut list = LList::new();
@@ -103,13 +72,11 @@ mod tests {
         let mut c = Context::new_root(0, 0, &mut list, &mut src_sink);
 
         for i in l.iter() {
-            let g = i.lock();
-            g.exec(&mut c);
+            i.lock().exec(&mut c);
         }
 
-        for i in v.iter() {
-            let g = i.lock();
-            g.exec(&mut c);
+        for i in l.iter() {
+            i.lock().exec(&mut c);
         }
     }
 
