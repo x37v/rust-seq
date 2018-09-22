@@ -161,8 +161,7 @@ pub struct Context<'a> {
     context_tick_period_micros: f32,
     list: &'a mut LList<TimedFn>,
     context_list: Option<&'a mut LList<TimedFn>>,
-    node_cache: &'a mut Receiver<SchedFnNode>,
-    trigger_sender: &'a mut SyncSender<(usize, usize)>,
+    src_sink: &'a mut SrcSink,
 }
 
 impl<'a> Context<'a> {
@@ -170,8 +169,7 @@ impl<'a> Context<'a> {
         tick: usize,
         ticks_per_second: usize,
         list: &'a mut LList<TimedFn>,
-        node_cache: &'a mut Receiver<SchedFnNode>,
-        trigger_sender: &'a mut SyncSender<(usize, usize)>,
+        src_sink: &'a mut SrcSink,
     ) -> Self {
         let tpm = 1e6f32 / (ticks_per_second as f32);
         Context {
@@ -181,13 +179,8 @@ impl<'a> Context<'a> {
             context_tick_period_micros: tpm,
             list,
             context_list: None,
-            node_cache,
-            trigger_sender,
+            src_sink,
         }
-    }
-
-    pub fn pop_node(&mut self) -> Option<SchedFnNode> {
-        self.node_cache.try_recv().ok()
     }
 
     fn list_and_tick(&mut self, time: &TimeSched) -> (&mut LList<TimedFn>, usize) {
@@ -226,11 +219,13 @@ impl<'a> SchedContext for Context<'a> {
         self.context_tick_period_micros
     }
     fn trigger(&mut self, _time: TimeSched, index: usize) {
+        /*
         let t = self.base_tick; //XXX use actual tick
         let _ = self.trigger_sender.try_send((t, index));
+        */
     }
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        match self.pop_node() {
+        match self.src_sink.pop_node() {
             Some(mut n) => {
                 n.func = Some(func);
                 let (l, t) = self.list_and_tick(&time);
@@ -293,6 +288,14 @@ impl SrcSink {
     pub fn updater(&mut self) -> Option<SrcSinkUpdater> {
         self.updater.take()
     }
+
+    pub fn pop_node(&mut self) -> Option<SchedFnNode> {
+        self.node_cache.try_recv().ok()
+    }
+
+    pub fn dispose(&mut self, item: Box<Send>) {
+        let _ = self.dispose_schedule_sender.send(item);
+    }
 }
 
 impl Scheduler {
@@ -346,18 +349,12 @@ impl Executor {
         self.list.insert(node, |n, o| n.time <= o.time);
     }
 
-    pub fn pop_node(&mut self) -> Option<SchedFnNode> {
-        self.node_cache.try_recv().ok()
-    }
-
-    pub fn dispose(&mut self, item: Box<Send>) {
-        let _ = self.dispose_schedule_sender.send(item);
-    }
-
     fn eval_triggers(&mut self) {
+        /*
         while let Some((t, i)) = self.trigger_receiver.try_recv().ok() {
             println!("trigger {} at {}", i, t);
         }
+        */
     }
 
     pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
@@ -375,8 +372,7 @@ impl Executor {
                 current,
                 ticks_per_second,
                 &mut self.list,
-                &mut self.node_cache,
-                &mut self.trigger_sender,
+                &mut self.src_sink,
             );
             match timedfn.sched_call(&mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
@@ -384,7 +380,7 @@ impl Executor {
                     self.add_node(timedfn);
                 }
                 TimeResched::None => {
-                    self.dispose(timedfn);
+                    self.src_sink.dispose(timedfn);
                 }
             }
         }
@@ -434,7 +430,7 @@ impl Sched for Scheduler {
 
 impl Sched for Executor {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        match self.pop_node() {
+        match self.src_sink.pop_node() {
             Some(mut n) => {
                 n.time = add_atomic_time(&self.time, &time); //XXX should we clamp above current time?
                 n.func = Some(func);
