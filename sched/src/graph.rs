@@ -18,6 +18,7 @@ pub type ChildList = List<ANodeP>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base::{Context, LList, SrcSink};
     use std;
     use std::vec::Vec;
 
