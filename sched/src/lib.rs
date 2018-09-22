@@ -26,7 +26,7 @@ pub enum TimeResched {
 }
 
 pub trait ParamBinding<T> {
-    fn set(&mut self, value: T);
+    fn set(&self, value: T);
     fn get(&self) -> T;
 }
 
@@ -43,7 +43,7 @@ impl<T: Copy> SpinlockParamBinding<T> {
 }
 
 impl<T: Copy> ParamBinding<T> for SpinlockParamBinding<T> {
-    fn set(&mut self, value: T) {
+    fn set(&self, value: T) {
         self.lock.lock().set(value);
     }
 
@@ -56,22 +56,22 @@ pub type BindingP<T> = Arc<SpinlockParamBinding<T>>;
 
 pub trait ValueSetBinding {
     //store the value into the binding
-    fn store(&mut self);
+    fn store(&self);
 }
 
 pub struct SpinlockValueSetBinding<T: Copy> {
-    binding: SpinlockParamBinding<T>,
+    binding: BindingP<T>,
     value: T,
 }
 
 impl<T: Copy> SpinlockValueSetBinding<T> {
-    pub fn new(binding: SpinlockParamBinding<T>, value: T) -> Self {
+    pub fn new(binding: BindingP<T>, value: T) -> Self {
         SpinlockValueSetBinding { binding, value }
     }
 }
 
 impl<T: Copy> ValueSetBinding for SpinlockValueSetBinding<T> {
-    fn store(&mut self) {
+    fn store(&self) {
         self.binding.set(self.value);
     }
 }
@@ -410,6 +410,26 @@ mod tests {
     #[test]
     fn can_vec() {
         let _x: Vec<TimedFn> = (0..20).map({ |_| TimedFn::default() }).collect();
+    }
+
+    #[test]
+    fn value_set_binding() {
+        let pb = Arc::new(SpinlockParamBinding::new(23));
+        assert_eq!(23, pb.get());
+
+        let vsb = SpinlockValueSetBinding::new(pb.clone(), 2084);
+
+        //doesn't change it immediately
+        assert_eq!(23, pb.get());
+
+        vsb.store();
+        assert_eq!(2084, pb.get());
+
+        pb.set(1);
+        assert_eq!(1, pb.get());
+
+        vsb.store();
+        assert_eq!(2084, pb.get());
     }
 
     #[test]
