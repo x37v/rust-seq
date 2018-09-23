@@ -114,30 +114,6 @@ impl BPMClock {
     }
 }
 
-impl BPMClockPeriodMicroBinding {
-    pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
-        Self {
-            0: bpm_clock_binding,
-        }
-    }
-}
-
-impl BPMClockBPMBinding {
-    pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
-        Self {
-            0: bpm_clock_binding,
-        }
-    }
-}
-
-impl BPMClockPPQBinding {
-    pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
-        Self {
-            0: bpm_clock_binding,
-        }
-    }
-}
-
 impl ParamBinding<f32> for BPMClockPeriodMicroBinding {
     fn set(&self, value: f32) {
         self.0.lock().set_period_micros(value);
@@ -220,26 +196,42 @@ mod tests {
     fn bpm_binding_test() {
         let mut b = Arc::new(spinlock::Mutex::new(BPMClock::new(120.0, 96)));
 
+        let bpm = Arc::new(BPMClockBPMBinding(b.clone()));
+        let ppq = Arc::new(BPMClockPPQBinding(b.clone()));
+        let micros = Arc::new(BPMClockPeriodMicroBinding(b.clone()));
+
         let c = b.clone();
         assert_eq!(5208f32, c.lock().period_micros().floor());
+        assert_eq!(5208f32, micros.get().floor());
         assert_eq!(120f32, c.lock().bpm());
+        assert_eq!(120f32, bpm.get());
         assert_eq!(96, c.lock().ppq());
+        assert_eq!(96, ppq.get());
 
-        c.lock().set_ppq(24);
+        ppq.set(24);
         assert_eq!(20833f32, c.lock().period_micros().floor());
+        assert_eq!(20833f32, micros.get().floor());
         assert_eq!(120f32, c.lock().bpm());
+        assert_eq!(120f32, bpm.get());
         assert_eq!(24, c.lock().ppq());
+        assert_eq!(24, ppq.get());
 
-        c.lock().set_bpm(2.0);
-        c.lock().set_ppq(96);
+        bpm.set(2.0);
+        ppq.set(96);
         assert_eq!(2f32, c.lock().bpm());
+        assert_eq!(2f32, bpm.get());
         assert_eq!(96, c.lock().ppq());
+        assert_eq!(96, ppq.get());
         assert_ne!(5208f32, c.lock().period_micros().floor());
+        assert_ne!(5208f32, micros.get().floor());
 
-        c.lock().set_period_micros(5_208.333333f32);
+        micros.set(5_208.333333f32);
         assert_eq!(120f32, c.lock().bpm().floor());
+        assert_eq!(120f32, bpm.get().floor());
         assert_eq!(96, c.lock().ppq());
+        assert_eq!(96, ppq.get());
         assert_eq!(5208f32, c.lock().period_micros().floor());
+        assert_eq!(5208f32, micros.get().floor());
     }
 
 }
