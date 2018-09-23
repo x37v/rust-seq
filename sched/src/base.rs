@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::sync::Arc;
 use std::thread;
+use util::add_clamped;
 
 pub enum TimeSched {
     Absolute(usize),
@@ -59,6 +60,22 @@ pub struct TimedFn {
     time: usize,
     func: Option<SchedFn>,
 }
+
+impl TimedFn {
+    pub fn set_time(&mut self, time: usize) {
+        self.time = time;
+    }
+    pub fn time(&self) -> usize {
+        self.time
+    }
+    pub fn set_func(&mut self, func: Option<SchedFn>) {
+        self.func = func
+    }
+    pub fn func(&mut self) -> Option<SchedFn> {
+        self.func.take()
+    }
+}
+
 pub type SchedFnNode = Box<LNode<TimedFn>>;
 
 impl Default for TimedFn {
@@ -160,9 +177,9 @@ impl<'a> SchedContext for RootContext<'a> {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.src_sink.pop_node() {
             Some(mut n) => {
-                n.func = Some(func);
-                n.time = self.to_tick(&time);
-                self.list.insert(n, |n, o| n.time <= o.time);
+                n.set_func(Some(func));
+                n.set_time(self.to_tick(&time));
+                self.list.insert(n, |n, o| n.time() <= o.time());
             }
             None => {
                 println!("OOPS");
@@ -319,7 +336,7 @@ impl Default for Scheduler {
 
 impl Executor {
     pub fn add_node(&mut self, node: SchedFnNode) {
-        self.list.insert(node, |n, o| n.time <= o.time);
+        self.list.insert(node, |n, o| n.time() <= o.time());
     }
 
     fn eval_triggers(&mut self) {
@@ -339,7 +356,7 @@ impl Executor {
             self.add_node(n);
         }
 
-        while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
+        while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time() < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
             let mut context = RootContext::new(
                 current,
@@ -372,14 +389,6 @@ impl SchedCall for TimedFn {
     }
 }
 
-fn add_clamped(u: usize, i: isize) -> usize {
-    if i > 0 {
-        u.saturating_add(i as usize)
-    } else {
-        u.saturating_sub((-i) as usize)
-    }
-}
-
 fn add_atomic_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
     add_time(current.load(Ordering::SeqCst), time)
 }
@@ -405,9 +414,9 @@ impl Sched for Executor {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.src_sink.pop_node() {
             Some(mut n) => {
-                n.time = add_atomic_time(&self.time, &time); //XXX should we clamp above current time?
-                n.func = Some(func);
-                self.list.insert(n, |n, o| n.time <= o.time);
+                n.set_time(add_atomic_time(&self.time, &time)); //XXX should we clamp above current time?
+                n.set_func(Some(func));
+                self.list.insert(n, |n, o| n.time() <= o.time());
             }
             None => {
                 println!("OOPS");
@@ -419,6 +428,7 @@ impl Sched for Executor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use binding::{ParamBinding, SpinlockParamBinding, SpinlockValueSetBinding};
     use std::thread;
 
     #[test]

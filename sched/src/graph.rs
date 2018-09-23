@@ -73,7 +73,8 @@ impl SchedCall for RootClock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{LList, RootContext, Sched, Scheduler, SpinlockParamBinding, SrcSink, TimeSched};
+    use base::{LList, RootContext, Sched, Scheduler, SrcSink, TimeSched};
+    use binding::SpinlockParamBinding;
     use std;
     use std::thread;
 
