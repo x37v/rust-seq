@@ -7,16 +7,27 @@ pub use xnor_llist::Node as LNode;
 use std::cell::Cell;
 use std::sync::Arc;
 
+pub type ValueSetP = Box<dyn ValueSetBinding>;
+pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
+
 pub trait ParamBinding<T>: Send + Sync {
     fn set(&self, value: T);
     fn get(&self) -> T;
+}
+
+pub trait ValueSetBinding: Send {
+    //store the value into the binding
+    fn store(&self);
 }
 
 pub struct SpinlockParamBinding<T: Copy> {
     lock: spinlock::Mutex<Cell<T>>,
 }
 
-pub type ValueSetP = Box<dyn ValueSetBinding>;
+pub struct SpinlockValueSetBinding<T: Copy> {
+    binding: BindingP<T>,
+    value: T,
+}
 
 impl<T: Copy> SpinlockParamBinding<T> {
     pub fn new(value: T) -> Self {
@@ -34,18 +45,6 @@ impl<T: Copy + Send> ParamBinding<T> for SpinlockParamBinding<T> {
     fn get(&self) -> T {
         self.lock.lock().get()
     }
-}
-
-pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
-
-pub trait ValueSetBinding: Send {
-    //store the value into the binding
-    fn store(&self);
-}
-
-pub struct SpinlockValueSetBinding<T: Copy> {
-    binding: BindingP<T>,
-    value: T,
 }
 
 impl<T: Copy> SpinlockValueSetBinding<T> {
