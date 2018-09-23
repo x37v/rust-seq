@@ -37,11 +37,15 @@ impl RootClock {
 
 impl SchedCall for RootClock {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
-        let mut tmp = List::new();
-        std::mem::swap(&mut self.children, &mut tmp);
-        for c in tmp.into_iter() {
-            if c.lock().exec(context) {
-                self.children.push_back(c);
+        if self.children.count() > 0 {
+            //XXX need to create a context for the children
+            let mut tmp = List::new();
+            std::mem::swap(&mut self.children, &mut tmp);
+
+            for c in tmp.into_iter() {
+                if c.lock().exec(context) {
+                    self.children.push_back(c);
+                }
             }
         }
 
