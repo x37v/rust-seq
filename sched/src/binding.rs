@@ -35,17 +35,9 @@ pub struct BPMClock {
     ppq: usize,
 }
 
-pub struct BPMClockPeriodMicroBinding {
-    bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>,
-}
-
-pub struct BPMClockBPMBinding {
-    bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>,
-}
-
-pub struct BPMClockPPQBinding {
-    bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>,
-}
+pub struct BPMClockPeriodMicroBinding(pub Arc<spinlock::Mutex<BPMClock>>);
+pub struct BPMClockBPMBinding(pub Arc<spinlock::Mutex<BPMClock>>);
+pub struct BPMClockPPQBinding(pub Arc<spinlock::Mutex<BPMClock>>);
 
 impl<T: Copy> SpinlockParamBinding<T> {
     pub fn new(value: T) -> Self {
@@ -124,46 +116,52 @@ impl BPMClock {
 
 impl BPMClockPeriodMicroBinding {
     pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
-        Self { bpm_clock_binding }
+        Self {
+            0: bpm_clock_binding,
+        }
     }
 }
 
 impl BPMClockBPMBinding {
     pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
-        Self { bpm_clock_binding }
+        Self {
+            0: bpm_clock_binding,
+        }
     }
 }
 
 impl BPMClockPPQBinding {
     pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
-        Self { bpm_clock_binding }
+        Self {
+            0: bpm_clock_binding,
+        }
     }
 }
 
 impl ParamBinding<f32> for BPMClockPeriodMicroBinding {
     fn set(&self, value: f32) {
-        self.bpm_clock_binding.lock().set_period_micros(value);
+        self.0.lock().set_period_micros(value);
     }
     fn get(&self) -> f32 {
-        self.bpm_clock_binding.lock().period_micros()
+        self.0.lock().period_micros()
     }
 }
 
 impl ParamBinding<f32> for BPMClockBPMBinding {
     fn set(&self, value: f32) {
-        self.bpm_clock_binding.lock().set_bpm(value);
+        self.0.lock().set_bpm(value);
     }
     fn get(&self) -> f32 {
-        self.bpm_clock_binding.lock().bpm()
+        self.0.lock().bpm()
     }
 }
 
 impl ParamBinding<usize> for BPMClockPPQBinding {
     fn set(&self, value: usize) {
-        self.bpm_clock_binding.lock().set_ppq(value);
+        self.0.lock().set_ppq(value);
     }
     fn get(&self) -> usize {
-        self.bpm_clock_binding.lock().ppq()
+        self.0.lock().ppq()
     }
 }
 
@@ -216,6 +214,32 @@ mod tests {
         assert_eq!(120f32, c.bpm().floor());
         assert_eq!(96, c.ppq());
         assert_eq!(5208f32, c.period_micros().floor());
+    }
+
+    #[test]
+    fn bpm_binding_test() {
+        let mut b = Arc::new(spinlock::Mutex::new(BPMClock::new(120.0, 96)));
+
+        let c = b.clone();
+        assert_eq!(5208f32, c.lock().period_micros().floor());
+        assert_eq!(120f32, c.lock().bpm());
+        assert_eq!(96, c.lock().ppq());
+
+        c.lock().set_ppq(24);
+        assert_eq!(20833f32, c.lock().period_micros().floor());
+        assert_eq!(120f32, c.lock().bpm());
+        assert_eq!(24, c.lock().ppq());
+
+        c.lock().set_bpm(2.0);
+        c.lock().set_ppq(96);
+        assert_eq!(2f32, c.lock().bpm());
+        assert_eq!(96, c.lock().ppq());
+        assert_ne!(5208f32, c.lock().period_micros().floor());
+
+        c.lock().set_period_micros(5_208.333333f32);
+        assert_eq!(120f32, c.lock().bpm().floor());
+        assert_eq!(96, c.lock().ppq());
+        assert_eq!(5208f32, c.lock().period_micros().floor());
     }
 
 }
