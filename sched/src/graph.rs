@@ -1,7 +1,7 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
-use base::{ParamBinding, SchedCall, SchedContext, TimeResched};
+use base::{ChildContext, ParamBinding, SchedCall, SchedContext, TimeResched};
 use std;
 use std::sync::Arc;
 use xnor_llist::List;
@@ -37,19 +37,19 @@ impl RootClock {
 
 impl SchedCall for RootClock {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
+        let period_micros = self.period_micros.get();
         if self.children.count() > 0 {
-            //XXX need to create a context for the children
+            let mut ccontext = ChildContext::new(context, self.tick, period_micros);
             let mut tmp = List::new();
             std::mem::swap(&mut self.children, &mut tmp);
 
             for c in tmp.into_iter() {
-                if c.lock().exec(context) {
+                if c.lock().exec(&mut ccontext) {
                     self.children.push_back(c);
                 }
             }
         }
 
-        let period_micros = self.period_micros.get();
         if period_micros <= 0f32 {
             TimeResched::ContextRelative(1)
         } else {

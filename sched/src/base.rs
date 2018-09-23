@@ -162,6 +162,12 @@ pub struct RootContext<'a> {
     src_sink: &'a mut SrcSink,
 }
 
+pub struct ChildContext<'a> {
+    parent: &'a mut dyn SchedContext,
+    context_tick: usize,
+    context_tick_period_micros: f32,
+}
+
 impl<'a> RootContext<'a> {
     pub fn new(
         tick: usize,
@@ -214,6 +220,51 @@ impl<'a> SchedContext for RootContext<'a> {
                 println!("OOPS");
             }
         }
+    }
+}
+
+impl<'a> ChildContext<'a> {
+    pub fn new(
+        parent: &'a mut dyn SchedContext,
+        context_tick: usize,
+        context_tick_period_micros: f32,
+    ) -> Self {
+        Self {
+            context_tick,
+            context_tick_period_micros,
+            parent,
+        }
+    }
+
+    fn to_tick(&self, time: &TimeSched) -> usize {
+        //XXX operate on context stuff
+        match *time {
+            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
+            TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
+                add_clamped(self.base_tick(), t)
+            }
+        }
+    }
+}
+
+impl<'a> SchedContext for ChildContext<'a> {
+    fn base_tick(&self) -> usize {
+        self.parent.base_tick()
+    }
+    fn context_tick(&self) -> usize {
+        self.context_tick
+    }
+    fn base_tick_period_micros(&self) -> f32 {
+        self.parent.base_tick_period_micros()
+    }
+    fn context_tick_period_micros(&self) -> f32 {
+        self.context_tick_period_micros
+    }
+    fn schedule_trigger(&mut self, _time: TimeSched, _index: usize) {}
+    fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
+    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
+        //XXX translate time
+        self.parent.schedule(time, func);
     }
 }
 
