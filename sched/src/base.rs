@@ -325,26 +325,6 @@ mod tests {
     }
 
     #[test]
-    fn value_set_binding() {
-        let pb = Arc::new(SpinlockParamBinding::new(23));
-        assert_eq!(23, pb.get());
-
-        let vsb = SpinlockValueSetBinding::new(pb.clone(), 2084);
-
-        //doesn't change it immediately
-        assert_eq!(23, pb.get());
-
-        vsb.store();
-        assert_eq!(2084, pb.get());
-
-        pb.set(1);
-        assert_eq!(1, pb.get());
-
-        vsb.store();
-        assert_eq!(2084, pb.get());
-    }
-
-    #[test]
     fn basic_test() {
         let mut s = Scheduler::new();
         s.spawn_helper_threads();
