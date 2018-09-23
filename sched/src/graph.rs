@@ -54,10 +54,11 @@ impl SchedCall for RootClock {
             }
         }
 
-        if period_micros <= 0f32 {
+        let ctp = context.context_tick_period_micros();
+        if period_micros <= 0f32 || ctp <= 0f32 {
             TimeResched::ContextRelative(1)
         } else {
-            let next = self.tick_sub + (period_micros / context.context_tick_period_micros());
+            let next = self.tick_sub + (period_micros / ctp);
             self.tick_sub = next.fract();
             self.tick += 1;
 
