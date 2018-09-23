@@ -68,9 +68,9 @@ impl SchedCall for RootClock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{LList, RootContext, SrcSink};
+    use base::{LList, RootContext, Scheduler, SpinlockParamBinding, SrcSink, TimeSched};
     use std;
-    use std::vec::Vec;
+    use std::thread;
 
     struct X {
         children: ChildList,
@@ -129,6 +129,25 @@ mod tests {
         for i in l.iter() {
             i.lock().exec(&mut c);
         }
+    }
+
+    #[test]
+    fn scheduled() {
+        let mut s = Scheduler::new();
+        s.spawn_helper_threads();
+
+        let e = s.executor();
+
+        let mut clock_period = Arc::new(SpinlockParamBinding::new(1_000_000f32));
+        let clock = Box::new(RootClock::new(clock_period));
+
+        s.schedule(TimeSched::Relative(0), clock);
+
+        let child = thread::spawn(move || {
+            let mut e = e.unwrap();
+            e.run(44100, 44100);
+            e.run(44100, 44100);
+        });
     }
 
 }
