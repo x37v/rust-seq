@@ -33,6 +33,10 @@ impl RootClock {
             period_micros,
         }
     }
+
+    pub fn child_append(&mut self, child: AChildP) {
+        self.children.push_back(child);
+    }
 }
 
 impl SchedCall for RootClock {
@@ -53,13 +57,12 @@ impl SchedCall for RootClock {
         if period_micros <= 0f32 {
             TimeResched::ContextRelative(1)
         } else {
-            let next = self.tick_sub + (context.context_tick_period_micros() * period_micros);
+            let next = self.tick_sub + (period_micros / context.context_tick_period_micros());
             self.tick_sub = next.fract();
             self.tick += 1;
 
             //XXX what if next is less than 1?
             assert!(next >= 1f32, "tick less than sample size not supported");
-
             TimeResched::ContextRelative(std::cmp::max(1, next.floor() as usize))
         }
     }
@@ -68,7 +71,7 @@ impl SchedCall for RootClock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{LList, RootContext, Scheduler, SpinlockParamBinding, SrcSink, TimeSched};
+    use base::{LList, RootContext, Sched, Scheduler, SpinlockParamBinding, SrcSink, TimeSched};
     use std;
     use std::thread;
 
@@ -131,6 +134,30 @@ mod tests {
         }
     }
 
+    struct TickStore {
+        tick: Option<usize>,
+    }
+
+    impl TickStore {
+        fn tick(&self) -> Option<usize> {
+            self.tick
+        }
+    }
+
+    impl Default for TickStore {
+        fn default() -> Self {
+            TickStore { tick: None }
+        }
+    }
+
+    impl GraphExec for TickStore {
+        fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
+            self.tick = Some(context.context_tick());
+            true
+        }
+        fn child_append(&mut self, _child: AChildP) {}
+    }
+
     #[test]
     fn scheduled() {
         let mut s = Scheduler::new();
@@ -139,15 +166,33 @@ mod tests {
         let e = s.executor();
 
         let mut clock_period = Arc::new(SpinlockParamBinding::new(1_000_000f32));
-        let clock = Box::new(RootClock::new(clock_period));
+        let mut clock = Box::new(RootClock::new(clock_period));
+        let tick_store = Arc::new(spinlock::Mutex::new(TickStore::default()));
+
+        assert!(tick_store.lock().tick().is_none());
+        clock.child_append(LNode::new_boxed(tick_store.clone()));
+        assert!(tick_store.lock().tick().is_none());
 
         s.schedule(TimeSched::Relative(0), clock);
 
         let child = thread::spawn(move || {
             let mut e = e.unwrap();
-            e.run(44100, 44100);
-            e.run(44100, 44100);
+            e.run(44100, 44100); //just on the verge of next tick
+            assert_eq!(Some(0), tick_store.lock().tick());
+
+            e.run(1, 44100); //next tick
+            assert_eq!(Some(1), tick_store.lock().tick());
+
+            e.run(44098, 44100);
+            assert_eq!(Some(1), tick_store.lock().tick());
+
+            e.run(1, 44100);
+            assert_eq!(Some(1), tick_store.lock().tick());
+
+            e.run(2, 44100);
+            assert_eq!(Some(2), tick_store.lock().tick());
         });
+        assert!(child.join().is_ok());
     }
 
 }
