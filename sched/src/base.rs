@@ -155,69 +155,51 @@ pub struct Scheduler {
     helper_handle: Option<thread::JoinHandle<()>>,
 }
 
-pub struct Context<'a> {
+pub struct RootContext<'a> {
     base_tick: usize,
-    context_tick: usize,
     base_tick_period_micros: f32,
-    context_tick_period_micros: f32,
     list: &'a mut LList<TimedFn>,
-    context_list: Option<&'a mut LList<TimedFn>>,
     src_sink: &'a mut SrcSink,
 }
 
-impl<'a> Context<'a> {
-    pub fn new_root(
+impl<'a> RootContext<'a> {
+    pub fn new(
         tick: usize,
         ticks_per_second: usize,
         list: &'a mut LList<TimedFn>,
         src_sink: &'a mut SrcSink,
     ) -> Self {
         let tpm = 1e6f32 / (ticks_per_second as f32);
-        Context {
+        Self {
             base_tick: tick,
-            context_tick: tick,
             base_tick_period_micros: tpm,
-            context_tick_period_micros: tpm,
             list,
-            context_list: None,
             src_sink,
         }
     }
 
-    fn list_and_tick(&mut self, time: &TimeSched) -> (&mut LList<TimedFn>, usize) {
+    fn to_tick(&self, time: &TimeSched) -> usize {
         match *time {
-            TimeSched::Absolute(t) => (self.list, t),
-            TimeSched::ContextAbsolute(t) => {
-                if let Some(l) = &mut self.context_list {
-                    (l, t)
-                } else {
-                    (self.list, t)
-                }
-            }
-            TimeSched::Relative(t) => (self.list, add_clamped(self.base_tick, t)),
-            TimeSched::ContextRelative(t) => {
-                if let Some(l) = &mut self.context_list {
-                    (l, add_clamped(self.context_tick, t))
-                } else {
-                    (self.list, add_clamped(self.base_tick, t))
-                }
+            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
+            TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
+                add_clamped(self.base_tick, t)
             }
         }
     }
 }
 
-impl<'a> SchedContext for Context<'a> {
+impl<'a> SchedContext for RootContext<'a> {
     fn base_tick(&self) -> usize {
         self.base_tick
     }
     fn context_tick(&self) -> usize {
-        self.context_tick
+        self.base_tick
     }
     fn base_tick_period_micros(&self) -> f32 {
         self.base_tick_period_micros
     }
     fn context_tick_period_micros(&self) -> f32 {
-        self.context_tick_period_micros
+        self.base_tick_period_micros
     }
     fn schedule_trigger(&mut self, _time: TimeSched, _index: usize) {}
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
@@ -225,9 +207,8 @@ impl<'a> SchedContext for Context<'a> {
         match self.src_sink.pop_node() {
             Some(mut n) => {
                 n.func = Some(func);
-                let (l, t) = self.list_and_tick(&time);
-                n.time = t;
-                l.insert(n, |n, o| n.time <= o.time);
+                n.time = self.to_tick(&time);
+                self.list.insert(n, |n, o| n.time <= o.time);
             }
             None => {
                 println!("OOPS");
@@ -371,7 +352,7 @@ impl Executor {
 
         while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
-            let mut context = Context::new_root(
+            let mut context = RootContext::new(
                 current,
                 ticks_per_second,
                 &mut self.list,

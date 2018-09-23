@@ -68,7 +68,7 @@ impl SchedCall for RootClock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{Context, LList, SrcSink};
+    use base::{LList, RootContext, SrcSink};
     use std;
     use std::vec::Vec;
 
@@ -120,7 +120,7 @@ mod tests {
         let mut src_sink = SrcSink::new();
         let mut list = LList::new();
 
-        let mut c = Context::new_root(0, 0, &mut list, &mut src_sink);
+        let mut c = RootContext::new(0, 0, &mut list, &mut src_sink);
 
         for i in l.iter() {
             i.lock().exec(&mut c);
