@@ -29,14 +29,22 @@ pub struct SpinlockValueSetBinding<T: Copy> {
     value: T,
 }
 
-pub struct BPMClockBinding {
-    data: BPMClockBindingData,
-}
-
-pub struct BPMClockBindingData {
+pub struct BPMClock {
     bpm: f32,
     period_micros: f32,
     ppq: usize,
+}
+
+pub struct BPMClockPeriodMicroBinding {
+    bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>,
+}
+
+pub struct BPMClockBPMBinding {
+    bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>,
+}
+
+pub struct BPMClockPPQBinding {
+    bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>,
 }
 
 impl<T: Copy> SpinlockParamBinding<T> {
@@ -69,41 +77,96 @@ impl<T: Copy + Send> ValueSetBinding for SpinlockValueSetBinding<T> {
     }
 }
 
-impl BPMClockBinding {
-    pub fn new(bpm: f32, ppq: usize) -> Self {
-        Self {
-            data: BPMClockBindingData::new(bpm, ppq),
-        }
-    }
-
-    pub fn bpm_binding(&self) -> Arc<impl ParamBinding<f32>> {
-        //XXX TMP/FAKE
-        Arc::new(SpinlockParamBinding::new(150f32))
-    }
-
-    pub fn ppq_binding(&self) -> Arc<impl ParamBinding<usize>> {
-        //XXX TMP/FAKE
-        Arc::new(SpinlockParamBinding::new(960usize))
-    }
-
-    pub fn period_micro_binding(&self) -> Arc<impl ParamBinding<f32>> {
-        //XXX TMP/FAKE
-        Arc::new(SpinlockParamBinding::new(15f32))
-    }
-}
-
-impl BPMClockBindingData {
-    fn period_micro(bpm: f32, ppq: usize) -> f32 {
+impl BPMClock {
+    pub fn period_micro(bpm: f32, ppq: usize) -> f32 {
         60e6f32 / (bpm * ppq as f32)
     }
-    fn new(bpm: f32, ppq: usize) -> Self {
+
+    pub fn new(bpm: f32, ppq: usize) -> Self {
         Self {
             bpm,
             period_micros: Self::period_micro(bpm, ppq),
             ppq,
         }
     }
+
+    pub fn bpm(&self) -> f32 {
+        self.bpm
+    }
+
+    pub fn set_bpm(&mut self, bpm: f32) {
+        self.bpm = if bpm < 0f32 { 0.001f32 } else { bpm };
+        self.period_micros = Self::period_micro(self.bpm, self.ppq);
+    }
+
+    pub fn period_micros(&self) -> f32 {
+        self.period_micros
+    }
+
+    pub fn set_period_micros(&mut self, period_micros: f32) {
+        self.period_micros = if period_micros < 0.001f32 {
+            0.001f32
+        } else {
+            period_micros
+        };
+        self.bpm = 60e6f32 / (self.period_micros * self.ppq as f32);
+    }
+
+    pub fn ppq(&self) -> usize {
+        self.ppq
+    }
+
+    pub fn set_ppq(&mut self, ppq: usize) {
+        self.ppq = if ppq < 1 { 1 } else { ppq };
+        self.period_micros = Self::period_micro(self.bpm, self.ppq);
+    }
 }
+
+impl BPMClockPeriodMicroBinding {
+    pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
+        Self { bpm_clock_binding }
+    }
+}
+
+impl BPMClockBPMBinding {
+    pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
+        Self { bpm_clock_binding }
+    }
+}
+
+impl BPMClockPPQBinding {
+    pub fn new(bpm_clock_binding: Arc<spinlock::Mutex<BPMClock>>) -> Self {
+        Self { bpm_clock_binding }
+    }
+}
+
+impl ParamBinding<f32> for BPMClockPeriodMicroBinding {
+    fn set(&self, value: f32) {
+        self.bpm_clock_binding.lock().set_period_micros(value);
+    }
+    fn get(&self) -> f32 {
+        self.bpm_clock_binding.lock().period_micros()
+    }
+}
+
+impl ParamBinding<f32> for BPMClockBPMBinding {
+    fn set(&self, value: f32) {
+        self.bpm_clock_binding.lock().set_bpm(value);
+    }
+    fn get(&self) -> f32 {
+        self.bpm_clock_binding.lock().bpm()
+    }
+}
+
+impl ParamBinding<usize> for BPMClockPPQBinding {
+    fn set(&self, value: usize) {
+        self.bpm_clock_binding.lock().set_ppq(value);
+    }
+    fn get(&self) -> usize {
+        self.bpm_clock_binding.lock().ppq()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,14 +193,29 @@ mod tests {
 
     #[test]
     fn bpm_value_test() {
-        assert_eq!(
-            5208f32,
-            BPMClockBindingData::period_micro(120.0, 96).floor()
-        );
-        assert_eq!(
-            20833.0f32,
-            BPMClockBindingData::period_micro(120.0, 24).floor()
-        );
+        assert_eq!(5208f32, BPMClock::period_micro(120.0, 96).floor());
+        assert_eq!(20833f32, BPMClock::period_micro(120.0, 24).floor());
+
+        let mut c = BPMClock::new(120.0, 96);
+        assert_eq!(5208f32, c.period_micros().floor());
+        assert_eq!(120f32, c.bpm());
+        assert_eq!(96, c.ppq());
+
+        c.set_ppq(24);
+        assert_eq!(20833f32, c.period_micros().floor());
+        assert_eq!(120f32, c.bpm());
+        assert_eq!(24, c.ppq());
+
+        c.set_bpm(2.0);
+        c.set_ppq(96);
+        assert_eq!(2f32, c.bpm());
+        assert_eq!(96, c.ppq());
+        assert_ne!(5208f32, c.period_micros().floor());
+
+        c.set_period_micros(5_208.333333f32);
+        assert_eq!(120f32, c.bpm().floor());
+        assert_eq!(96, c.ppq());
+        assert_eq!(5208f32, c.period_micros().floor());
     }
 
 }
