@@ -24,7 +24,7 @@ pub enum TimeResched {
     None,
 }
 
-pub trait ParamBinding<T> {
+pub trait ParamBinding<T>: Send + Sync {
     fn set(&self, value: T);
     fn get(&self) -> T;
 }
@@ -41,7 +41,7 @@ impl<T: Copy> SpinlockParamBinding<T> {
     }
 }
 
-impl<T: Copy> ParamBinding<T> for SpinlockParamBinding<T> {
+impl<T: Copy + Send> ParamBinding<T> for SpinlockParamBinding<T> {
     fn set(&self, value: T) {
         self.lock.lock().set(value);
     }
@@ -51,7 +51,7 @@ impl<T: Copy> ParamBinding<T> for SpinlockParamBinding<T> {
     }
 }
 
-pub type BindingP<T> = Arc<SpinlockParamBinding<T>>;
+pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
 
 pub trait ValueSetBinding: Send {
     //store the value into the binding
