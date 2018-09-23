@@ -1,8 +1,9 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
-use base::{ChildContext, SchedCall, SchedContext, TimeResched};
+use base::{SchedCall, TimeResched};
 use binding::ParamBinding;
+use context::{ChildContext, SchedContext};
 use std;
 use std::sync::Arc;
 use xnor_llist::List;
@@ -73,8 +74,9 @@ impl SchedCall for RootClock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{LList, RootContext, Sched, Scheduler, SrcSink, TimeSched};
+    use base::{LList, Sched, Scheduler, SrcSink, TimeSched};
     use binding::SpinlockParamBinding;
+    use context::{RootContext, SchedContext};
     use std;
     use std::thread;
 
