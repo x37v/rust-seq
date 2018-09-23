@@ -1,7 +1,8 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
-use base::{ChildContext, ParamBinding, SchedCall, SchedContext, TimeResched};
+use base::{ChildContext, SchedCall, SchedContext, TimeResched};
+use binding::ParamBinding;
 use std;
 use std::sync::Arc;
 use xnor_llist::List;
