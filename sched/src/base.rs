@@ -235,16 +235,6 @@ impl<'a> ChildContext<'a> {
             parent,
         }
     }
-
-    fn to_tick(&self, time: &TimeSched) -> usize {
-        //XXX operate on context stuff
-        match *time {
-            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
-            TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
-                add_clamped(self.base_tick(), t)
-            }
-        }
-    }
 }
 
 impl<'a> SchedContext for ChildContext<'a> {
