@@ -166,7 +166,7 @@ mod tests {
         let e = s.executor();
 
         let mut clock_period = Arc::new(SpinlockParamBinding::new(1_000_000f32));
-        let mut clock = Box::new(RootClock::new(clock_period));
+        let mut clock = Box::new(RootClock::new(clock_period.clone()));
         let tick_store = Arc::new(spinlock::Mutex::new(TickStore::default()));
 
         assert!(tick_store.lock().tick().is_none());
@@ -189,8 +189,13 @@ mod tests {
             e.run(1, 44100);
             assert_eq!(Some(1), tick_store.lock().tick());
 
-            e.run(2, 44100);
+            clock_period.set(500_000f32); //2x as fast
+
+            e.run(2, 44100); //still waiting for next tick
             assert_eq!(Some(2), tick_store.lock().tick());
+
+            e.run(44100, 44100);
+            assert_eq!(Some(4), tick_store.lock().tick());
         });
         assert!(child.join().is_ok());
     }
