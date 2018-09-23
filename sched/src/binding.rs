@@ -199,6 +199,7 @@ mod tests {
         let bpm = Arc::new(BPMClockBPMBinding(b.clone()));
         let ppq = Arc::new(BPMClockPPQBinding(b.clone()));
         let micros = Arc::new(BPMClockPeriodMicroBinding(b.clone()));
+        let micros2 = micros.clone();
 
         let c = b.clone();
         assert_eq!(5208f32, c.lock().period_micros().floor());
@@ -225,7 +226,7 @@ mod tests {
         assert_ne!(5208f32, c.lock().period_micros().floor());
         assert_ne!(5208f32, micros.get().floor());
 
-        micros.set(5_208.333333f32);
+        micros2.set(5_208.333333f32);
         assert_eq!(120f32, c.lock().bpm().floor());
         assert_eq!(120f32, bpm.get().floor());
         assert_eq!(96, c.lock().ppq());
