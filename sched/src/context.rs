@@ -1,4 +1,4 @@
-use base::{LList, SchedFn, SrcSink, TimeSched, TimedFn};
+use base::{LList, LNode, SchedFn, SrcSink, TimeSched, TimedFn, TimedTrig};
 use binding::ValueSetP;
 use util::add_clamped;
 
@@ -16,6 +16,7 @@ pub struct RootContext<'a> {
     base_tick: usize,
     base_tick_period_micros: f32,
     list: &'a mut LList<TimedFn>,
+    trig_list: &'a mut LList<TimedTrig>,
     src_sink: &'a mut SrcSink,
 }
 
@@ -30,6 +31,7 @@ impl<'a> RootContext<'a> {
         tick: usize,
         ticks_per_second: usize,
         list: &'a mut LList<TimedFn>,
+        trig_list: &'a mut LList<TimedTrig>,
         src_sink: &'a mut SrcSink,
     ) -> Self {
         let tpm = 1e6f32 / (ticks_per_second as f32);
@@ -37,6 +39,7 @@ impl<'a> RootContext<'a> {
             base_tick: tick,
             base_tick_period_micros: tpm,
             list,
+            trig_list,
             src_sink,
         }
     }
@@ -64,7 +67,13 @@ impl<'a> SchedContext for RootContext<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.base_tick_period_micros
     }
-    fn schedule_trigger(&mut self, _time: TimeSched, _index: usize) {}
+    fn schedule_trigger(&mut self, _time: TimeSched, index: usize) {
+        //XXX, don't allocate
+        let mut n = LNode::new_boxed(TimedTrig::default());
+        n.set_time(self.base_tick); //XXX
+        n.set_index(index);
+        self.trig_list.insert(n, |n, o| n.time() <= o.time());
+    }
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         match self.src_sink.pop_node() {

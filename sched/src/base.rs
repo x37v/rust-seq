@@ -71,12 +71,40 @@ pub type SchedFnNode = Box<LNode<TimedFn>>;
 
 impl Default for TimedFn {
     fn default() -> Self {
-        TimedFn {
+        Self {
             time: 0,
             func: None,
         }
     }
 }
+
+pub struct TimedTrig {
+    time: usize,
+    index: usize,
+}
+
+impl TimedTrig {
+    pub fn set_time(&mut self, time: usize) {
+        self.time = time;
+    }
+    pub fn time(&self) -> usize {
+        self.time
+    }
+    pub fn set_index(&mut self, index: usize) {
+        self.index = index;
+    }
+    pub fn index(&self) -> usize {
+        self.index
+    }
+}
+
+impl Default for TimedTrig {
+    fn default() -> Self {
+        Self { time: 0, index: 0 }
+    }
+}
+
+pub type TimedTrigNode = Box<LNode<TimedTrig>>;
 
 pub struct TimedValueSetBinding {
     time: usize,
@@ -96,7 +124,7 @@ pub struct SrcSinkUpdater {
 
 pub struct Executor {
     list: LList<TimedFn>,
-    trigger_list: LList<(usize, usize)>,
+    trigger_list: LList<TimedTrig>,
     value_set_list: LList<Box<TimedValueSetBinding>>,
     time: Arc<AtomicUsize>,
     schedule_receiver: Receiver<SchedFnNode>,
@@ -227,7 +255,11 @@ impl Executor {
         self.list.insert(node, |n, o| n.time() <= o.time());
     }
 
-    fn eval_triggers(&mut self) {
+    pub fn eval_triggers<F: FnMut(usize, usize)>(&mut self, func: &mut F) {
+        while let Some(trig) = self.trigger_list.pop_front() {
+            func(trig.time(), trig.index());
+            self.src_sink.dispose(trig);
+        }
         /*
         while let Some((t, i)) = self.trigger_receiver.try_recv().ok() {
             println!("trigger {} at {}", i, t);
@@ -250,6 +282,7 @@ impl Executor {
                 current,
                 ticks_per_second,
                 &mut self.list,
+                &mut self.trigger_list,
                 &mut self.src_sink,
             );
             match timedfn.sched_call(&mut context) {
@@ -263,7 +296,6 @@ impl Executor {
             }
         }
         self.time.store(next, Ordering::SeqCst);
-        self.eval_triggers();
     }
 }
 
