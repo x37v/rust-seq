@@ -1,0 +1,10 @@
+[package]
+name = "sched-jack"
+version = "0.1.0"
+authors = ["Alex Norman <alex@x37v.info>"]
+
+[dependencies]
+jack = { git = "https://github.com/RustAudio/rust-jack.git" }
+
+[dependencies.sched]
+path = "../sched"
