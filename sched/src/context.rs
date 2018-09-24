@@ -116,7 +116,9 @@ impl<'a> SchedContext for ChildContext<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.context_tick_period_micros
     }
-    fn schedule_trigger(&mut self, _time: TimeSched, _index: usize) {}
+    fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
+        self.parent.schedule_trigger(time, index); //XXX translate time
+    }
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         //XXX translate time
