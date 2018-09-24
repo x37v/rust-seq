@@ -71,6 +71,18 @@ impl SchedCall for RootClock {
     }
 }
 
+//implement sched_call for any Fn that with the correct sig
+impl<F: Fn(&mut dyn SchedContext) -> bool> GraphExec for F
+where
+    F: Send,
+{
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
+        (*self)(context)
+    }
+
+    fn child_append(&mut self, _child: AChildP) {}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
