@@ -5,7 +5,7 @@ use sched::binding::bpm;
 use sched::context::SchedContext;
 use sched::graph::RootClock;
 use sched::spinlock;
-use sched::{Sched, Scheduler, TimeResched, TimeSched};
+use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 use std::sync::Arc;
 
 use std::io;
@@ -21,19 +21,29 @@ fn main() {
     let mut s = Scheduler::new();
     s.spawn_helper_threads();
 
-    let b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 96)));
+    let b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 1))); //XXX 1PPQ so we can hear it
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(b.clone()));
-    let clock = Box::new(RootClock::new(micros.clone()));
+    let mut clock = Box::new(RootClock::new(micros.clone()));
+
+    //just make a click at the clock rate
+    clock.child_append(LNode::new_boxed(Arc::new(spinlock::Mutex::new(
+        move |context: &mut dyn SchedContext| {
+            context.schedule_trigger(TimeSched::Relative(0), 1);
+            true
+        },
+    ))));
+
     s.schedule(TimeSched::Relative(0), clock);
 
+    /*
     s.schedule(
         TimeSched::Relative(0),
-        //XXX shouldn't actually allocate this
         Box::new(move |context: &mut dyn SchedContext| {
             context.schedule_trigger(TimeSched::Relative(0), 1);
-            TimeResched::Relative(44100)
-        }),
+            TimeResched::Relative(44100))
+        },
     );
+    */
 
     let mut e = s.executor().unwrap();
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
