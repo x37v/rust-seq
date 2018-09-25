@@ -3,7 +3,7 @@ extern crate sched;
 
 use sched::binding::bpm;
 use sched::context::SchedContext;
-use sched::graph::{FuncWrapper, RootClock};
+use sched::graph::{FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 use std::sync::Arc;
@@ -25,12 +25,17 @@ fn main() {
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(b.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
+    let mut div = FuncWrapper::new_p(move |context: &mut dyn SchedContext| {
+        context.schedule_trigger(TimeSched::Relative(0), 1);
+        true
+    });
+
     let trig = FuncWrapper::new_p(move |context: &mut dyn SchedContext| {
         context.schedule_trigger(TimeSched::Relative(0), 1);
         true
     });
 
-    //just make a click at the clock rate
+    //div.child_append(LNode::new_boxed(trig));
     clock.child_append(LNode::new_boxed(trig));
 
     s.schedule(TimeSched::Relative(0), clock);
