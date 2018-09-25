@@ -32,7 +32,7 @@ fn main() {
             let ppq_v = ppq.get();
             if context.context_tick() % ppq_v == 0 {
                 let tick = context.context_tick() / ppq_v;
-                let tick_period = context.base_tick_period_micros() / (ppq_v as f32);
+                let tick_period = context.base_tick_period_micros() * (ppq_v as f32);
                 let mut ccontext = ChildContext::new(context, tick, tick_period);
                 for c in children.iter() {
                     c.lock().exec(&mut ccontext);
