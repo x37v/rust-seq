@@ -14,8 +14,8 @@ fn main() {
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
 
-    let mut out = client
-        .register_port("out", jack::AudioOut::default())
+    let mut midi_out = client
+        .register_port("midi", jack::MidiOut::default())
         .unwrap();
 
     let mut s = Scheduler::new();
@@ -47,13 +47,22 @@ fn main() {
 
     let mut e = s.executor().unwrap();
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-        let out_p = out.as_mut_slice(ps);
-        for v in out_p.iter_mut() {
-            *v = 0f32;
-        }
+        let mut out_p = midi_out.writer(ps);
         e.run(ps.n_frames() as usize, client.sample_rate() as usize);
-        e.eval_triggers(&mut |time, _index| {
-            out_p[time % (ps.n_frames() as usize)] = 1f32;
+        e.eval_triggers(&mut |time, index| {
+            let n = (index & 0x7F) as u8;
+            let t = time as u32 % ps.n_frames();
+            if out_p
+                .write(&jack::RawMidi {
+                    time: t,
+                    bytes: &[0b1001_0000, n, 127],
+                }).is_ok()
+            {
+                let _ = out_p.write(&jack::RawMidi {
+                    time: t + 1,
+                    bytes: &[0b1000_0000, n, 127],
+                });
+            }
         });
         jack::Control::Continue
     };
