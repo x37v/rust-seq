@@ -26,6 +26,11 @@ pub struct RootClock {
     period_micros: Arc<dyn ParamBinding<Micro>>,
 }
 
+pub struct FuncWrapper<F> {
+    children: ChildList,
+    func: Box<F>,
+}
+
 impl RootClock {
     pub fn new(period_micros: Arc<dyn ParamBinding<Micro>>) -> Self {
         Self {
@@ -81,6 +86,18 @@ where
     }
 
     fn child_append(&mut self, _child: AChildP) {}
+}
+
+impl<F> FuncWrapper<F>
+where
+    F: Send,
+{
+    pub fn new_p(func: F) -> Arc<spinlock::Mutex<Self>> {
+        Arc::new(spinlock::Mutex::new(Self {
+            func: Box::new(func),
+            children: List::new(),
+        }))
+    }
 }
 
 #[cfg(test)]
