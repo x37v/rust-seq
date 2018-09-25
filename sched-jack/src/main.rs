@@ -2,8 +2,9 @@ extern crate jack;
 extern crate sched;
 
 use sched::binding::bpm;
-use sched::context::SchedContext;
-use sched::graph::{FuncWrapper, GraphExec, RootClock};
+use sched::binding::ParamBinding;
+use sched::context::{ChildContext, SchedContext};
+use sched::graph::{ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 use std::sync::Arc;
@@ -21,22 +22,35 @@ fn main() {
     let mut s = Scheduler::new();
     s.spawn_helper_threads();
 
-    let b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 1))); //XXX 1PPQ so we can hear it
+    let b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
+    let ppq = Arc::new(bpm::ClockPPQBinding(b.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(b.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
-    let mut div = FuncWrapper::new_p(move |context: &mut dyn SchedContext| {
-        context.schedule_trigger(TimeSched::Relative(0), 1);
-        true
-    });
+    let div = FuncWrapper::new_p(
+        move |context: &mut dyn SchedContext, children: &mut ChildList| {
+            let ppq_v = ppq.get();
+            if context.context_tick() % ppq_v == 0 {
+                let tick = context.context_tick() / ppq_v;
+                let tick_period = context.base_tick_period_micros() / (ppq_v as f32);
+                let mut ccontext = ChildContext::new(context, tick, tick_period);
+                for c in children.iter() {
+                    c.lock().exec(&mut ccontext);
+                }
+            }
+            true
+        },
+    );
 
-    let trig = FuncWrapper::new_p(move |context: &mut dyn SchedContext| {
-        context.schedule_trigger(TimeSched::Relative(0), 1);
-        true
-    });
+    let trig = FuncWrapper::new_p(
+        move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
+            context.schedule_trigger(TimeSched::Relative(0), 1);
+            true
+        },
+    );
 
-    //div.child_append(LNode::new_boxed(trig));
-    clock.child_append(LNode::new_boxed(trig));
+    div.lock().child_append(LNode::new_boxed(trig));
+    clock.child_append(LNode::new_boxed(div));
 
     s.schedule(TimeSched::Relative(0), clock);
 
