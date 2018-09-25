@@ -76,18 +76,6 @@ impl SchedCall for RootClock {
     }
 }
 
-//implement sched_call for any Fn that with the correct sig
-impl<F: Fn(&mut dyn SchedContext) -> bool> GraphExec for F
-where
-    F: Send,
-{
-    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
-        (*self)(context)
-    }
-
-    fn child_append(&mut self, _child: AChildP) {}
-}
-
 impl<F> FuncWrapper<F>
 where
     F: Send,
@@ -97,6 +85,19 @@ where
             func: Box::new(func),
             children: List::new(),
         }))
+    }
+}
+
+impl<F> GraphExec for FuncWrapper<F>
+where
+    F: Fn(&mut dyn SchedContext) -> bool + Send,
+{
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
+        (self.func)(context)
+    }
+
+    fn child_append(&mut self, child: AChildP) {
+        self.children.push_back(child);
     }
 }
 
