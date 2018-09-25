@@ -78,7 +78,7 @@ impl SchedCall for RootClock {
 
 impl<F> FuncWrapper<F>
 where
-    F: Send,
+    F: Fn(&mut dyn SchedContext, &mut ChildList) -> bool + Send,
 {
     pub fn new_p(func: F) -> Arc<spinlock::Mutex<Self>> {
         Arc::new(spinlock::Mutex::new(Self {
@@ -90,10 +90,10 @@ where
 
 impl<F> GraphExec for FuncWrapper<F>
 where
-    F: Fn(&mut dyn SchedContext) -> bool + Send,
+    F: Fn(&mut dyn SchedContext, &mut ChildList) -> bool + Send,
 {
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
-        (self.func)(context)
+        (self.func)(context, &mut self.children)
     }
 
     fn child_append(&mut self, child: AChildP) {
