@@ -44,7 +44,8 @@ fn main() {
 
     let trig = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
-            context.schedule_trigger(TimeSched::Relative(0), 1);
+            let index = context.context_tick();
+            context.schedule_trigger(TimeSched::Relative(0), index);
             true
         },
     );
