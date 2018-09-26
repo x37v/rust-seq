@@ -1,4 +1,6 @@
-use base::{LList, LNode, SchedFn, SrcSink, TimeSched, TimedFn, TimedTrig};
+use base::{
+    InsertTimeSorted, LList, SchedFn, SrcSink, TimeSched, TimedFn, TimedNodeData, TimedTrig,
+};
 use binding::ValueSetP;
 use util::add_clamped;
 
@@ -71,7 +73,7 @@ impl<'a> SchedContext for RootContext<'a> {
         if let Some(mut n) = self.src_sink.pop_trig() {
             n.set_index(index);
             n.set_time(self.to_tick(&time));
-            self.trig_list.insert(n, |n, o| n.time() <= o.time());
+            self.trig_list.insert_time_sorted(n);
         } else {
             println!("OOPS");
         }
@@ -81,7 +83,7 @@ impl<'a> SchedContext for RootContext<'a> {
         if let Some(mut n) = self.src_sink.pop_node() {
             n.set_func(Some(func));
             n.set_time(self.to_tick(&time));
-            self.list.insert(n, |n, o| n.time() <= o.time());
+            self.list.insert_time_sorted(n);
         } else {
             println!("OOPS");
         }

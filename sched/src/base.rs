@@ -47,23 +47,44 @@ where
     }
 }
 
+pub trait TimedNodeData {
+    fn set_time(&mut self, time: usize);
+    fn time(&self) -> usize;
+}
+
+pub trait InsertTimeSorted<T> {
+    fn insert_time_sorted(&mut self, node: Box<LNode<T>>);
+}
+
 pub struct TimedFn {
     time: usize,
     func: Option<SchedFn>,
 }
 
+impl<T> InsertTimeSorted<T> for LList<T>
+where
+    T: TimedNodeData,
+{
+    fn insert_time_sorted(&mut self, node: Box<LNode<T>>) {
+        self.insert(node, |n, o| n.time() <= o.time());
+    }
+}
+
 impl TimedFn {
-    pub fn set_time(&mut self, time: usize) {
-        self.time = time;
-    }
-    pub fn time(&self) -> usize {
-        self.time
-    }
     pub fn set_func(&mut self, func: Option<SchedFn>) {
         self.func = func
     }
     pub fn func(&mut self) -> Option<SchedFn> {
         self.func.take()
+    }
+}
+
+impl TimedNodeData for TimedFn {
+    fn set_time(&mut self, time: usize) {
+        self.time = time;
+    }
+    fn time(&self) -> usize {
+        self.time
     }
 }
 
@@ -84,17 +105,20 @@ pub struct TimedTrig {
 }
 
 impl TimedTrig {
-    pub fn set_time(&mut self, time: usize) {
-        self.time = time;
-    }
-    pub fn time(&self) -> usize {
-        self.time
-    }
     pub fn set_index(&mut self, index: usize) {
         self.index = index;
     }
     pub fn index(&self) -> usize {
         self.index
+    }
+}
+
+impl TimedNodeData for TimedTrig {
+    fn set_time(&mut self, time: usize) {
+        self.time = time;
+    }
+    fn time(&self) -> usize {
+        self.time
     }
 }
 
@@ -271,7 +295,7 @@ impl Default for Scheduler {
 
 impl Executor {
     pub fn add_node(&mut self, node: SchedFnNode) {
-        self.list.insert(node, |n, o| n.time() <= o.time());
+        self.list.insert_time_sorted(node);
     }
 
     pub fn eval_triggers<F: FnMut(usize, usize)>(&mut self, func: &mut F) {
@@ -353,7 +377,7 @@ impl Sched for Executor {
             Some(mut n) => {
                 n.set_time(add_atomic_time(&self.time, &time)); //XXX should we clamp above current time?
                 n.set_func(Some(func));
-                self.list.insert(n, |n, o| n.time() <= o.time());
+                self.list.insert_time_sorted(n);
             }
             None => {
                 println!("OOPS");
