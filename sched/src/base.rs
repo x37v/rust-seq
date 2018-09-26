@@ -275,7 +275,10 @@ impl Executor {
     }
 
     pub fn eval_triggers<F: FnMut(usize, usize)>(&mut self, func: &mut F) {
-        while let Some(trig) = self.trigger_list.pop_front() {
+        //triggers are evaluated at the end of the run so 'now' is actually 'next'
+        //so we evaluate all the triggers that happened before 'now'
+        let now = self.time.load(Ordering::SeqCst);
+        while let Some(trig) = self.trigger_list.pop_front_while(|n| n.time() < now) {
             func(trig.time(), trig.index());
             self.src_sink.dispose(trig);
         }
