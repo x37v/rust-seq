@@ -113,12 +113,14 @@ pub struct TimedValueSetBinding {
 
 pub struct SrcSink {
     node_cache: Receiver<SchedFnNode>,
+    trig_cache: Receiver<TimedTrigNode>,
     dispose_schedule_sender: SyncSender<Box<dyn Send>>,
     updater: Option<SrcSinkUpdater>,
 }
 
 pub struct SrcSinkUpdater {
     node_cache_updater: SyncSender<SchedFnNode>,
+    trig_cache_updater: SyncSender<TimedTrigNode>,
     dispose_schedule_receiver: Receiver<Box<dyn Send>>,
 }
 
@@ -142,10 +144,12 @@ pub struct Scheduler {
 impl SrcSinkUpdater {
     pub fn new(
         node_cache_updater: SyncSender<SchedFnNode>,
+        trig_cache_updater: SyncSender<TimedTrigNode>,
         dispose_schedule_receiver: Receiver<Box<dyn Send>>,
     ) -> Self {
         Self {
             node_cache_updater,
+            trig_cache_updater,
             dispose_schedule_receiver,
         }
     }
@@ -165,6 +169,14 @@ impl SrcSinkUpdater {
                 Err(TrySendError::Full(_)) => (),
                 Err(TrySendError::Disconnected(_)) => return false,
             }
+            match self
+                .trig_cache_updater
+                .try_send(LNode::new_boxed(Default::default()))
+            {
+                Ok(_) => continue,
+                Err(TrySendError::Full(_)) => (),
+                Err(TrySendError::Disconnected(_)) => return false,
+            }
             break;
         }
         true
@@ -175,11 +187,14 @@ impl SrcSink {
     pub fn new() -> Self {
         let (dispose_schedule_sender, dispose_schedule_receiver) = sync_channel(1024);
         let (node_cache_updater, node_cache) = sync_channel(1024);
+        let (trig_cache_updater, trig_cache) = sync_channel(1024);
         Self {
             node_cache,
+            trig_cache,
             dispose_schedule_sender,
             updater: Some(SrcSinkUpdater::new(
                 node_cache_updater,
+                trig_cache_updater,
                 dispose_schedule_receiver,
             )),
         }
@@ -191,6 +206,10 @@ impl SrcSink {
 
     pub fn pop_node(&mut self) -> Option<SchedFnNode> {
         self.node_cache.try_recv().ok()
+    }
+
+    pub fn pop_trig(&mut self) -> Option<TimedTrigNode> {
+        self.trig_cache.try_recv().ok()
     }
 
     pub fn dispose(&mut self, item: Box<Send>) {

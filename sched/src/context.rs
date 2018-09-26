@@ -67,24 +67,23 @@ impl<'a> SchedContext for RootContext<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.base_tick_period_micros
     }
-    fn schedule_trigger(&mut self, _time: TimeSched, index: usize) {
-        //XXX, don't allocate
-        let mut n = LNode::new_boxed(TimedTrig::default());
-        n.set_time(self.base_tick); //XXX
-        n.set_index(index);
-        self.trig_list.insert(n, |n, o| n.time() <= o.time());
+    fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
+        if let Some(mut n) = self.src_sink.pop_trig() {
+            n.set_index(index);
+            n.set_time(self.to_tick(&time));
+            self.trig_list.insert(n, |n, o| n.time() <= o.time());
+        } else {
+            println!("OOPS");
+        }
     }
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        match self.src_sink.pop_node() {
-            Some(mut n) => {
-                n.set_func(Some(func));
-                n.set_time(self.to_tick(&time));
-                self.list.insert(n, |n, o| n.time() <= o.time());
-            }
-            None => {
-                println!("OOPS");
-            }
+        if let Some(mut n) = self.src_sink.pop_node() {
+            n.set_func(Some(func));
+            n.set_time(self.to_tick(&time));
+            self.list.insert(n, |n, o| n.time() <= o.time());
+        } else {
+            println!("OOPS");
         }
     }
 }
