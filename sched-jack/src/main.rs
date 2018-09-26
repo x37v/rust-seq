@@ -29,10 +29,10 @@ fn main() {
 
     let div = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, children: &mut ChildList| {
-            let ppq_v = ppq.get();
-            if context.context_tick() % ppq_v == 0 {
-                let tick = context.context_tick() / ppq_v;
-                let tick_period = context.base_tick_period_micros() * (ppq_v as f32);
+            let div = ppq.get();
+            if context.context_tick() % div == 0 {
+                let tick = context.context_tick() / div;
+                let tick_period = context.base_tick_period_micros() * (div as f32);
                 let mut ccontext = ChildContext::new(context, tick, tick_period);
                 for c in children.iter() {
                     c.lock().exec(&mut ccontext);
@@ -44,7 +44,7 @@ fn main() {
 
     let trig = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
-            let index = context.context_tick();
+            let index = 0;
             context.schedule_trigger(TimeSched::Relative(0), index);
             true
         },
@@ -54,16 +54,6 @@ fn main() {
     clock.child_append(LNode::new_boxed(div));
 
     s.schedule(TimeSched::Relative(0), clock);
-
-    /*
-    s.schedule(
-        TimeSched::Relative(0),
-        Box::new(move |context: &mut dyn SchedContext| {
-            context.schedule_trigger(TimeSched::Relative(0), 1);
-            TimeResched::Relative(44100))
-        },
-    );
-    */
 
     let mut e = s.executor().unwrap();
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
