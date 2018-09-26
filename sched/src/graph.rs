@@ -157,8 +157,9 @@ mod tests {
 
         let mut src_sink = SrcSink::new();
         let mut list = LList::new();
+        let mut trig_list = List::new();
 
-        let mut c = RootContext::new(0, 0, &mut list, &mut src_sink);
+        let mut c = RootContext::new(0, 0, &mut list, &mut trig_list, &mut src_sink);
 
         for i in l.iter() {
             i.lock().exec(&mut c);
