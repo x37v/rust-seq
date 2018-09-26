@@ -279,11 +279,6 @@ impl Executor {
             func(trig.time(), trig.index());
             self.src_sink.dispose(trig);
         }
-        /*
-        while let Some((t, i)) = self.trigger_receiver.try_recv().ok() {
-            println!("trigger {} at {}", i, t);
-        }
-        */
     }
 
     pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
