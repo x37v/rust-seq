@@ -6,7 +6,7 @@ use sched::binding::ParamBinding;
 use sched::context::{ChildContext, SchedContext};
 use sched::graph::{ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
-use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
+use sched::{LNode, Sched, Scheduler, TimeSched};
 use std::sync::Arc;
 
 use std::io;
@@ -19,12 +19,12 @@ fn main() {
         .register_port("midi", jack::MidiOut::default())
         .unwrap();
 
-    let mut s = Scheduler::new();
-    s.spawn_helper_threads();
+    let mut sched = Scheduler::new();
+    sched.spawn_helper_threads();
 
-    let b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
-    let ppq = Arc::new(bpm::ClockPPQBinding(b.clone()));
-    let micros = Arc::new(bpm::ClockPeriodMicroBinding(b.clone()));
+    let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
+    let ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
+    let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
     let div = FuncWrapper::new_p(
@@ -53,13 +53,13 @@ fn main() {
     div.lock().child_append(LNode::new_boxed(trig));
     clock.child_append(LNode::new_boxed(div));
 
-    s.schedule(TimeSched::Relative(0), clock);
+    sched.schedule(TimeSched::Relative(0), clock);
 
-    let mut e = s.executor().unwrap();
+    let mut ex = sched.executor().unwrap();
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let mut out_p = midi_out.writer(ps);
-        e.run(ps.n_frames() as usize, client.sample_rate() as usize);
-        e.eval_triggers(&mut |time, index| {
+        ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
+        ex.eval_triggers(&mut |time, index| {
             let n = (index & 0x7F) as u8;
             let t = time as u32 % ps.n_frames();
             if out_p
