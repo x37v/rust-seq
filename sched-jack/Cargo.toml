@@ -5,6 +5,8 @@ authors = ["Alex Norman <alex@x37v.info>"]
 
 [dependencies]
 jack = { git = "https://github.com/RustAudio/rust-jack.git" }
+euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git"}
 
 [dependencies.sched]
 path = "../sched"
+

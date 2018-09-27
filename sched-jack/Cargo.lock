@@ -4,6 +4,11 @@ version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "euclidian-rythms"
+version = "0.2.0"
+source = "git+https://github.com/x37v/euclidian-rythm.git#95be192ac43f58f102994fc9b18c404bf78f3e53"
+
+[[package]]
 name = "jack"
 version = "0.6.0-rc1"
 source = "git+https://github.com/RustAudio/rust-jack.git#48b51f5a3d3df919104d0c7a19b9ff1f0380e7d3"
@@ -68,6 +73,7 @@ dependencies = [
 name = "sched-jack"
 version = "0.1.0"
 dependencies = [
+ "euclidian-rythms 0.2.0 (git+https://github.com/x37v/euclidian-rythm.git)",
  "jack 0.6.0-rc1 (git+https://github.com/RustAudio/rust-jack.git)",
  "sched 0.1.0",
 ]
@@ -99,6 +105,7 @@ source = "git+https://github.com/x37v/rust-llist?branch=develop#e2eaaccd6467f9ca
 
 [metadata]
 "checksum bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d0c54bb8f454c567f21197eefcdbf5679d0bd99f2ddbe52e84c77061952e6789"
+"checksum euclidian-rythms 0.2.0 (git+https://github.com/x37v/euclidian-rythm.git)" = "<none>"
 "checksum jack 0.6.0-rc1 (git+https://github.com/RustAudio/rust-jack.git)" = "<none>"
 "checksum jack-sys 0.2.0 (git+https://github.com/RustAudio/rust-jack.git)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"

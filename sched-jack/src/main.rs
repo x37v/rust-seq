@@ -1,15 +1,82 @@
+extern crate euclidian_rythms;
 extern crate jack;
 extern crate sched;
 
 use sched::binding::bpm;
-use sched::binding::ParamBinding;
+use sched::binding::{BindingP, ParamBinding, SpinlockParamBinding};
 use sched::context::{ChildContext, SchedContext};
-use sched::graph::{ChildList, FuncWrapper, GraphExec, RootClock};
+use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
-use sched::{LNode, Sched, Scheduler, TimeSched};
+use sched::{LList, LNode, Sched, Scheduler, TimeSched};
 use std::sync::Arc;
 
 use std::io;
+
+struct Euclid {
+    children: ChildList,
+    step_ticks: BindingP<usize>,
+    steps: BindingP<u8>,
+    pulses: BindingP<u8>,
+    steps_last: Option<u8>,
+    pulses_last: Option<u8>,
+    pattern: [bool; 64],
+}
+
+impl Euclid {
+    pub fn new(step_ticks: BindingP<usize>, steps: BindingP<u8>, pulses: BindingP<u8>) -> Self {
+        Self {
+            children: LList::new(),
+            step_ticks,
+            steps,
+            pulses,
+            steps_last: None,
+            pulses_last: None,
+            pattern: [false; 64],
+        }
+    }
+
+    fn update_if(&mut self, steps: u8, pulses: u8) {
+        if self.steps_last.is_some()
+            && self.steps_last.unwrap() == steps
+            && self.pulses_last.unwrap() == pulses
+        {
+            return;
+        }
+        self.steps_last = Some(steps);
+        self.pulses_last = Some(pulses);
+
+        euclidian_rythms::euclidian_rythm(&mut self.pattern, pulses as usize, steps as usize);
+    }
+}
+
+impl GraphExec for Euclid {
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
+        let step_ticks = self.step_ticks.get();
+
+        if context.context_tick() % step_ticks == 0 {
+            let steps = self.steps.get();
+            let pulses = self.pulses.get();
+
+            self.update_if(steps, pulses);
+
+            let index = (context.context_tick() / step_ticks) % steps as usize;
+            if self.pattern[index] {
+                //XXX figure out tick and tick period
+                let tick = context.context_tick() / (pulses as usize);
+                let tick_period = 0f32;
+                let mut ccontext = ChildContext::new(context, tick, tick_period);
+                for c in self.children.iter() {
+                    c.lock().exec(&mut ccontext);
+                }
+            }
+        }
+        true
+    }
+
+    fn child_append(&mut self, child: AChildP) {
+        self.children.push_back(child);
+    }
+}
 
 fn main() {
     let (client, _status) =
@@ -27,9 +94,20 @@ fn main() {
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
+    let pulses = SpinlockParamBinding::new_p(3);
+    let steps = SpinlockParamBinding::new_p(7);
+    let step_ticks = SpinlockParamBinding::new_p(960 / 4);
+    let euclid = Arc::new(spinlock::Mutex::new(Euclid::new(
+        step_ticks.clone(),
+        steps.clone(),
+        pulses.clone(),
+    )));
+
+    /*
+    let mut ppqc = ppq.clone();
     let div = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, children: &mut ChildList| {
-            let div = ppq.get();
+            let div = ppqc.get();
             if context.context_tick() % div == 0 {
                 let tick = context.context_tick() / div;
                 let tick_period = context.base_tick_period_micros() * (div as f32);
@@ -41,6 +119,7 @@ fn main() {
             true
         },
     );
+    */
 
     let trig = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
@@ -50,8 +129,8 @@ fn main() {
         },
     );
 
-    div.lock().child_append(LNode::new_boxed(trig));
-    clock.child_append(LNode::new_boxed(div));
+    euclid.lock().child_append(LNode::new_boxed(trig));
+    clock.child_append(LNode::new_boxed(euclid));
 
     sched.schedule(TimeSched::Relative(0), clock);
 
