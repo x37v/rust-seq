@@ -3,7 +3,7 @@ extern crate jack;
 extern crate sched;
 
 use sched::binding::bpm;
-use sched::binding::{BindingP, ParamBinding, SpinlockParamBinding};
+use sched::binding::{BindingGetP, SpinlockParamBinding};
 use sched::context::{ChildContext, SchedContext};
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
@@ -15,16 +15,20 @@ use std::io;
 
 struct Euclid {
     children: ChildList,
-    step_ticks: BindingP<usize>,
-    steps: BindingP<u8>,
-    pulses: BindingP<u8>,
+    step_ticks: BindingGetP<usize>,
+    steps: BindingGetP<u8>,
+    pulses: BindingGetP<u8>,
     steps_last: Option<u8>,
     pulses_last: Option<u8>,
     pattern: [bool; 64],
 }
 
 impl Euclid {
-    pub fn new(step_ticks: BindingP<usize>, steps: BindingP<u8>, pulses: BindingP<u8>) -> Self {
+    pub fn new(
+        step_ticks: BindingGetP<usize>,
+        steps: BindingGetP<u8>,
+        pulses: BindingGetP<u8>,
+    ) -> Self {
         Self {
             children: LList::new(),
             step_ticks,
