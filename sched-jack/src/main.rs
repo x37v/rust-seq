@@ -1,15 +1,20 @@
 extern crate euclidian_rythms;
 extern crate jack;
+extern crate rosc;
 extern crate sched;
 
+use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
-use sched::binding::{BindingGetP, SpinlockParamBinding};
+use sched::binding::{BindingGetP, ParamBindingSet, SpinlockParamBinding};
 use sched::context::{ChildContext, SchedContext};
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
 use sched::util::Clamp;
 use sched::{LList, LNode, Sched, Scheduler, TimeSched};
+use std::net::{SocketAddrV4, UdpSocket};
+use std::str::FromStr;
 use std::sync::Arc;
+use std::thread;
 
 use std::io;
 
@@ -105,6 +110,42 @@ fn main() {
         steps.clone(),
         pulses.clone(),
     )));
+
+    let addr_s = "127.0.0.1:10001";
+    let addr = match SocketAddrV4::from_str(addr_s) {
+        Ok(addr) => addr,
+        Err(e) => panic!("error with osc address {}", e),
+    };
+    println!("osc addr {}", addr_s);
+    let osc_thread = thread::spawn(move || {
+        let sock = UdpSocket::bind(addr).unwrap();
+        let mut buf = [0u8; rosc::decoder::MTU];
+        let handle_packet = |packet: OscPacket| {
+            if let OscPacket::Message(msg) = packet {
+                if let Some(args) = msg.args {
+                    if let OscType::Int(s) = args[0] {
+                        match msg.addr.as_ref() {
+                            "/steps" => steps.set(s as u8),
+                            "/pulses" => pulses.set(s as u8),
+                            other => println!("unknown addr {}", other),
+                        }
+                    }
+                }
+            }
+        };
+        loop {
+            match sock.recv_from(&mut buf) {
+                Ok((size, addr)) => {
+                    let packet = rosc::decoder::decode(&buf[..size]).unwrap();
+                    handle_packet(packet);
+                }
+                Err(e) => {
+                    println!("Error receiving from socket: {}", e);
+                    break;
+                }
+            };
+        }
+    });
 
     /*
     let mut ppqc = ppq.clone();
