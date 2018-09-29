@@ -53,20 +53,18 @@ impl GraphExec for Euclid {
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
         let step_ticks = self.step_ticks.get();
 
-        if context.context_tick() % step_ticks == 0 {
+        if step_ticks > 0 && context.context_tick() % step_ticks == 0 {
             let steps = self.steps.get();
             let pulses = self.pulses.get();
+            if steps > 0 && pulses > 0 {
+                self.update_if(steps, pulses);
 
-            self.update_if(steps, pulses);
-
-            let index = (context.context_tick() / step_ticks) % steps as usize;
-            if self.pattern[index] {
-                //XXX figure out tick and tick period
-                let tick = context.context_tick() / (pulses as usize);
-                let tick_period = 0f32;
-                let mut ccontext = ChildContext::new(context, tick, tick_period);
-                for c in self.children.iter() {
-                    c.lock().exec(&mut ccontext);
+                //passing context through, so this is more like gate than a clock..
+                let index = (context.context_tick() / step_ticks) % steps as usize;
+                if self.pattern[index] {
+                    for c in self.children.iter() {
+                        c.lock().exec(context);
+                    }
                 }
             }
         }
@@ -94,7 +92,7 @@ fn main() {
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
-    let pulses = SpinlockParamBinding::new_p(3);
+    let pulses = SpinlockParamBinding::new_p(2);
     let steps = SpinlockParamBinding::new_p(7);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
     let euclid = Arc::new(spinlock::Mutex::new(Euclid::new(
