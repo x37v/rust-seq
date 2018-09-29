@@ -7,6 +7,7 @@ use sched::binding::{BindingP, ParamBinding, SpinlockParamBinding};
 use sched::context::{ChildContext, SchedContext};
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
+use sched::util::Clamp;
 use sched::{LList, LNode, Sched, Scheduler, TimeSched};
 use std::sync::Arc;
 
@@ -54,8 +55,8 @@ impl GraphExec for Euclid {
         let step_ticks = self.step_ticks.get();
 
         if step_ticks > 0 && context.context_tick() % step_ticks == 0 {
-            let steps = self.steps.get();
-            let pulses = self.pulses.get();
+            let steps = self.steps.get().clamp(0, 64);
+            let pulses = self.pulses.get().clamp(0, 64);
             if steps > 0 && pulses > 0 {
                 self.update_if(steps, pulses);
 
