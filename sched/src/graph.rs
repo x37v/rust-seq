@@ -2,7 +2,7 @@ extern crate spinlock;
 extern crate xnor_llist;
 
 use base::{SchedCall, TimeResched};
-use binding::ParamBinding;
+use binding::BindingGetP;
 use context::{ChildContext, SchedContext};
 use std;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ pub struct RootClock {
     children: ChildList,
     tick: usize,
     tick_sub: f32,
-    period_micros: Arc<dyn ParamBinding<Micro>>,
+    period_micros: BindingGetP<Micro>,
 }
 
 pub struct FuncWrapper<F> {
@@ -32,7 +32,7 @@ pub struct FuncWrapper<F> {
 }
 
 impl RootClock {
-    pub fn new(period_micros: Arc<dyn ParamBinding<Micro>>) -> Self {
+    pub fn new(period_micros: BindingGetP<Micro>) -> Self {
         Self {
             children: List::new(),
             tick: 0,
@@ -105,7 +105,7 @@ where
 mod tests {
     use super::*;
     use base::{LList, Sched, Scheduler, SrcSink, TimeSched};
-    use binding::SpinlockParamBinding;
+    use binding::{ParamBindingSet, SpinlockParamBinding};
     use context::{RootContext, SchedContext};
     use std;
     use std::thread;

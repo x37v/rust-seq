@@ -24,8 +24,14 @@ pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {}
 
 //a binding and a value to set it to
 pub enum ValueSet {
-    F32 { binding: BindingP<f32>, value: f32 },
-    I32 { binding: BindingP<i32>, value: i32 },
+    F32 {
+        binding: BindingSetP<f32>,
+        value: f32,
+    },
+    I32 {
+        binding: BindingSetP<i32>,
+        value: i32,
+    },
 }
 
 pub trait ValueSetBinding: Send {
@@ -38,7 +44,7 @@ pub struct SpinlockParamBinding<T: Copy> {
 }
 
 pub struct SpinlockValueSetBinding<T: Copy> {
-    binding: BindingP<T>,
+    binding: BindingSetP<T>,
     value: T,
 }
 
@@ -66,7 +72,7 @@ impl<T: Copy + Send> ParamBindingGet<T> for SpinlockParamBinding<T> {
 }
 
 impl<T: Copy> SpinlockValueSetBinding<T> {
-    pub fn new(binding: BindingP<T>, value: T) -> Self {
+    pub fn new(binding: BindingSetP<T>, value: T) -> Self {
         SpinlockValueSetBinding { binding, value }
     }
 }

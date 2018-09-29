@@ -26,6 +26,18 @@ pub enum TimeResched {
     None,
 }
 
+pub enum Value {
+    Byte(u8),
+    Int32(i32),
+    Int64(i64),
+    UInt32(u32),
+    UInt64(u64),
+    Float32(f32),
+    Float64(f64),
+    Char(char),
+    Bool(bool),
+}
+
 pub trait Sched {
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
 }
@@ -89,6 +101,7 @@ impl TimedNodeData for TimedFn {
 }
 
 pub type SchedFnNode = Box<LNode<TimedFn>>;
+pub type ValueNode = Box<LNode<Option<Value>>>;
 
 impl Default for TimedFn {
     fn default() -> Self {
@@ -389,7 +402,10 @@ impl Sched for Executor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use binding::{ParamBinding, SpinlockParamBinding, SpinlockValueSetBinding};
+    use binding::{
+        ParamBinding, ParamBindingGet, ParamBindingSet, SpinlockParamBinding,
+        SpinlockValueSetBinding,
+    };
     use std::thread;
 
     #[test]
