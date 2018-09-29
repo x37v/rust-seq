@@ -9,10 +9,23 @@ use std::sync::Arc;
 
 pub type ValueSetP = Box<dyn ValueSetBinding>;
 pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
+pub type BindingGetP<T> = Arc<dyn ParamBindingGet<T>>;
+pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
 
-pub trait ParamBinding<T>: Send + Sync {
-    fn set(&self, value: T);
+pub trait ParamBindingGet<T>: Send + Sync {
     fn get(&self) -> T;
+}
+
+pub trait ParamBindingSet<T>: Send + Sync {
+    fn set(&self, value: T);
+}
+
+pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {}
+
+//a binding and a value to set it to
+pub enum ValueSet {
+    F32 { binding: BindingP<f32>, value: f32 },
+    I32 { binding: BindingP<i32>, value: i32 },
 }
 
 pub trait ValueSetBinding: Send {
@@ -35,13 +48,18 @@ impl<T: Copy> SpinlockParamBinding<T> {
             lock: spinlock::Mutex::new(Cell::new(value)),
         }
     }
+    pub fn new_p(value: T) -> Arc<Self> {
+        Arc::new(Self::new(value))
+    }
 }
 
-impl<T: Copy + Send> ParamBinding<T> for SpinlockParamBinding<T> {
+impl<T: Copy + Send> ParamBindingSet<T> for SpinlockParamBinding<T> {
     fn set(&self, value: T) {
         self.lock.lock().set(value);
     }
+}
 
+impl<T: Copy + Send> ParamBindingGet<T> for SpinlockParamBinding<T> {
     fn get(&self) -> T {
         self.lock.lock().get()
     }
@@ -119,28 +137,37 @@ pub mod bpm {
         }
     }
 
-    impl ParamBinding<f32> for ClockPeriodMicroBinding {
+    impl ParamBindingSet<f32> for ClockPeriodMicroBinding {
         fn set(&self, value: f32) {
             self.0.lock().set_period_micros(value);
         }
+    }
+
+    impl ParamBindingGet<f32> for ClockPeriodMicroBinding {
         fn get(&self) -> f32 {
             self.0.lock().period_micros()
         }
     }
 
-    impl ParamBinding<f32> for ClockBPMBinding {
+    impl ParamBindingSet<f32> for ClockBPMBinding {
         fn set(&self, value: f32) {
             self.0.lock().set_bpm(value);
         }
+    }
+
+    impl ParamBindingGet<f32> for ClockBPMBinding {
         fn get(&self) -> f32 {
             self.0.lock().bpm()
         }
     }
 
-    impl ParamBinding<usize> for ClockPPQBinding {
+    impl ParamBindingSet<usize> for ClockPPQBinding {
         fn set(&self, value: usize) {
             self.0.lock().set_ppq(value);
         }
+    }
+
+    impl ParamBindingGet<usize> for ClockPPQBinding {
         fn get(&self) -> usize {
             self.0.lock().ppq()
         }
