@@ -165,6 +165,7 @@ pub struct Executor {
     list: LList<TimedFn>,
     trigger_list: LList<TimedTrig>,
     value_set_list: LList<Box<TimedValueSetBinding>>,
+    time_last: usize,
     time: Arc<AtomicUsize>,
     schedule_receiver: Receiver<SchedFnNode>,
     src_sink: SrcSink,
@@ -273,6 +274,7 @@ impl Scheduler {
                 trigger_list: LList::new(),
                 value_set_list: LList::new(),
                 time,
+                time_last: 0,
                 schedule_receiver,
                 src_sink,
             }),
@@ -316,7 +318,7 @@ impl Executor {
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
         while let Some(trig) = self.trigger_list.pop_front_while(|n| n.time() < now) {
-            func(trig.time(), trig.index());
+            func(std::cmp::max(self.time_last, trig.time()), trig.index());
             self.src_sink.dispose(trig);
         }
     }
@@ -349,6 +351,7 @@ impl Executor {
                 }
             }
         }
+        self.time_last = now;
         self.time.store(next, Ordering::SeqCst);
     }
 }
