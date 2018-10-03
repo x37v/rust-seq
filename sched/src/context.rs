@@ -1,7 +1,7 @@
 use base::{
     InsertTimeSorted, LList, SchedFn, SrcSink, TimeSched, TimedFn, TimedNodeData, TimedTrig,
 };
-use binding::ValueSetP;
+use binding::{ValueSet, ValueSetP};
 use util::add_clamped;
 
 pub trait SchedContext {
@@ -11,6 +11,7 @@ pub trait SchedContext {
     fn context_tick_period_micros(&self) -> f32;
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
     fn schedule_trigger(&mut self, time: TimeSched, index: usize);
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]);
     fn schedule_value(&mut self, time: TimeSched, value: ValueSetP);
 }
 
@@ -78,6 +79,9 @@ impl<'a> SchedContext for RootContext<'a> {
             println!("OOPS");
         }
     }
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {
+        //XXX implement
+    }
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         if let Some(mut n) = self.src_sink.pop_node() {
@@ -119,6 +123,9 @@ impl<'a> SchedContext for ChildContext<'a> {
     }
     fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
         self.parent.schedule_trigger(time, index); //XXX translate time
+    }
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {
+        self.parent.schedule_valued_trigger(time, index, values); //XXX translate time
     }
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {

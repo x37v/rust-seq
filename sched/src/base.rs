@@ -318,7 +318,10 @@ impl Executor {
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
         while let Some(trig) = self.trigger_list.pop_front_while(|n| n.time() < now) {
-            func(std::cmp::max(self.time_last, trig.time()), trig.index());
+            func(
+                std::cmp::max(self.time_last, trig.time()) - self.time_last,
+                trig.index(),
+            );
             self.src_sink.dispose(trig);
         }
     }
