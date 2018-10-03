@@ -133,3 +133,28 @@ impl<'a> SchedContext for ChildContext<'a> {
         self.parent.schedule(time, func);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base::{LList, Sched, Scheduler, SrcSink, TimeSched};
+    use binding::{ParamBindingSet, SpinlockParamBinding};
+    use context::{RootContext, SchedContext};
+    use std;
+    use std::thread;
+    #[test]
+    fn works() {
+        let mut src_sink = SrcSink::new();
+        let mut list = LList::new();
+        let mut trig_list = LList::new();
+
+        let mut c = RootContext::new(0, 0, &mut list, &mut trig_list, &mut src_sink);
+        let fbinding = SpinlockParamBinding::new_p(0f32);
+        let ibinding = SpinlockParamBinding::new_p(0);
+        c.schedule_valued_trigger(
+            TimeSched::Relative(0),
+            0,
+            &[ValueSet::F32(3.0, fbinding), ValueSet::I32(2084, ibinding)],
+        );
+    }
+}

@@ -24,14 +24,8 @@ pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {}
 
 //a binding and a value to set it to
 pub enum ValueSet {
-    F32 {
-        binding: BindingSetP<f32>,
-        value: f32,
-    },
-    I32 {
-        binding: BindingSetP<i32>,
-        value: i32,
-    },
+    F32(f32, BindingSetP<f32>),
+    I32(i32, BindingSetP<i32>),
 }
 
 pub trait ValueSetBinding: Send {
