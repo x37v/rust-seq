@@ -1,18 +1,16 @@
 use base::{
-    InsertTimeSorted, LList, SchedFn, SrcSink, TimeSched, TimedFn, TimedNodeData, TimedTrig,
+    InsertTimeSorted, LList, SchedFn, ScheduleTrigger, SrcSink, TimeSched, TimedFn, TimedNodeData,
+    TimedTrig,
 };
 use binding::{ValueSet, ValueSetP};
 use util::add_clamped;
 
-pub trait SchedContext {
+pub trait SchedContext: ScheduleTrigger {
     fn base_tick(&self) -> usize;
     fn context_tick(&self) -> usize;
     fn base_tick_period_micros(&self) -> f32;
     fn context_tick_period_micros(&self) -> f32;
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
-    fn schedule_trigger(&mut self, time: TimeSched, index: usize);
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]);
-    fn schedule_value(&mut self, time: TimeSched, value: ValueSetP);
 }
 
 pub struct RootContext<'a> {
@@ -70,6 +68,18 @@ impl<'a> SchedContext for RootContext<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.base_tick_period_micros
     }
+    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
+        if let Some(mut n) = self.src_sink.pop_node() {
+            n.set_func(Some(func));
+            n.set_time(self.to_tick(&time));
+            self.list.insert_time_sorted(n);
+        } else {
+            println!("OOPS");
+        }
+    }
+}
+
+impl<'a> ScheduleTrigger for RootContext<'a> {
     fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
         if let Some(mut n) = self.src_sink.pop_trig() {
             n.set_index(index);
@@ -83,15 +93,6 @@ impl<'a> SchedContext for RootContext<'a> {
         //XXX implement
     }
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
-    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        if let Some(mut n) = self.src_sink.pop_node() {
-            n.set_func(Some(func));
-            n.set_time(self.to_tick(&time));
-            self.list.insert_time_sorted(n);
-        } else {
-            println!("OOPS");
-        }
-    }
 }
 
 impl<'a> ChildContext<'a> {
@@ -121,6 +122,13 @@ impl<'a> SchedContext for ChildContext<'a> {
     fn context_tick_period_micros(&self) -> f32 {
         self.context_tick_period_micros
     }
+    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
+        //XXX translate time
+        self.parent.schedule(time, func);
+    }
+}
+
+impl<'a> ScheduleTrigger for ChildContext<'a> {
     fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
         self.parent.schedule_trigger(time, index); //XXX translate time
     }
@@ -128,10 +136,6 @@ impl<'a> SchedContext for ChildContext<'a> {
         self.parent.schedule_valued_trigger(time, index, values); //XXX translate time
     }
     fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
-    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        //XXX translate time
-        self.parent.schedule(time, func);
-    }
 }
 
 #[cfg(test)]

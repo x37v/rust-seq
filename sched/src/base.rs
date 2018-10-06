@@ -4,7 +4,7 @@ extern crate xnor_llist;
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
-use binding::ValueSetBinding;
+use binding::{ValueSet, ValueSetBinding, ValueSetP};
 use context::{RootContext, SchedContext};
 use std;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -52,6 +52,12 @@ pub trait TimedNodeData {
 
 pub trait InsertTimeSorted<T> {
     fn insert_time_sorted(&mut self, node: Box<LNode<T>>);
+}
+
+pub trait ScheduleTrigger {
+    fn schedule_trigger(&mut self, time: TimeSched, index: usize);
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]);
+    fn schedule_value(&mut self, time: TimeSched, value: ValueSetP);
 }
 
 //an object to be put into a schedule and called later
