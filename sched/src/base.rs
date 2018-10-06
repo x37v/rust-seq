@@ -454,10 +454,7 @@ impl Sched for Executor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use binding::{
-        ParamBinding, ParamBindingGet, ParamBindingSet, SpinlockParamBinding,
-        SpinlockValueSetBinding,
-    };
+    use binding::{ParamBinding, ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
     use std::thread;
 
     #[test]

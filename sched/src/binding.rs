@@ -7,7 +7,6 @@ pub use xnor_llist::Node as LNode;
 use std::cell::Cell;
 use std::sync::Arc;
 
-pub type ValueSetP = Box<dyn ValueSetBinding>;
 pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
 pub type BindingGetP<T> = Arc<dyn ParamBindingGet<T>>;
 pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
@@ -42,18 +41,8 @@ impl ValueSet {
     }
 }
 
-pub trait ValueSetBinding: Send {
-    //store the value into the binding
-    fn store(&self);
-}
-
 pub struct SpinlockParamBinding<T: Copy> {
     lock: spinlock::Mutex<Cell<T>>,
-}
-
-pub struct SpinlockValueSetBinding<T: Copy> {
-    binding: BindingSetP<T>,
-    value: T,
 }
 
 impl Default for ValueSet {
@@ -82,18 +71,6 @@ impl<T: Copy + Send> ParamBindingSet<T> for SpinlockParamBinding<T> {
 impl<T: Copy + Send> ParamBindingGet<T> for SpinlockParamBinding<T> {
     fn get(&self) -> T {
         self.lock.lock().get()
-    }
-}
-
-impl<T: Copy> SpinlockValueSetBinding<T> {
-    pub fn new(binding: BindingSetP<T>, value: T) -> Self {
-        SpinlockValueSetBinding { binding, value }
-    }
-}
-
-impl<T: Copy + Send> ValueSetBinding for SpinlockValueSetBinding<T> {
-    fn store(&self) {
-        self.binding.set(self.value);
     }
 }
 
@@ -197,26 +174,6 @@ pub mod bpm {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn value_set_binding() {
-        let pb = Arc::new(SpinlockParamBinding::new(23));
-        assert_eq!(23, pb.get());
-
-        let vsb = SpinlockValueSetBinding::new(pb.clone(), 2084);
-
-        //doesn't change it immediately
-        assert_eq!(23, pb.get());
-
-        vsb.store();
-        assert_eq!(2084, pb.get());
-
-        pb.set(1);
-        assert_eq!(1, pb.get());
-
-        vsb.store();
-        assert_eq!(2084, pb.get());
-    }
 
     #[test]
     fn bpm_value_test() {
