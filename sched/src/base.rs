@@ -133,6 +133,9 @@ impl TimedTrig {
     pub fn add_value(&mut self, vnode: ValueSetNode) {
         self.values.push_front(vnode);
     }
+    pub fn values(&self) -> &LList<ValueSet> {
+        &self.values
+    }
 }
 
 impl TimedNodeData for TimedTrig {
@@ -348,16 +351,20 @@ impl Executor {
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
         while let Some(trig) = self.trigger_list.pop_front_while(|n| n.time() < now) {
-            let time = std::cmp::max(self.time_last, trig.time());
-            //we pass a context to the trig but all it can access is the ability to trig
-            let mut context = RootContext::new(
-                time,
-                self.ticks_per_second_last,
-                &mut self.list,
-                &mut self.trigger_list,
-                &mut self.src_sink,
-            );
+            //set all the values
+            for vn in trig.values().iter() {
+                vn.store();
+            }
             if let Some(index) = trig.index() {
+                let time = std::cmp::max(self.time_last, trig.time());
+                //we pass a context to the trig but all it can access is the ability to trig
+                let mut context = RootContext::new(
+                    time,
+                    self.ticks_per_second_last,
+                    &mut self.list,
+                    &mut self.trigger_list,
+                    &mut self.src_sink,
+                );
                 func(time, index, self.time_last, &mut context);
             }
             self.src_sink.dispose(trig);
