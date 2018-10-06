@@ -98,7 +98,7 @@ fn main() {
     sched.spawn_helper_threads();
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
-    let ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
+    let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
@@ -117,7 +117,7 @@ fn main() {
         Err(e) => panic!("error with osc address {}", e),
     };
     println!("osc addr {}", addr_s);
-    let osc_thread = thread::spawn(move || {
+    let _osc_thread = thread::spawn(move || {
         let sock = UdpSocket::bind(addr).unwrap();
         let mut buf = [0u8; rosc::decoder::MTU];
         let handle_packet = |packet: OscPacket| {
@@ -135,7 +135,7 @@ fn main() {
         };
         loop {
             match sock.recv_from(&mut buf) {
-                Ok((size, addr)) => {
+                Ok((size, _addr)) => {
                     let packet = rosc::decoder::decode(&buf[..size]).unwrap();
                     handle_packet(packet);
                 }
