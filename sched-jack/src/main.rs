@@ -6,7 +6,7 @@ extern crate sched;
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
 use sched::binding::{BindingGetP, ParamBindingSet, SpinlockParamBinding};
-use sched::context::{ChildContext, SchedContext};
+use sched::context::SchedContext;
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
 use sched::util::Clamp;
