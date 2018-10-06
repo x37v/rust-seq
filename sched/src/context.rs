@@ -82,7 +82,7 @@ impl<'a> SchedContext for RootContext<'a> {
 impl<'a> ScheduleTrigger for RootContext<'a> {
     fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
         if let Some(mut n) = self.src_sink.pop_trig() {
-            n.set_index(index);
+            n.set_index(Some(index));
             n.set_time(self.to_tick(&time));
             self.trig_list.insert_time_sorted(n);
         } else {

@@ -119,14 +119,14 @@ impl Default for TimedFn {
 
 pub struct TimedTrig {
     time: usize,
-    index: usize,
+    index: Option<usize>,
 }
 
 impl TimedTrig {
-    pub fn set_index(&mut self, index: usize) {
+    pub fn set_index(&mut self, index: Option<usize>) {
         self.index = index;
     }
-    pub fn index(&self) -> usize {
+    pub fn index(&self) -> Option<usize> {
         self.index
     }
 }
@@ -142,7 +142,10 @@ impl TimedNodeData for TimedTrig {
 
 impl Default for TimedTrig {
     fn default() -> Self {
-        Self { time: 0, index: 0 }
+        Self {
+            time: 0,
+            index: None,
+        }
     }
 }
 
@@ -341,7 +344,9 @@ impl Executor {
                 &mut self.trigger_list,
                 &mut self.src_sink,
             );
-            func(time, trig.index(), &mut context);
+            if let Some(index) = trig.index() {
+                func(time, index, &mut context);
+            }
             self.src_sink.dispose(trig);
         }
     }
