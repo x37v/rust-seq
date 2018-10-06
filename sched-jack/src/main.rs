@@ -7,12 +7,12 @@ extern crate sched_midi;
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
 use sched::binding::{BindingGetP, ParamBindingSet, SpinlockParamBinding};
-use sched::context::SchedContext;
+use sched::context::{ChildContext, SchedContext};
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
 use sched::util::Clamp;
 use sched::{LList, LNode, Sched, ScheduleTrigger, Scheduler, TimeResched, TimeSched};
-use sched_midi::NoteTrigger;
+use sched_midi::{MidiValue, MidiValueAt, NoteTrigger};
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;
 use std::sync::mpsc::sync_channel;
@@ -101,9 +101,7 @@ fn main() {
     sched.spawn_helper_threads();
 
     let (msender, mreceiver) = sync_channel(1024);
-    let mut note_trig = Arc::new(spinlock::Mutex::new(sched_midi::NoteTrigger::new(
-        0, msender,
-    )));
+    let mut note_trig = Arc::new(spinlock::Mutex::new(NoteTrigger::new(0, msender)));
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
     let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
@@ -176,11 +174,15 @@ fn main() {
     let ntrig = note_trig.clone();
     let trig = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
-            let index = 0;
-            ntrig.lock().note_with_dur(
+            //XXX not sure why we need to create a context just to pass it along
+            let tick = context.context_tick();
+            let tick_period = context.context_tick_period_micros();
+            let mut ccontext = ChildContext::new(context, tick, tick_period);
+            let ntrig = ntrig.lock();
+            ntrig.note_with_dur(
                 TimeSched::Relative(0),
                 TimeResched::Relative(1),
-                context,
+                &mut ccontext,
                 0,
                 0,
                 127,
@@ -198,22 +200,26 @@ fn main() {
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let mut out_p = midi_out.writer(ps);
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
-        ex.eval_triggers(&mut |time, index, block_time, _| {
-            let n = (index & 0x7F) as u8;
-            let t = (time - block_time) as u32 % ps.n_frames();
-            if out_p
-                .write(&jack::RawMidi {
-                    time: t,
-                    bytes: &[0b1001_0000, n, 127],
-                })
-                .is_ok()
-            {
-                let _ = out_p.write(&jack::RawMidi {
-                    time: t + 1,
-                    bytes: &[0b1000_0000, n, 127],
-                });
+        let note_trig = note_trig.lock();
+        ex.eval_triggers(&mut |time, index, _block_time, _trig_context| {
+            if index == note_trig.trigger_index() {
+                note_trig.eval(time);
             }
         });
+        let block_time = ex.time_last();
+        while let Some(midi) = mreceiver.try_recv().ok() {
+            let t = (midi.tick() - block_time) as u32 % ps.n_frames();
+            match midi.value() {
+                &MidiValue::Note { on, chan, num, vel } => {
+                    let status = chan & 0x0F | if on { 0b1001_0000 } else { 0b1000_0000 };
+                    let _ = out_p.write(&jack::RawMidi {
+                        time: t,
+                        bytes: &[status, num & 0x7F, vel & 0x7F],
+                    });
+                }
+            };
+        }
+
         jack::Control::Continue
     };
 
