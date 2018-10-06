@@ -1,6 +1,6 @@
 use base::{
-    InsertTimeSorted, LList, SchedFn, ScheduleTrigger, SrcSink, TimeSched, TimedFn, TimedNodeData,
-    TimedTrig,
+    InsertTimeSorted, LList, SchedFn, ScheduleTrigger, SrcSink, TimeResched, TimeSched, TimedFn,
+    TimedNodeData, TimedTrig,
 };
 use binding::ValueSet;
 use util::add_clamped;
@@ -122,6 +122,22 @@ impl<'a> ScheduleTrigger for RootContext<'a> {
             println!("OOPS");
         }
     }
+
+    //at the root, context and non context are the same
+    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched {
+        let mut offset: usize = 0;
+        match dur {
+            TimeResched::None => (),
+            TimeResched::Relative(ref t) => offset = *t,
+            TimeResched::ContextRelative(ref t) => offset = *t,
+        }
+        match time {
+            TimeSched::Absolute(ref t) => TimeSched::Absolute(t + offset),
+            TimeSched::Relative(ref t) => TimeSched::Relative(t + offset as isize),
+            TimeSched::ContextAbsolute(ref t) => TimeSched::ContextAbsolute(t + offset),
+            TimeSched::ContextRelative(ref t) => TimeSched::ContextRelative(t + offset as isize),
+        }
+    }
 }
 
 impl<'a> ChildContext<'a> {
@@ -166,6 +182,10 @@ impl<'a> ScheduleTrigger for ChildContext<'a> {
     }
     fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {
         self.parent.schedule_value(time, value); //XXX translate time
+    }
+
+    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched {
+        self.parent.add_time(time, dur) //XXX translate time
     }
 }
 

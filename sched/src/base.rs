@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::thread;
 use util::add_clamped;
 
+#[derive(Copy, Clone, Debug)]
 pub enum TimeSched {
     Absolute(usize),
     Relative(isize),
@@ -20,6 +21,7 @@ pub enum TimeSched {
     ContextRelative(isize),
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum TimeResched {
     Relative(usize),
     ContextRelative(usize),
@@ -58,6 +60,7 @@ pub trait ScheduleTrigger {
     fn schedule_trigger(&mut self, time: TimeSched, index: usize);
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]);
     fn schedule_value(&mut self, time: TimeSched, value: &ValueSet);
+    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched;
 }
 
 //an object to be put into a schedule and called later
