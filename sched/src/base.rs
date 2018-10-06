@@ -169,6 +169,7 @@ pub struct Executor {
     trigger_list: LList<TimedTrig>,
     value_set_list: LList<Box<TimedValueSetBinding>>,
     time_last: usize,
+    ticks_per_second_last: usize,
     time: Arc<AtomicUsize>,
     schedule_receiver: Receiver<SchedFnNode>,
     src_sink: SrcSink,
@@ -278,6 +279,7 @@ impl Scheduler {
                 value_set_list: LList::new(),
                 time,
                 time_last: 0,
+                ticks_per_second_last: 0,
                 schedule_receiver,
                 src_sink,
             }),
@@ -311,20 +313,35 @@ impl Default for Scheduler {
     }
 }
 
+impl ScheduleTrigger for () {
+    fn schedule_trigger(&mut self, time: TimeSched, index: usize) {}
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {}
+    fn schedule_value(&mut self, time: TimeSched, value: ValueSetP) {}
+}
+
 impl Executor {
     pub fn add_node(&mut self, node: SchedFnNode) {
         self.list.insert_time_sorted(node);
     }
 
-    pub fn eval_triggers<F: FnMut(usize, usize)>(&mut self, func: &mut F) {
+    pub fn eval_triggers<F: FnMut(usize, usize, &mut dyn ScheduleTrigger)>(
+        &mut self,
+        func: &mut F,
+    ) {
         //triggers are evaluated at the end of the run so 'now' is actually 'next'
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
         while let Some(trig) = self.trigger_list.pop_front_while(|n| n.time() < now) {
-            func(
-                std::cmp::max(self.time_last, trig.time()) - self.time_last,
-                trig.index(),
+            let time = std::cmp::max(self.time_last, trig.time()) - self.time_last;
+            //we pass a context to the trig but all it can access is the ability to trig
+            let mut context = RootContext::new(
+                time,
+                self.ticks_per_second_last,
+                &mut self.list,
+                &mut self.trigger_list,
+                &mut self.src_sink,
             );
+            func(time, trig.index(), &mut context);
             self.src_sink.dispose(trig);
         }
     }
@@ -332,6 +349,7 @@ impl Executor {
     pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
         let now = self.time.load(Ordering::SeqCst);
         let next = now + ticks;
+        self.ticks_per_second_last = ticks_per_second;
 
         //grab new nodes
         while let Ok(n) = self.schedule_receiver.try_recv() {
