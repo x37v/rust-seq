@@ -340,6 +340,10 @@ impl Default for Scheduler {
 }
 
 impl Executor {
+    pub fn time_last(&self) -> usize {
+        self.time_last
+    }
+
     pub fn add_node(&mut self, node: SchedFnNode) {
         self.list.insert_time_sorted(node);
     }
