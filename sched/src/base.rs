@@ -4,7 +4,7 @@ extern crate xnor_llist;
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
-use binding::{ValueSet, ValueSetBinding, ValueSetP};
+use binding::{ValueSet, ValueSetBinding};
 use context::{RootContext, SchedContext};
 use std;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -57,14 +57,14 @@ pub trait InsertTimeSorted<T> {
 pub trait ScheduleTrigger {
     fn schedule_trigger(&mut self, time: TimeSched, index: usize);
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]);
-    fn schedule_value(&mut self, time: TimeSched, value: ValueSetP);
+    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet);
 }
 
 //an object to be put into a schedule and called later
 pub type SchedFn = Box<dyn SchedCall>;
 pub type TimedTrigNode = Box<LNode<TimedTrig>>;
 pub type SchedFnNode = Box<LNode<TimedFn>>;
-pub type ValueSetNode = Box<LNode<Option<ValueSet>>>;
+pub type ValueSetNode = Box<LNode<ValueSet>>;
 
 //implement sched_call for any Fn that with the correct sig
 impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
@@ -120,6 +120,7 @@ impl Default for TimedFn {
 pub struct TimedTrig {
     time: usize,
     index: Option<usize>,
+    values: LList<ValueSet>,
 }
 
 impl TimedTrig {
@@ -128,6 +129,9 @@ impl TimedTrig {
     }
     pub fn index(&self) -> Option<usize> {
         self.index
+    }
+    pub fn add_value(&mut self, vnode: ValueSetNode) {
+        self.values.push_front(vnode);
     }
 }
 
@@ -145,6 +149,7 @@ impl Default for TimedTrig {
         Self {
             time: 0,
             index: None,
+            values: LList::new(),
         }
     }
 }
@@ -338,7 +343,7 @@ impl Default for Scheduler {
 impl ScheduleTrigger for () {
     fn schedule_trigger(&mut self, time: TimeSched, index: usize) {}
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {}
-    fn schedule_value(&mut self, time: TimeSched, value: ValueSetP) {}
+    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {}
 }
 
 impl Executor {

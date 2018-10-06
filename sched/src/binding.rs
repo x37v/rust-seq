@@ -23,7 +23,9 @@ pub trait ParamBindingSet<T>: Send + Sync {
 pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {}
 
 //a binding and a value to set it to
+#[derive(Clone)]
 pub enum ValueSet {
+    None,
     F32(f32, BindingSetP<f32>),
     I32(i32, BindingSetP<i32>),
 }
@@ -40,6 +42,12 @@ pub struct SpinlockParamBinding<T: Copy> {
 pub struct SpinlockValueSetBinding<T: Copy> {
     binding: BindingSetP<T>,
     value: T,
+}
+
+impl Default for ValueSet {
+    fn default() -> Self {
+        ValueSet::None
+    }
 }
 
 impl<T: Copy> SpinlockParamBinding<T> {

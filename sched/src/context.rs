@@ -2,7 +2,7 @@ use base::{
     InsertTimeSorted, LList, SchedFn, ScheduleTrigger, SrcSink, TimeSched, TimedFn, TimedNodeData,
     TimedTrig,
 };
-use binding::{ValueSet, ValueSetP};
+use binding::ValueSet;
 use util::add_clamped;
 
 pub trait SchedContext: ScheduleTrigger {
@@ -90,9 +90,38 @@ impl<'a> ScheduleTrigger for RootContext<'a> {
         }
     }
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {
-        //XXX implement
+        if let Some(mut n) = self.src_sink.pop_trig() {
+            n.set_index(Some(index));
+            n.set_time(self.to_tick(&time));
+            for v in values {
+                if let Some(mut vn) = self.src_sink.pop_value_set() {
+                    **vn = v.clone();
+                    n.add_value(vn);
+                } else {
+                    println!("OOPS");
+                    return;
+                }
+            }
+            self.trig_list.insert_time_sorted(n);
+        } else {
+            println!("OOPS");
+        }
     }
-    fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
+    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {
+        if let Some(mut n) = self.src_sink.pop_trig() {
+            n.set_index(None);
+            n.set_time(self.to_tick(&time));
+            if let Some(mut vn) = self.src_sink.pop_value_set() {
+                **vn = value.clone();
+                n.add_value(vn);
+                self.trig_list.insert_time_sorted(n);
+            } else {
+                println!("OOPS");
+            }
+        } else {
+            println!("OOPS");
+        }
+    }
 }
 
 impl<'a> ChildContext<'a> {
@@ -135,7 +164,9 @@ impl<'a> ScheduleTrigger for ChildContext<'a> {
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {
         self.parent.schedule_valued_trigger(time, index, values); //XXX translate time
     }
-    fn schedule_value(&mut self, _time: TimeSched, _value: ValueSetP) {}
+    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {
+        self.parent.schedule_value(time, value); //XXX translate time
+    }
 }
 
 #[cfg(test)]
