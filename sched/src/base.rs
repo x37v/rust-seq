@@ -64,7 +64,7 @@ pub trait ScheduleTrigger {
 pub type SchedFn = Box<dyn SchedCall>;
 pub type TimedTrigNode = Box<LNode<TimedTrig>>;
 pub type SchedFnNode = Box<LNode<TimedFn>>;
-pub type ValueNode = Box<LNode<Option<Value>>>;
+pub type ValueSetNode = Box<LNode<Option<ValueSet>>>;
 
 //implement sched_call for any Fn that with the correct sig
 impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
@@ -157,6 +157,7 @@ pub struct TimedValueSetBinding {
 pub struct SrcSink {
     node_cache: Receiver<SchedFnNode>,
     trig_cache: Receiver<TimedTrigNode>,
+    value_set_cache: Receiver<ValueSetNode>,
     dispose_schedule_sender: SyncSender<Box<dyn Send>>,
     updater: Option<SrcSinkUpdater>,
 }
@@ -164,6 +165,7 @@ pub struct SrcSink {
 pub struct SrcSinkUpdater {
     node_cache_updater: SyncSender<SchedFnNode>,
     trig_cache_updater: SyncSender<TimedTrigNode>,
+    value_set_cache_updater: SyncSender<ValueSetNode>,
     dispose_schedule_receiver: Receiver<Box<dyn Send>>,
 }
 
@@ -190,11 +192,13 @@ impl SrcSinkUpdater {
     pub fn new(
         node_cache_updater: SyncSender<SchedFnNode>,
         trig_cache_updater: SyncSender<TimedTrigNode>,
+        value_set_cache_updater: SyncSender<ValueSetNode>,
         dispose_schedule_receiver: Receiver<Box<dyn Send>>,
     ) -> Self {
         Self {
             node_cache_updater,
             trig_cache_updater,
+            value_set_cache_updater,
             dispose_schedule_receiver,
         }
     }
@@ -222,6 +226,14 @@ impl SrcSinkUpdater {
                 Err(TrySendError::Full(_)) => (),
                 Err(TrySendError::Disconnected(_)) => return false,
             }
+            match self
+                .value_set_cache_updater
+                .try_send(LNode::new_boxed(Default::default()))
+            {
+                Ok(_) => continue,
+                Err(TrySendError::Full(_)) => (),
+                Err(TrySendError::Disconnected(_)) => return false,
+            }
             break;
         }
         true
@@ -233,13 +245,16 @@ impl SrcSink {
         let (dispose_schedule_sender, dispose_schedule_receiver) = sync_channel(1024);
         let (node_cache_updater, node_cache) = sync_channel(1024);
         let (trig_cache_updater, trig_cache) = sync_channel(1024);
+        let (value_set_cache_updater, value_set_cache) = sync_channel(1024);
         Self {
             node_cache,
             trig_cache,
+            value_set_cache,
             dispose_schedule_sender,
             updater: Some(SrcSinkUpdater::new(
                 node_cache_updater,
                 trig_cache_updater,
+                value_set_cache_updater,
                 dispose_schedule_receiver,
             )),
         }
@@ -255,6 +270,10 @@ impl SrcSink {
 
     pub fn pop_trig(&mut self) -> Option<TimedTrigNode> {
         self.trig_cache.try_recv().ok()
+    }
+
+    pub fn pop_value_set(&mut self) -> Option<ValueSetNode> {
+        self.value_set_cache.try_recv().ok()
     }
 
     pub fn dispose(&mut self, item: Box<Send>) {
