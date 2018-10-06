@@ -10,6 +10,7 @@ use std::sync::Arc;
 pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
 pub type BindingGetP<T> = Arc<dyn ParamBindingGet<T>>;
 pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
+pub type SpinlockParamBindingP<T> = Arc<SpinlockParamBinding<T>>;
 
 pub trait ParamBindingGet<T>: Send + Sync {
     fn get(&self) -> T;
@@ -28,6 +29,7 @@ pub enum ValueSet {
     F32(f32, BindingSetP<f32>),
     I32(i32, BindingSetP<i32>),
     U8(u8, BindingSetP<u8>),
+    BOOL(bool, BindingSetP<bool>),
 }
 
 impl ValueSet {
@@ -37,6 +39,7 @@ impl ValueSet {
             ValueSet::F32(v, b) => b.set(*v),
             ValueSet::I32(v, b) => b.set(*v),
             ValueSet::U8(v, b) => b.set(*v),
+            ValueSet::BOOL(v, b) => b.set(*v),
         }
     }
 }
