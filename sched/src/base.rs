@@ -4,7 +4,7 @@ extern crate xnor_llist;
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
-use binding::{ValueSet, ValueSetBinding};
+use binding::ValueSet;
 use context::{RootContext, SchedContext};
 use std;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -154,11 +154,6 @@ impl Default for TimedTrig {
     }
 }
 
-pub struct TimedValueSetBinding {
-    time: usize,
-    binding: Box<dyn ValueSetBinding>,
-}
-
 pub struct SrcSink {
     node_cache: Receiver<SchedFnNode>,
     trig_cache: Receiver<TimedTrigNode>,
@@ -177,7 +172,6 @@ pub struct SrcSinkUpdater {
 pub struct Executor {
     list: LList<TimedFn>,
     trigger_list: LList<TimedTrig>,
-    value_set_list: LList<Box<TimedValueSetBinding>>,
     time_last: usize,
     ticks_per_second_last: usize,
     time: Arc<AtomicUsize>,
@@ -303,7 +297,6 @@ impl Scheduler {
             executor: Some(Executor {
                 list: LList::new(),
                 trigger_list: LList::new(),
-                value_set_list: LList::new(),
                 time,
                 time_last: 0,
                 ticks_per_second_last: 0,
@@ -338,12 +331,6 @@ impl Default for Scheduler {
     fn default() -> Self {
         Self::new()
     }
-}
-
-impl ScheduleTrigger for () {
-    fn schedule_trigger(&mut self, time: TimeSched, index: usize) {}
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {}
-    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {}
 }
 
 impl Executor {

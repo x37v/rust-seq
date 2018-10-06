@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn bpm_binding_test() {
-        let mut b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 96)));
+        let b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 96)));
 
         let bpm = Arc::new(bpm::ClockBPMBinding(b.clone()));
         let ppq = Arc::new(bpm::ClockPPQBinding(b.clone()));

@@ -201,7 +201,7 @@ mod tests {
 
         let e = s.executor();
 
-        let mut clock_period = Arc::new(SpinlockParamBinding::new(1_000_000f32));
+        let clock_period = Arc::new(SpinlockParamBinding::new(1_000_000f32));
         let mut clock = Box::new(RootClock::new(clock_period.clone()));
         let tick_store = Arc::new(spinlock::Mutex::new(TickStore::default()));
 
