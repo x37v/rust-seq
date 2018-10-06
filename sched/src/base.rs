@@ -351,7 +351,9 @@ impl Executor {
         self.list.insert_time_sorted(node);
     }
 
-    pub fn eval_triggers<F: FnMut(usize, usize, &mut dyn ScheduleTrigger)>(
+    //signature of function is
+    //time, index, block_time_start, trigger_schedule_object
+    pub fn eval_triggers<F: FnMut(usize, usize, usize, &mut dyn ScheduleTrigger)>(
         &mut self,
         func: &mut F,
     ) {
@@ -359,7 +361,7 @@ impl Executor {
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
         while let Some(trig) = self.trigger_list.pop_front_while(|n| n.time() < now) {
-            let time = std::cmp::max(self.time_last, trig.time()) - self.time_last;
+            let time = std::cmp::max(self.time_last, trig.time());
             //we pass a context to the trig but all it can access is the ability to trig
             let mut context = RootContext::new(
                 time,
@@ -369,7 +371,7 @@ impl Executor {
                 &mut self.src_sink,
             );
             if let Some(index) = trig.index() {
-                func(time, index, &mut context);
+                func(time, index, self.time_last, &mut context);
             }
             self.src_sink.dispose(trig);
         }
