@@ -41,22 +41,8 @@ pub enum Value {
 pub trait Sched {
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
 }
-
-//an object to be put into a schedule and called later
-pub type SchedFn = Box<dyn SchedCall>;
-
 pub trait SchedCall: Send {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched;
-}
-
-//implement sched_call for any Fn that with the correct sig
-impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
-where
-    F: Send,
-{
-    fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
-        (*self)(context)
-    }
 }
 
 pub trait TimedNodeData {
@@ -66,6 +52,22 @@ pub trait TimedNodeData {
 
 pub trait InsertTimeSorted<T> {
     fn insert_time_sorted(&mut self, node: Box<LNode<T>>);
+}
+
+//an object to be put into a schedule and called later
+pub type SchedFn = Box<dyn SchedCall>;
+pub type TimedTrigNode = Box<LNode<TimedTrig>>;
+pub type SchedFnNode = Box<LNode<TimedFn>>;
+pub type ValueNode = Box<LNode<Option<Value>>>;
+
+//implement sched_call for any Fn that with the correct sig
+impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
+where
+    F: Send,
+{
+    fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
+        (*self)(context)
+    }
 }
 
 pub struct TimedFn {
@@ -99,9 +101,6 @@ impl TimedNodeData for TimedFn {
         self.time
     }
 }
-
-pub type SchedFnNode = Box<LNode<TimedFn>>;
-pub type ValueNode = Box<LNode<Option<Value>>>;
 
 impl Default for TimedFn {
     fn default() -> Self {
@@ -140,8 +139,6 @@ impl Default for TimedTrig {
         Self { time: 0, index: 0 }
     }
 }
-
-pub type TimedTrigNode = Box<LNode<TimedTrig>>;
 
 pub struct TimedValueSetBinding {
     time: usize,
