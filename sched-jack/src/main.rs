@@ -182,9 +182,9 @@ fn main() {
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let mut out_p = midi_out.writer(ps);
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
-        ex.eval_triggers(&mut |time, index| {
+        ex.eval_triggers(&mut |time, index, block_time, _| {
             let n = (index & 0x7F) as u8;
-            let t = time as u32 % ps.n_frames();
+            let t = (time - block_time) as u32 % ps.n_frames();
             if out_p
                 .write(&jack::RawMidi {
                     time: t,
