@@ -2,6 +2,7 @@ extern crate euclidian_rythms;
 extern crate jack;
 extern crate rosc;
 extern crate sched;
+extern crate sched_midi;
 
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
@@ -10,9 +11,11 @@ use sched::context::SchedContext;
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
 use sched::spinlock;
 use sched::util::Clamp;
-use sched::{LList, LNode, Sched, Scheduler, TimeSched};
+use sched::{LList, LNode, Sched, ScheduleTrigger, Scheduler, TimeResched, TimeSched};
+use sched_midi::NoteTrigger;
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;
+use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
 
@@ -97,6 +100,11 @@ fn main() {
     let mut sched = Scheduler::new();
     sched.spawn_helper_threads();
 
+    let (msender, mreceiver) = sync_channel(1024);
+    let mut note_trig = Arc::new(spinlock::Mutex::new(sched_midi::NoteTrigger::new(
+        0, msender,
+    )));
+
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
     let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
@@ -165,10 +173,18 @@ fn main() {
     );
     */
 
+    let ntrig = note_trig.clone();
     let trig = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
             let index = 0;
-            context.schedule_trigger(TimeSched::Relative(0), index);
+            ntrig.lock().note_with_dur(
+                TimeSched::Relative(0),
+                TimeResched::Relative(1),
+                context,
+                0,
+                0,
+                127,
+            );
             true
         },
     );
@@ -189,7 +205,8 @@ fn main() {
                 .write(&jack::RawMidi {
                     time: t,
                     bytes: &[0b1001_0000, n, 127],
-                }).is_ok()
+                })
+                .is_ok()
             {
                 let _ = out_p.write(&jack::RawMidi {
                     time: t + 1,

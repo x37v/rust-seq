@@ -11,3 +11,6 @@ rosc = "~0.1"
 [dependencies.sched]
 path = "../sched"
 
+[dependencies.sched-midi]
+path = "../sched-midi"
+
