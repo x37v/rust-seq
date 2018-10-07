@@ -1,8 +1,5 @@
-extern crate sched;
-use sched::binding::{ParamBindingGet, SpinlockParamBinding, SpinlockParamBindingP, ValueSet};
-use sched::ScheduleTrigger;
-use sched::TimeResched;
-use sched::TimeSched;
+use base::{ScheduleTrigger, TimeResched, TimeSched};
+use binding::{ParamBindingGet, SpinlockParamBinding, SpinlockParamBindingP, ValueSet};
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 

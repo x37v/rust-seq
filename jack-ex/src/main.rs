@@ -2,17 +2,16 @@ extern crate euclidian_rythms;
 extern crate jack;
 extern crate rosc;
 extern crate sched;
-extern crate sched_midi;
 
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
 use sched::binding::{BindingGetP, ParamBindingSet, SpinlockParamBinding};
 use sched::context::SchedContext;
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
+use sched::midi::NoteTrigger;
 use sched::spinlock;
 use sched::util::Clamp;
 use sched::{LList, LNode, Sched, Scheduler, TimeResched, TimeSched};
-use sched_midi::NoteTrigger;
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;
 use std::sync::mpsc::sync_channel;

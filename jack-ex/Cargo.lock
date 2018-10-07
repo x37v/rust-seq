@@ -90,14 +90,6 @@ dependencies = [
  "jack 0.6.0-rc1 (git+https://github.com/RustAudio/rust-jack.git)",
  "rosc 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "sched 0.1.0",
- "sched-midi 0.1.0",
-]
-
-[[package]]
-name = "sched-midi"
-version = "0.1.0"
-dependencies = [
- "sched 0.1.0",
 ]
 
 [[package]]
