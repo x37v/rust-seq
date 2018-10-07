@@ -107,6 +107,7 @@ fn main() {
     let note_trig = Arc::new(spinlock::Mutex::new(NoteTrigger::new(0, msender)));
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
+    let bpm = Arc::new(bpm::ClockBPMBinding(bpm_binding.clone()));
     let ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
@@ -214,16 +215,32 @@ fn main() {
             if let Some(val) = MidiValue::try_from(m.bytes) {
                 if let MidiValue::Note {
                     on: true,
-                    chan: 2,
+                    chan,
                     num,
                     ..
                 } = val
                 {
-                    let index = (num >> 1) as usize;
-                    if index < toggles.len() {
-                        let v = !toggles[index].get();
-                        toggles[index].set(v);
-                        println!("toggle {}, {}", index, v);
+                    match chan {
+                        2 => {
+                            let index = (num >> 1) as usize;
+                            if index < toggles.len() {
+                                let v = !toggles[index].get();
+                                toggles[index].set(v);
+                                println!("toggle {}, {}", index, v);
+                            }
+                        }
+                        8 => {
+                            if let Some(offset) = match num {
+                                48 => Some(1.0f32),
+                                49 => Some(-1.0f32),
+                                _ => None,
+                            } {
+                                let c = bpm.get() + offset;
+                                bpm.set(c);
+                                println!("BPM {}", c);
+                            }
+                        }
+                        _ => (),
                     }
                 }
             }
