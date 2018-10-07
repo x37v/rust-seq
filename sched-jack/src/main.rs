@@ -208,10 +208,10 @@ fn main() {
         //evaluate midi
         let block_time = ex.time_last();
         while let Some(midi) = mreceiver.try_recv().ok() {
-            let t = (midi.tick() - block_time) as u32 % ps.n_frames();
+            let time = (midi.tick() - block_time) as u32 % ps.n_frames();
             let mut iter = midi.value().iter();
             let mut write = |bytes: &[u8]| {
-                let _ = out_p.write(&jack::RawMidi { time: t, bytes });
+                let _ = out_p.write(&jack::RawMidi { time, bytes });
             };
             match iter.len() {
                 3 => write(&[
