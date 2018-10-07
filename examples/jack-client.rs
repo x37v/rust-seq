@@ -5,10 +5,10 @@ extern crate sched;
 
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
-use sched::binding::{BindingGetP, ParamBindingSet, SpinlockParamBinding};
-use sched::context::SchedContext;
+use sched::binding::{BindingGetP, ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
+use sched::context::{ChildContext, SchedContext};
 use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
-use sched::midi::NoteTrigger;
+use sched::midi::{MidiValue, NoteTrigger};
 use sched::spinlock;
 use sched::util::Clamp;
 use sched::{LList, LNode, Sched, Scheduler, TimeResched, TimeSched};
@@ -96,6 +96,10 @@ fn main() {
         .register_port("midi", jack::MidiOut::default())
         .unwrap();
 
+    let midi_in = client
+        .register_port("control", jack::MidiIn::default())
+        .unwrap();
+
     let mut sched = Scheduler::new();
     sched.spawn_helper_threads();
 
@@ -103,18 +107,20 @@ fn main() {
     let note_trig = Arc::new(spinlock::Mutex::new(NoteTrigger::new(0, msender)));
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
-    let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
+    let ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
     let pulses = SpinlockParamBinding::new_p(2);
     let steps = SpinlockParamBinding::new_p(7);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
-    let euclid = Arc::new(spinlock::Mutex::new(Euclid::new(
-        step_ticks.clone(),
-        steps.clone(),
-        pulses.clone(),
-    )));
+
+    //build up gates
+    let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
+        .iter()
+        .map(|v| SpinlockParamBinding::new_p(*v))
+        .collect();
+    let toggles = gates.clone();
 
     let addr_s = "127.0.0.1:10001";
     let addr = match SocketAddrV4::from_str(addr_s) {
@@ -152,24 +158,6 @@ fn main() {
         }
     });
 
-    /*
-    let mut ppqc = ppq.clone();
-    let div = FuncWrapper::new_p(
-        move |context: &mut dyn SchedContext, children: &mut ChildList| {
-            let div = ppqc.get();
-            if context.context_tick() % div == 0 {
-                let tick = context.context_tick() / div;
-                let tick_period = context.base_tick_period_micros() * (div as f32);
-                let mut ccontext = ChildContext::new(context, tick, tick_period);
-                for c in children.iter() {
-                    c.lock().exec(&mut ccontext);
-                }
-            }
-            true
-        },
-    );
-    */
-
     let ntrig = note_trig.clone();
     let trig = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
@@ -186,14 +174,61 @@ fn main() {
         },
     );
 
+    /*
+    let euclid = Arc::new(spinlock::Mutex::new(Euclid::new(
+        step_ticks.clone(),
+        steps.clone(),
+        pulses.clone(),
+    )));
     euclid.lock().child_append(LNode::new_boxed(trig));
     clock.child_append(LNode::new_boxed(euclid));
+    */
+
+    let div = FuncWrapper::new_p(
+        move |context: &mut dyn SchedContext, children: &mut ChildList| {
+            let div = ppq.get() / 4;
+            if context.context_tick() % div == 0 {
+                let tick = context.context_tick() / div;
+                let index = tick % gates.len();
+                if gates[index].get() {
+                    println!("gate: {}", index);
+                    let tick_period = context.base_tick_period_micros() * (div as f32);
+                    let mut ccontext = ChildContext::new(context, tick, tick_period);
+                    for c in children.iter() {
+                        c.lock().exec(&mut ccontext);
+                    }
+                }
+            }
+            true
+        },
+    );
+    div.lock().child_append(LNode::new_boxed(trig));
+    clock.child_append(LNode::new_boxed(div));
 
     sched.schedule(TimeSched::Relative(0), clock);
 
     let mut ex = sched.executor().unwrap();
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-        let mut out_p = midi_out.writer(ps);
+        //read in midi
+        for m in midi_in.iter(ps) {
+            if let Some(val) = MidiValue::try_from(m.bytes) {
+                if let MidiValue::Note {
+                    on: true,
+                    chan: 2,
+                    num,
+                    ..
+                } = val
+                {
+                    let index = (num >> 1) as usize;
+                    if index < toggles.len() {
+                        let v = !toggles[index].get();
+                        toggles[index].set(v);
+                        println!("toggle {}, {}", index, v);
+                    }
+                }
+            }
+        }
+
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
 
         //evaluate triggers
@@ -206,6 +241,7 @@ fn main() {
 
         //evaluate midi
         let block_time = ex.time_last();
+        let mut out_p = midi_out.writer(ps);
         while let Some(midi) = mreceiver.try_recv().ok() {
             let time = (midi.tick() - block_time) as u32 % ps.n_frames();
             let mut iter = midi.value().iter();
