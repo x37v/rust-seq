@@ -101,7 +101,7 @@ fn main() {
     sched.spawn_helper_threads();
 
     let (msender, mreceiver) = sync_channel(1024);
-    let mut note_trig = Arc::new(spinlock::Mutex::new(NoteTrigger::new(0, msender)));
+    let note_trig = Arc::new(spinlock::Mutex::new(NoteTrigger::new(0, msender)));
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
     let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
