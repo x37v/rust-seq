@@ -11,6 +11,7 @@ pub trait SchedContext: ScheduleTrigger {
     fn base_tick_period_micros(&self) -> f32;
     fn context_tick_period_micros(&self) -> f32;
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
+    fn as_schedule_trigger_mut(&mut self) -> &mut ScheduleTrigger;
 }
 
 pub struct RootContext<'a> {
@@ -76,6 +77,9 @@ impl<'a> SchedContext for RootContext<'a> {
         } else {
             println!("OOPS");
         }
+    }
+    fn as_schedule_trigger_mut(&mut self) -> &mut ScheduleTrigger {
+        self
     }
 }
 
@@ -170,6 +174,10 @@ impl<'a> SchedContext for ChildContext<'a> {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         //XXX translate time
         self.parent.schedule(time, func);
+    }
+
+    fn as_schedule_trigger_mut(&mut self) -> &mut ScheduleTrigger {
+        self
     }
 }
 

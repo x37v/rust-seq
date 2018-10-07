@@ -77,7 +77,7 @@ impl NoteTrigger {
     pub fn note(
         &self,
         time: TimeSched,
-        schedule: &mut impl ScheduleTrigger,
+        schedule: &mut dyn ScheduleTrigger,
         chan: u8,
         on: bool,
         num: u8,
@@ -99,7 +99,7 @@ impl NoteTrigger {
         &self,
         on_time: TimeSched,
         dur: TimeResched,
-        schedule: &mut impl ScheduleTrigger,
+        schedule: &mut dyn ScheduleTrigger,
         chan: u8,
         num: u8,
         vel: u8,

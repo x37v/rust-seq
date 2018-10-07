@@ -174,15 +174,11 @@ fn main() {
     let ntrig = note_trig.clone();
     let trig = FuncWrapper::new_p(
         move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
-            //XXX not sure why we need to create a context just to pass it along
-            let tick = context.context_tick();
-            let tick_period = context.context_tick_period_micros();
-            let mut ccontext = ChildContext::new(context, tick, tick_period);
             let ntrig = ntrig.lock();
             ntrig.note_with_dur(
                 TimeSched::Relative(0),
                 TimeResched::Relative(1),
-                &mut ccontext,
+                context.as_schedule_trigger_mut(),
                 0,
                 0,
                 127,
