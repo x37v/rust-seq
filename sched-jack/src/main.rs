@@ -196,40 +196,31 @@ fn main() {
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let mut out_p = midi_out.writer(ps);
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
+
+        //evaluate triggers
         let note_trig = note_trig.lock();
         ex.eval_triggers(&mut |time, index, _block_time, _trig_context| {
             if index == note_trig.trigger_index() {
                 note_trig.eval(time);
             }
         });
+
+        //evaluate midi
         let block_time = ex.time_last();
         while let Some(midi) = mreceiver.try_recv().ok() {
             let t = (midi.tick() - block_time) as u32 % ps.n_frames();
-            //XXX seems like there should be a better way to do this
             let mut iter = midi.value().iter();
+            let mut write = |bytes: &[u8]| {
+                let _ = out_p.write(&jack::RawMidi { time: t, bytes });
+            };
             match iter.len() {
-                3 => {
-                    let _ = out_p.write(&jack::RawMidi {
-                        time: t,
-                        bytes: &[
-                            iter.next().unwrap(),
-                            iter.next().unwrap(),
-                            iter.next().unwrap(),
-                        ],
-                    });
-                }
-                2 => {
-                    let _ = out_p.write(&jack::RawMidi {
-                        time: t,
-                        bytes: &[iter.next().unwrap(), iter.next().unwrap()],
-                    });
-                }
-                1 => {
-                    let _ = out_p.write(&jack::RawMidi {
-                        time: t,
-                        bytes: &[iter.next().unwrap()],
-                    });
-                }
+                3 => write(&[
+                    iter.next().unwrap(),
+                    iter.next().unwrap(),
+                    iter.next().unwrap(),
+                ]),
+                2 => write(&[iter.next().unwrap(), iter.next().unwrap()]),
+                1 => write(&[iter.next().unwrap()]),
                 _ => (),
             };
         }
