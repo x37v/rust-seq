@@ -203,9 +203,27 @@ fn main() {
             true
         },
     );
-    div.lock().child_append(LNode::new_boxed(trig));
-    clock.child_append(LNode::new_boxed(div));
 
+    let ntrig = note_trig.clone();
+    let display = FuncWrapper::new_p(
+        move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
+            let ntrig = ntrig.lock();
+            let num = (context.context_tick() % 16) as u8 * 2;
+            ntrig.note_with_dur(
+                TimeSched::Relative(0),
+                TimeResched::Relative(4410),
+                context.as_schedule_trigger_mut(),
+                2,
+                num,
+                127,
+            );
+            true
+        },
+    );
+    div.lock().child_append(LNode::new_boxed(trig));
+    div.lock().child_append(LNode::new_boxed(display));
+
+    clock.child_append(LNode::new_boxed(div));
     sched.schedule(TimeSched::Relative(0), clock);
 
     let mut ex = sched.executor().unwrap();
