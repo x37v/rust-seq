@@ -205,14 +205,32 @@ fn main() {
         let block_time = ex.time_last();
         while let Some(midi) = mreceiver.try_recv().ok() {
             let t = (midi.tick() - block_time) as u32 % ps.n_frames();
-            match midi.value() {
-                &MidiValue::Note { on, chan, num, vel } => {
-                    let status = chan & 0x0F | if on { 0b1001_0000 } else { 0b1000_0000 };
+            //XXX seems like there should be a better way to do this
+            let mut iter = midi.value().iter();
+            match iter.len() {
+                3 => {
                     let _ = out_p.write(&jack::RawMidi {
                         time: t,
-                        bytes: &[status, num & 0x7F, vel & 0x7F],
+                        bytes: &[
+                            iter.next().unwrap(),
+                            iter.next().unwrap(),
+                            iter.next().unwrap(),
+                        ],
                     });
                 }
+                2 => {
+                    let _ = out_p.write(&jack::RawMidi {
+                        time: t,
+                        bytes: &[iter.next().unwrap(), iter.next().unwrap()],
+                    });
+                }
+                1 => {
+                    let _ = out_p.write(&jack::RawMidi {
+                        time: t,
+                        bytes: &[iter.next().unwrap()],
+                    });
+                }
+                _ => (),
             };
         }
 
