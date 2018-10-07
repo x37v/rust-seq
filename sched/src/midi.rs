@@ -3,7 +3,7 @@ use binding::{ParamBindingGet, SpinlockParamBinding, SpinlockParamBindingP, Valu
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MidiValue {
     Note {
         on: bool,
@@ -13,7 +13,7 @@ pub enum MidiValue {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum MidiStatus {
     NoteOn = 0x90,
@@ -62,6 +62,33 @@ impl MidiValue {
         MidiValueIterator {
             value: self,
             index: 0,
+        }
+    }
+
+    pub fn try_from(bytes: &[u8]) -> Option<Self> {
+        match bytes.len() {
+            3 => {
+                let chan = bytes[0] & 0x0F;
+                let status = bytes[0] & 0xF0;
+                if status == MidiStatus::NoteOn as u8 {
+                    Some(MidiValue::Note {
+                        on: true,
+                        chan,
+                        num: bytes[1],
+                        vel: bytes[2],
+                    })
+                } else if status == MidiStatus::NoteOff as u8 {
+                    Some(MidiValue::Note {
+                        on: false,
+                        chan,
+                        num: bytes[1],
+                        vel: bytes[2],
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 }
@@ -192,8 +219,43 @@ impl NoteTrigger {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn try_from() {
+        //NoteOn = 0x90,
+        //NoteOff = 0x80,
+
+        //too short
+        assert_eq!(None, MidiValue::try_from(&[1]));
+        assert_eq!(None, MidiValue::try_from(&[7]));
+        assert_eq!(None, MidiValue::try_from(&[0x90, 1]));
+        assert_eq!(None, MidiValue::try_from(&[0x80, 1]));
+        assert_eq!(None, MidiValue::try_from(&[0x91, 1]));
+        assert_eq!(None, MidiValue::try_from(&[0x81, 1]));
+
+        //just right
+        assert_eq!(
+            Some(MidiValue::Note {
+                on: false,
+                chan: 3,
+                num: 2,
+                vel: 64
+            }),
+            MidiValue::try_from(&[0x83, 2, 64])
+        );
+        assert_eq!(
+            Some(MidiValue::Note {
+                on: false,
+                chan: 2,
+                num: 7,
+                vel: 96
+            }),
+            MidiValue::try_from(&[0x82, 7, 96])
+        );
+
+        //too long
+        assert_eq!(None, MidiValue::try_from(&[0x83, 2, 64, 3]));
+        assert_eq!(None, MidiValue::try_from(&[0x82, 7, 96, 2]));
     }
 }
