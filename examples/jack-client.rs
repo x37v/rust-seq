@@ -1,4 +1,3 @@
-extern crate euclidian_rythms;
 extern crate jack;
 extern crate rosc;
 extern crate sched;

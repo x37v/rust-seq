@@ -1,4 +1,19 @@
-struct Euclid {
+extern crate euclidian_rythms;
+
+use binding::bpm;
+use binding::{BindingGetP, ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
+use context::{ChildContext, SchedContext};
+use graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
+use midi::{MidiValue, NoteTrigger};
+use std::net::{SocketAddrV4, UdpSocket};
+use std::str::FromStr;
+use std::sync::mpsc::sync_channel;
+use std::sync::Arc;
+use std::thread;
+use util::Clamp;
+use {LList, LNode, Sched, Scheduler, TimeResched, TimeSched};
+
+pub struct Euclid {
     children: ChildList,
     step_ticks: BindingGetP<usize>,
     steps: BindingGetP<u8>,
