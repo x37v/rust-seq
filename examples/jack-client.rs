@@ -46,7 +46,7 @@ fn main() {
 
     let pulses = SpinlockParamBinding::new_p(2);
     let steps = SpinlockParamBinding::new_p(7);
-    let step_ticks = SpinlockParamBinding::new_p(960 / 4);
+    let _step_ticks = SpinlockParamBinding::new_p(960 / 4);
 
     //build up gates
     let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
