@@ -8,6 +8,8 @@ pub mod binding;
 pub mod context;
 pub mod graph;
 pub mod util;
+
 pub mod midi;
+pub mod euclid;
 
 pub use base::*;
