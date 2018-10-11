@@ -9,9 +9,22 @@ use std::sync::Arc;
 use xnor_llist::List;
 use xnor_llist::Node as LNode;
 
+pub enum ChildCount {
+    None,
+    Some(usize),
+    Inf,
+}
+
 pub trait GraphExec: Send {
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
     fn child_append(&mut self, child: AChildP);
+}
+
+pub trait ChildExec {
+    fn exec(&mut self, index: usize);
+    fn exec_range(&mut self, range: std::ops::Range<usize>);
+    fn exec_all(&mut self);
+    fn child_count(&self) -> ChildCount;
 }
 
 pub type ANodeP = Arc<spinlock::Mutex<dyn GraphExec>>;
