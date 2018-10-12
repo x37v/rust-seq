@@ -5,10 +5,12 @@ use base::{SchedCall, TimeResched};
 use binding::BindingGetP;
 use context::{ChildContext, SchedContext};
 use std;
+use std::cmp::{Ordering, PartialOrd};
 use std::sync::Arc;
 use xnor_llist::List;
 use xnor_llist::Node as LNode;
 
+#[derive(PartialEq)]
 pub enum ChildCount {
     None,
     Some(usize),
@@ -17,19 +19,38 @@ pub enum ChildCount {
 
 pub trait GraphExec: Send {
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
-    fn child_append(&mut self, child: AChildP);
+    fn allowed_children(&self) -> (ChildCount, ChildCount);
 }
 
 pub trait ChildExec {
-    fn exec(&mut self, index: usize);
-    fn exec_range(&mut self, range: std::ops::Range<usize>);
-    fn exec_all(&mut self);
+    fn exec(&mut self, &mut dyn GraphExec, index: usize);
+    fn exec_range(&mut self, &mut dyn GraphExec, range: std::ops::Range<usize>);
+    fn exec_all(&mut self, &mut dyn GraphExec);
     fn child_count(&self) -> ChildCount;
+}
+
+pub trait GraphIndexContext: SchedContext {
+    fn index(&self) -> usize; //the index that we were called with
+    fn as_sched_context(&mut self) -> &mut SchedContext;
+}
+
+pub trait GraphIndexExec: Send {
+    fn exec_index(&mut self, context: &mut dyn GraphIndexContext);
+}
+
+pub struct GraphNode {
+    exec: Box<GraphExec>,
+    children: ChildList,
+    index_hooks: IndexChildList,
 }
 
 pub type ANodeP = Arc<spinlock::Mutex<dyn GraphExec>>;
 pub type AChildP = Box<LNode<ANodeP>>;
 pub type ChildList = List<ANodeP>;
+
+pub type AIndexNodeP = Arc<spinlock::Mutex<dyn GraphIndexExec>>;
+pub type AIndexChildP = Box<LNode<AIndexNodeP>>;
+pub type IndexChildList = List<AIndexNodeP>;
 
 pub type Micro = f32;
 pub struct RootClock {
@@ -44,18 +65,64 @@ pub struct FuncWrapper<F> {
     func: Box<F>,
 }
 
+impl PartialOrd for ChildCount {
+    fn partial_cmp(&self, other: &ChildCount) -> Option<Ordering> {
+        Some(match self {
+            ChildCount::None => {
+                if let ChildCount::None = other {
+                    Ordering::Equal
+                } else {
+                    Ordering::Less
+                }
+            }
+            ChildCount::Inf => {
+                if let ChildCount::Info = other {
+                    Ordering::Equal
+                } else {
+                    Ordering::Greater
+                }
+            }
+            ChildCount::Some(v) => match other {
+                ChildCount::Inf => Ordering::Greater,
+                ChildCount::Less => Ordering::Less,
+                ChildCount::Some(ov) => v.partial_cmp(ov),
+            },
+        })
+    }
+
+    fn lt(&self, other: &ChildCount) -> bool {
+        match self.partial_cmp(other) {
+            Some(Ordering::Less) => true,
+            _ => false,
+        }
+    }
+    fn le(&self, other: &ChildCount) -> bool {
+        match self.partial_cmp(other) {
+            Some(Ordering::Less) | Some(Ordering::Equal) => true,
+            _ => false,
+        }
+    }
+    fn gt(&self, other: &ChildCount) -> bool {
+        match self.partial_cmp(other) {
+            Some(Ordering::Greater) => true,
+            _ => false,
+        }
+    }
+    fn ge(&self, other: &ChildCount) -> bool {
+        match self.partial_cmp(other) {
+            Some(Ordering::Greater) | Some(Ordering::Equal) => true,
+            _ => false,
+        }
+    }
+}
+
 impl RootClock {
     pub fn new(period_micros: BindingGetP<Micro>) -> Self {
         Self {
-            children: List::new(),
             tick: 0,
             tick_sub: 0f32,
             period_micros,
         }
-    }
-
-    pub fn child_append(&mut self, child: AChildP) {
-        self.children.push_back(child);
     }
 }
 
@@ -108,10 +175,6 @@ where
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
         (self.func)(context, &mut self.children)
     }
-
-    fn child_append(&mut self, child: AChildP) {
-        self.children.push_back(child);
-    }
 }
 
 #[cfg(test)]
@@ -142,9 +205,6 @@ mod tests {
 
             self.children.count() > 0
         }
-        fn child_append(&mut self, child: AChildP) {
-            self.children.push_back(child);
-        }
     }
 
     impl GraphExec for Y {
@@ -152,7 +212,6 @@ mod tests {
             println!("ONCE");
             false
         }
-        fn child_append(&mut self, _child: AChildP) {}
     }
 
     #[test]
@@ -204,7 +263,6 @@ mod tests {
             self.tick = Some(context.context_tick());
             true
         }
-        fn child_append(&mut self, _child: AChildP) {}
     }
 
     #[test]
