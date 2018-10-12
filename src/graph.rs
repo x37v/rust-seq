@@ -68,51 +68,26 @@ pub struct FuncWrapper<F> {
 impl PartialOrd for ChildCount {
     fn partial_cmp(&self, other: &ChildCount) -> Option<Ordering> {
         Some(match self {
-            ChildCount::None => {
-                if let ChildCount::None = other {
-                    Ordering::Equal
-                } else {
-                    Ordering::Less
-                }
-            }
-            ChildCount::Inf => {
-                if let ChildCount::Info = other {
-                    Ordering::Equal
-                } else {
-                    Ordering::Greater
-                }
-            }
+            ChildCount::None => match other {
+                ChildCount::None | ChildCount::Some(0) => Ordering::Equal,
+                _ => Ordering::Less,
+            },
+            ChildCount::Inf => match other {
+                ChildCount::Inf => Ordering::Equal,
+                _ => Ordering::Greater,
+            },
             ChildCount::Some(v) => match other {
-                ChildCount::Inf => Ordering::Greater,
-                ChildCount::Less => Ordering::Less,
+                ChildCount::Inf => Ordering::Less,
+                ChildCount::None => {
+                    if v == 0 {
+                        Ordering::Equal
+                    } else {
+                        Ordering::Greater
+                    }
+                }
                 ChildCount::Some(ov) => v.partial_cmp(ov),
             },
         })
-    }
-
-    fn lt(&self, other: &ChildCount) -> bool {
-        match self.partial_cmp(other) {
-            Some(Ordering::Less) => true,
-            _ => false,
-        }
-    }
-    fn le(&self, other: &ChildCount) -> bool {
-        match self.partial_cmp(other) {
-            Some(Ordering::Less) | Some(Ordering::Equal) => true,
-            _ => false,
-        }
-    }
-    fn gt(&self, other: &ChildCount) -> bool {
-        match self.partial_cmp(other) {
-            Some(Ordering::Greater) => true,
-            _ => false,
-        }
-    }
-    fn ge(&self, other: &ChildCount) -> bool {
-        match self.partial_cmp(other) {
-            Some(Ordering::Greater) | Some(Ordering::Equal) => true,
-            _ => false,
-        }
     }
 }
 
