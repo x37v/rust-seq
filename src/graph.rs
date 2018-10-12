@@ -7,7 +7,7 @@ use context::{ChildContext, SchedContext};
 use std;
 use std::cmp::{Ordering, PartialOrd};
 use std::sync::Arc;
-use xnor_llist::List;
+use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
 
 #[derive(PartialEq)]
@@ -18,8 +18,8 @@ pub enum ChildCount {
 }
 
 pub trait GraphExec: Send {
-    fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
-    fn allowed_children(&self) -> (ChildCount, ChildCount);
+    fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool;
+    fn allowed_children(&self) -> ChildCount;
 }
 
 pub trait ChildExec {
@@ -38,31 +38,62 @@ pub trait GraphIndexExec: Send {
     fn exec_index(&mut self, context: &mut dyn GraphIndexContext);
 }
 
-pub struct GraphNode {
+pub trait GraphNode {
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
+    fn child_append(&mut self, child: AChildP) -> bool;
+}
+
+pub struct GraphNodeWrapper {
     exec: Box<GraphExec>,
     children: ChildList,
     index_hooks: IndexChildList,
 }
 
-pub type ANodeP = Arc<spinlock::Mutex<dyn GraphExec>>;
+pub type ANodeP = Arc<spinlock::Mutex<dyn GraphNode>>;
 pub type AChildP = Box<LNode<ANodeP>>;
-pub type ChildList = List<ANodeP>;
+pub type ChildList = LList<ANodeP>;
 
 pub type AIndexNodeP = Arc<spinlock::Mutex<dyn GraphIndexExec>>;
 pub type AIndexChildP = Box<LNode<AIndexNodeP>>;
-pub type IndexChildList = List<AIndexNodeP>;
+pub type IndexChildList = LList<AIndexNodeP>;
 
 pub type Micro = f32;
 pub struct RootClock {
-    children: ChildList,
     tick: usize,
     tick_sub: f32,
     period_micros: BindingGetP<Micro>,
 }
 
 pub struct FuncWrapper<F> {
-    children: ChildList,
     func: Box<F>,
+}
+
+impl GraphNode for GraphNodeWrapper {
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
+        //XXX create child interface and pass that to exec
+    }
+    fn child_append(&mut self, child: AChildP) -> bool {
+        if match self.exec.allowed_children() {
+            ChildCount::None => false,
+            ChildCount::Some(v) => self.children.count() < v,
+            ChildCount::Inf => true,
+        } {
+            self.children.push_back(child);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl GraphNodeWrapper {
+    pub fn new_p(exec: Box<GraphExec>) -> Arc<spinlock::Mutex<Self>> {
+        Arc::new(spinlock::Mutex::new(Self {
+            exec,
+            children: LList::new(),
+            index_hooks: LList::new(),
+        }))
+    }
 }
 
 impl PartialOrd for ChildCount {
@@ -106,7 +137,7 @@ impl SchedCall for RootClock {
         let period_micros = self.period_micros.get();
         if self.children.count() > 0 {
             let mut ccontext = ChildContext::new(context, self.tick, period_micros);
-            let mut tmp = List::new();
+            let mut tmp = LList::new();
             std::mem::swap(&mut self.children, &mut tmp);
 
             for c in tmp.into_iter() {
@@ -138,7 +169,7 @@ where
     pub fn new_p(func: F) -> Arc<spinlock::Mutex<Self>> {
         Arc::new(spinlock::Mutex::new(Self {
             func: Box::new(func),
-            children: List::new(),
+            children: LList::new(),
         }))
     }
 }
@@ -170,7 +201,7 @@ mod tests {
         fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
             println!("XES");
 
-            let mut tmp = List::new();
+            let mut tmp = LList::new();
             std::mem::swap(&mut self.children, &mut tmp);
             for c in tmp.into_iter() {
                 if c.lock().exec(context) {
@@ -194,17 +225,17 @@ mod tests {
         type M<T> = spinlock::Mutex<T>;
 
         let x = Arc::new(M::new(X {
-            children: List::new(),
+            children: LList::new(),
         }));
         let y = Arc::new(M::new(Y {}));
 
-        let mut l: LList<std::sync::Arc<M<dyn GraphExec>>> = List::new();
+        let mut l: LList<std::sync::Arc<M<dyn GraphExec>>> = LList::new();
         l.push_back(LNode::new_boxed(x.clone()));
         x.lock().child_append(LNode::new_boxed(y.clone()));
 
         let mut src_sink = SrcSink::new();
         let mut list = LList::new();
-        let mut trig_list = List::new();
+        let mut trig_list = LList::new();
 
         let mut c = RootContext::new(0, 0, &mut list, &mut trig_list, &mut src_sink);
 
