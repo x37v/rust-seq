@@ -10,7 +10,7 @@ use std::sync::Arc;
 use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ChildCount {
     None,
     Some(usize),
@@ -23,10 +23,14 @@ pub trait GraphExec: Send {
 }
 
 pub trait ChildExec {
-    fn exec(&mut self, &mut dyn GraphExec, index: usize);
-    fn exec_range(&mut self, &mut dyn GraphExec, range: std::ops::Range<usize>);
-    fn exec_all(&mut self, &mut dyn GraphExec);
-    fn child_count(&self) -> ChildCount;
+    fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount;
+    fn exec_range(
+        &mut self,
+        context: &mut dyn SchedContext,
+        range: std::ops::Range<usize>,
+    ) -> ChildCount;
+    fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount;
+    fn count(&self) -> ChildCount;
 }
 
 pub trait GraphIndexContext: SchedContext {
@@ -46,7 +50,15 @@ pub trait GraphNode {
 pub struct GraphNodeWrapper {
     exec: Box<GraphExec>,
     children: ChildList,
-    index_hooks: IndexChildList,
+}
+
+pub struct Children<'a> {
+    children: &'a mut ChildList,
+}
+
+pub struct DefaultGraphContext<'a> {
+    parent: &'a mut dyn SchedContext,
+    children: &'a mut dyn ChildExec,
 }
 
 pub type ANodeP = Arc<spinlock::Mutex<dyn GraphNode>>;
@@ -62,15 +74,18 @@ pub struct RootClock {
     tick: usize,
     tick_sub: f32,
     period_micros: BindingGetP<Micro>,
+    children: ChildList,
 }
 
 pub struct FuncWrapper<F> {
     func: Box<F>,
+    max_children: ChildCount,
 }
 
 impl GraphNode for GraphNodeWrapper {
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
-        //XXX create child interface and pass that to exec
+        let mut children = Children::new(&mut self.children);
+        self.exec.exec(context, &mut children)
     }
     fn child_append(&mut self, child: AChildP) -> bool {
         if match self.exec.allowed_children() {
@@ -91,34 +106,78 @@ impl GraphNodeWrapper {
         Arc::new(spinlock::Mutex::new(Self {
             exec,
             children: LList::new(),
-            index_hooks: LList::new(),
         }))
     }
 }
 
 impl PartialOrd for ChildCount {
     fn partial_cmp(&self, other: &ChildCount) -> Option<Ordering> {
-        Some(match self {
-            ChildCount::None => match other {
+        match self {
+            ChildCount::None => Some(match other {
                 ChildCount::None | ChildCount::Some(0) => Ordering::Equal,
                 _ => Ordering::Less,
-            },
-            ChildCount::Inf => match other {
+            }),
+            ChildCount::Inf => Some(match other {
                 ChildCount::Inf => Ordering::Equal,
                 _ => Ordering::Greater,
-            },
+            }),
             ChildCount::Some(v) => match other {
-                ChildCount::Inf => Ordering::Less,
-                ChildCount::None => {
-                    if v == 0 {
-                        Ordering::Equal
-                    } else {
-                        Ordering::Greater
-                    }
-                }
-                ChildCount::Some(ov) => v.partial_cmp(ov),
+                ChildCount::Inf => Some(Ordering::Less),
+                ChildCount::None => Some(if v == &0usize {
+                    Ordering::Equal
+                } else {
+                    Ordering::Greater
+                }),
+                ChildCount::Some(ov) => v.partial_cmp(&ov),
             },
-        })
+        }
+    }
+}
+
+impl<'a> Children<'a> {
+    fn new(children: &'a mut ChildList) -> Self {
+        Self { children }
+    }
+}
+
+impl<'a> ChildExec for Children<'a> {
+    fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
+        let tmp = self.children.split(|_| true); //XXX should be a better way
+        for (i, c) in (0..).zip(tmp.into_iter()) {
+            if i == index && !c.lock().exec(context) {
+                continue;
+            }
+            self.children.push_back(c);
+        }
+        self.count()
+    }
+
+    fn exec_range(
+        &mut self,
+        context: &mut dyn SchedContext,
+        range: std::ops::Range<usize>,
+    ) -> ChildCount {
+        let tmp = self.children.split(|_| true); //XXX should be a better way
+        for (i, c) in (0..).zip(tmp.into_iter()) {
+            if i.ge(&range.start) && i.lt(&range.end) && !c.lock().exec(context) {
+                continue;
+            }
+            self.children.push_back(c);
+        }
+        self.count()
+    }
+
+    fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
+        let tmp = self.children.split(|_| true); //XXX should be a better way
+        for c in tmp.into_iter() {
+            if c.lock().exec(context) {
+                self.children.push_back(c);
+            }
+        }
+        self.count()
+    }
+    fn count(&self) -> ChildCount {
+        ChildCount::Some(self.children.count())
     }
 }
 
@@ -128,6 +187,7 @@ impl RootClock {
             tick: 0,
             tick_sub: 0f32,
             period_micros,
+            children: LList::new(),
         }
     }
 }
@@ -164,22 +224,26 @@ impl SchedCall for RootClock {
 
 impl<F> FuncWrapper<F>
 where
-    F: Fn(&mut dyn SchedContext, &mut ChildList) -> bool + Send,
+    F: Fn(&mut dyn SchedContext, &mut dyn ChildExec) -> bool + Send,
 {
-    pub fn new_p(func: F) -> Arc<spinlock::Mutex<Self>> {
+    pub fn new_p(func: F, max_children: ChildCount) -> Arc<spinlock::Mutex<Self>> {
         Arc::new(spinlock::Mutex::new(Self {
             func: Box::new(func),
-            children: LList::new(),
+            max_children,
         }))
     }
 }
 
 impl<F> GraphExec for FuncWrapper<F>
 where
-    F: Fn(&mut dyn SchedContext, &mut ChildList) -> bool + Send,
+    F: Fn(&mut dyn SchedContext, &mut dyn ChildExec) -> bool + Send,
 {
-    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
-        (self.func)(context, &mut self.children)
+    fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool {
+        (self.func)(context, children)
+    }
+
+    fn allowed_children(&self) -> ChildCount {
+        self.max_children
     }
 }
 

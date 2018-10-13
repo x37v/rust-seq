@@ -1,20 +1,11 @@
 extern crate euclidian_rythms;
 
-use binding::bpm;
-use binding::{BindingGetP, ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
-use context::{ChildContext, SchedContext};
-use graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
-use midi::{MidiValue, NoteTrigger};
-use std::net::{SocketAddrV4, UdpSocket};
-use std::str::FromStr;
-use std::sync::mpsc::sync_channel;
-use std::sync::Arc;
-use std::thread;
+use binding::BindingGetP;
+use context::SchedContext;
+use graph::{ChildCount, ChildExec, GraphExec};
 use util::Clamp;
-use {LList, LNode, Sched, Scheduler, TimeResched, TimeSched};
 
 pub struct Euclid {
-    children: ChildList,
     step_ticks: BindingGetP<usize>,
     steps: BindingGetP<u8>,
     pulses: BindingGetP<u8>,
@@ -30,7 +21,6 @@ impl Euclid {
         pulses: BindingGetP<u8>,
     ) -> Self {
         Self {
-            children: LList::new(),
             step_ticks,
             steps,
             pulses,
@@ -55,7 +45,7 @@ impl Euclid {
 }
 
 impl GraphExec for Euclid {
-    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
+    fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool {
         let step_ticks = self.step_ticks.get();
 
         if step_ticks > 0 && context.context_tick() % step_ticks == 0 {
@@ -67,16 +57,14 @@ impl GraphExec for Euclid {
                 //passing context through, so this is more like gate than a clock..
                 let index = (context.context_tick() / step_ticks) % steps as usize;
                 if self.pattern[index] {
-                    for c in self.children.iter() {
-                        c.lock().exec(context);
-                    }
+                    children.exec_all(context);
                 }
             }
         }
         true
     }
 
-    fn child_append(&mut self, child: AChildP) {
-        self.children.push_back(child);
+    fn allowed_children(&self) -> ChildCount {
+        ChildCount::Inf
     }
 }
