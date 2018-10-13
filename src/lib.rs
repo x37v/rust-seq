@@ -9,7 +9,8 @@ pub mod context;
 pub mod graph;
 pub mod util;
 
-pub mod midi;
 pub mod euclid;
+pub mod midi;
+pub mod step_seq;
 
 pub use base::*;
