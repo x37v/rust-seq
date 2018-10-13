@@ -51,6 +51,7 @@ fn main() {
     let pulses = SpinlockParamBinding::new_p(2);
     let steps = SpinlockParamBinding::new_p(16);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
+    let step_index = SpinlockParamBinding::new_p(0usize);
 
     //build up gates
     let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
@@ -60,12 +61,12 @@ fn main() {
     let toggles = gates.clone();
     let step_gate = SpinlockParamBinding::new_p(false);
 
+    /*
     let addr_s = "127.0.0.1:10001";
     let addr = match SocketAddrV4::from_str(addr_s) {
         Ok(addr) => addr,
         Err(e) => panic!("error with osc address {}", e),
     };
-    /*
     println!("osc addr {}", addr_s);
     let _osc_thread = thread::spawn(move || {
         let sock = UdpSocket::bind(addr).unwrap();
@@ -128,7 +129,9 @@ fn main() {
 
     let step_seq = NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks, steps));
 
+    let step_indexc = step_index.clone();
     let setup = IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
+        step_indexc.set(index);
         if index < gates.len() {
             step_gate.set(gates[index].get());
         }
@@ -140,7 +143,7 @@ fn main() {
         ChildCount::None,
         move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
             let ntrig = ntrig.lock();
-            let num = (context.context_tick() % 16) as u8 * 2;
+            let num = step_index.get() as u8 * 2;
             ntrig.note_with_dur(
                 TimeSched::Relative(0),
                 TimeResched::Relative(4410),
