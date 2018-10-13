@@ -44,6 +44,20 @@ impl ValueSet {
     }
 }
 
+pub struct ValueLatch<T> {
+    get: BindingGetP<T>,
+    set: BindingSetP<T>,
+}
+
+impl<T> ValueLatch<T> {
+    pub fn new(get: BindingGetP<T>, set: BindingSetP<T>) -> Self {
+        Self { get, set }
+    }
+    pub fn store(&self) {
+        self.set.set(self.get.get());
+    }
+}
+
 pub struct SpinlockParamBinding<T: Copy> {
     lock: spinlock::Mutex<Cell<T>>,
 }
