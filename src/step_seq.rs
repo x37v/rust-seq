@@ -4,11 +4,11 @@ use graph::{ChildCount, ChildExec, GraphExec};
 
 pub struct StepSeq {
     step_ticks: BindingGetP<usize>,
-    steps: BindingGetP<u8>,
+    steps: BindingGetP<usize>,
 }
 
 impl StepSeq {
-    pub fn new(step_ticks: BindingGetP<usize>, steps: BindingGetP<u8>) -> Self {
+    pub fn new(step_ticks: BindingGetP<usize>, steps: BindingGetP<usize>) -> Self {
         Self { step_ticks, steps }
     }
 }
