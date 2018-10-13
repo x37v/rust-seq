@@ -8,9 +8,13 @@ use sched::binding::{ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
 use sched::context::{ChildContext, SchedContext};
 #[allow(unused_imports)]
 use sched::euclid::Euclid;
-use sched::graph::{ChildCount, ChildExec, FuncWrapper, GraphNode, GraphNodeWrapper, RootClock};
+use sched::graph::{
+    ChildCount, ChildExec, FuncWrapper, GraphIndexExec, GraphNode, GraphNodeWrapper,
+    IndexFuncWrapper, NChildGraphNodeWrapper, RootClock,
+};
 use sched::midi::{MidiValue, NoteTrigger};
 use sched::spinlock;
+use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;
@@ -45,8 +49,8 @@ fn main() {
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
     let pulses = SpinlockParamBinding::new_p(2);
-    let steps = SpinlockParamBinding::new_p(7);
-    let _step_ticks = SpinlockParamBinding::new_p(960 / 4);
+    let steps = SpinlockParamBinding::new_p(16);
+    let step_ticks = SpinlockParamBinding::new_p(960 / 4);
 
     //build up gates
     let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
@@ -54,12 +58,14 @@ fn main() {
         .map(|v| SpinlockParamBinding::new_p(*v))
         .collect();
     let toggles = gates.clone();
+    let step_gate = SpinlockParamBinding::new_p(false);
 
     let addr_s = "127.0.0.1:10001";
     let addr = match SocketAddrV4::from_str(addr_s) {
         Ok(addr) => addr,
         Err(e) => panic!("error with osc address {}", e),
     };
+    /*
     println!("osc addr {}", addr_s);
     let _osc_thread = thread::spawn(move || {
         let sock = UdpSocket::bind(addr).unwrap();
@@ -90,6 +96,7 @@ fn main() {
             };
         }
     });
+    */
 
     let ntrig = note_trig.clone();
     let trig = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
@@ -108,33 +115,27 @@ fn main() {
         },
     ));
 
-    /*
-    let euclid = Arc::new(spinlock::Mutex::new(Euclid::new(
-        step_ticks.clone(),
-        steps.clone(),
-        pulses.clone(),
-    )));
-    euclid.lock().child_append(LNode::new_boxed(trig));
-    clock.child_append(LNode::new_boxed(euclid));
-    */
-
-    let div = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
+    let step_gatec = step_gate.clone();
+    let gate = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
         ChildCount::Inf,
         move |context: &mut dyn SchedContext, children: &mut dyn ChildExec| {
-            let div = ppq.get() / 4;
-            if context.context_tick() % div == 0 {
-                let tick = context.context_tick() / div;
-                let index = tick % gates.len();
-                if gates[index].get() {
-                    println!("gate: {}", index);
-                    let tick_period = context.base_tick_period_micros() * (div as f32);
-                    let mut ccontext = ChildContext::new(context, tick, tick_period);
-                    children.exec_all(&mut ccontext);
-                }
+            if step_gatec.get() {
+                children.exec_all(context);
             }
-            true
+            children.has_children()
         },
     ));
+
+    let step_seq = NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks, steps));
+
+    let setup = Arc::new(spinlock::Mutex::new(IndexFuncWrapper::new_boxed(
+        move |index: usize, _context: &mut dyn SchedContext| {
+            if index < gates.len() {
+                step_gate.set(gates[index].get());
+            }
+        },
+    )));
+    step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
     let ntrig = note_trig.clone();
     let display = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
@@ -153,10 +154,11 @@ fn main() {
             true
         },
     ));
-    div.lock().child_append(LNode::new_boxed(trig));
-    div.lock().child_append(LNode::new_boxed(display));
+    gate.lock().child_append(LNode::new_boxed(trig));
+    gate.lock().child_append(LNode::new_boxed(display));
+    step_seq.lock().child_append(LNode::new_boxed(gate));
 
-    clock.child_append(LNode::new_boxed(div));
+    clock.child_append(LNode::new_boxed(step_seq));
     sched.schedule(TimeSched::Relative(0), clock);
 
     let mut ex = sched.executor().unwrap();
