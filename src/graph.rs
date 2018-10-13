@@ -31,6 +31,7 @@ pub trait ChildExec {
     ) -> ChildCount;
     fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount;
     fn count(&self) -> ChildCount;
+    fn has_children(&self) -> bool;
 }
 
 pub trait GraphIndexExec: Send {
@@ -208,6 +209,9 @@ impl<'a> ChildExec for Children<'a> {
     fn count(&self) -> ChildCount {
         ChildCount::Some(self.children.count())
     }
+    fn has_children(&self) -> bool {
+        self.children.count() > 0
+    }
 }
 
 impl<'a> NChildren<'a> {
@@ -261,10 +265,14 @@ impl<'a> ChildExec for NChildren<'a> {
         self.exec(context, 0)
     }
     fn count(&self) -> ChildCount {
-        match self.children.count() {
-            0 => ChildCount::None,
-            _ => ChildCount::Inf,
+        if self.has_children() {
+            ChildCount::Inf
+        } else {
+            ChildCount::None
         }
+    }
+    fn has_children(&self) -> bool {
+        self.children.count() > 0
     }
 }
 
