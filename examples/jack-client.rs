@@ -4,7 +4,7 @@ extern crate sched;
 
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
-use sched::binding::{ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
+use sched::binding::{ParamBindingGet, ParamBindingSet, SpinlockParamBinding, ValueLatch};
 use sched::context::{ChildContext, SchedContext};
 #[allow(unused_imports)]
 use sched::euclid::Euclid;
@@ -60,6 +60,10 @@ fn main() {
         .collect();
     let toggles = gates.clone();
     let step_gate = SpinlockParamBinding::new_p(false);
+    let latches: Vec<ValueLatch<bool>> = gates
+        .iter()
+        .map(|g| ValueLatch::new(g.clone(), step_gate.clone()))
+        .collect();
 
     /*
     let addr_s = "127.0.0.1:10001";
@@ -108,8 +112,8 @@ fn main() {
                 TimeSched::Relative(0),
                 TimeResched::Relative(1),
                 context.as_schedule_trigger_mut(),
-                0,
-                0,
+                9,
+                37,
                 127,
             );
             true
@@ -132,8 +136,8 @@ fn main() {
     let step_indexc = step_index.clone();
     let setup = IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
         step_indexc.set(index);
-        if index < gates.len() {
-            step_gate.set(gates[index].get());
+        if index < latches.len() {
+            latches[index].store();
         }
     });
     step_seq.lock().index_child_append(LNode::new_boxed(setup));
