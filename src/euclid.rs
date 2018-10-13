@@ -64,7 +64,7 @@ impl GraphExec for Euclid {
         true
     }
 
-    fn allowed_children(&self) -> ChildCount {
+    fn children_max(&self) -> ChildCount {
         ChildCount::Inf
     }
 }

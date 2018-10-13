@@ -19,7 +19,7 @@ pub enum ChildCount {
 
 pub trait GraphExec: Send {
     fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool;
-    fn allowed_children(&self) -> ChildCount;
+    fn children_max(&self) -> ChildCount;
 }
 
 pub trait ChildExec {
@@ -74,7 +74,7 @@ pub struct RootClock {
 
 pub struct FuncWrapper<F> {
     func: Box<F>,
-    max_children: ChildCount,
+    children_max: ChildCount,
 }
 
 impl GraphNode for GraphNodeWrapper {
@@ -83,7 +83,7 @@ impl GraphNode for GraphNodeWrapper {
         self.exec.exec(context, &mut children)
     }
     fn child_append(&mut self, child: AChildP) -> bool {
-        if match self.exec.allowed_children() {
+        if match self.exec.children_max() {
             ChildCount::None => false,
             ChildCount::Some(v) => self.children.count() < v,
             ChildCount::Inf => true,
@@ -224,17 +224,12 @@ impl<F> FuncWrapper<F>
 where
     F: Fn(&mut dyn SchedContext, &mut dyn ChildExec) -> bool + Send,
 {
-    pub fn new_boxed(max_children: ChildCount, func: F) -> Box<Self> {
+    pub fn new_boxed(children_max: ChildCount, func: F) -> Box<Self> {
         Box::new(Self {
             func: Box::new(func),
-            max_children,
+            children_max,
         })
     }
-    /*
-    pub fn new_p(max_children: ChildCount, func: F) -> Arc<spinlock::Mutex<GraphNodeWrapper>> {
-        GraphNodeWrapper::new_p(Self::new_boxed(max_children, func))
-    }
-    */
 }
 
 impl<F> GraphExec for FuncWrapper<F>
@@ -245,8 +240,8 @@ where
         (self.func)(context, children)
     }
 
-    fn allowed_children(&self) -> ChildCount {
-        self.max_children
+    fn children_max(&self) -> ChildCount {
+        self.children_max
     }
 }
 
