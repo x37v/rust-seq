@@ -61,7 +61,8 @@ impl GraphExec for Euclid {
                 }
             }
         }
-        true
+        //remove self if we have no children
+        children.has_children()
     }
 
     fn children_max(&self) -> ChildCount {

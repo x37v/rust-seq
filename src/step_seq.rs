@@ -27,10 +27,7 @@ impl GraphExec for StepSeq {
             }
         }
         //remove self if we have no children
-        match children.count() {
-            ChildCount::None | ChildCount::Some(0) => false,
-            _ => true,
-        }
+        children.has_children()
     }
 
     fn children_max(&self) -> ChildCount {
