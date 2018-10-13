@@ -83,6 +83,10 @@ pub struct FuncWrapper<F> {
     children_max: ChildCount,
 }
 
+pub struct IndexFuncWrapper<F> {
+    func: Box<F>,
+}
+
 impl GraphNode for GraphNodeWrapper {
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
         let mut children = Children::new(&mut self.children);
@@ -118,6 +122,10 @@ impl NChildGraphNodeWrapper {
             children: LList::new(),
             index_children: LList::new(),
         }))
+    }
+
+    pub fn index_child_append(&mut self, child: AIndexChildP) {
+        self.index_children.push_back(child);
     }
 }
 
@@ -342,6 +350,32 @@ where
 
     fn children_max(&self) -> ChildCount {
         self.children_max
+    }
+}
+
+impl<F> IndexFuncWrapper<F>
+where
+    F: Fn(usize, &mut dyn SchedContext) + Send,
+{
+    pub fn new_boxed(func: F) -> Box<Self> {
+        Box::new(Self {
+            func: Box::new(func),
+        })
+    }
+
+    pub fn new_p(func: F) -> Arc<spinlock::Mutex<Box<Self>>> {
+        Arc::new(spinlock::Mutex::new(Box::new(Self {
+            func: Box::new(func),
+        })))
+    }
+}
+
+impl<F> GraphIndexExec for IndexFuncWrapper<F>
+where
+    F: Fn(usize, &mut dyn SchedContext) + Send,
+{
+    fn exec_index(&mut self, index: usize, context: &mut dyn SchedContext) {
+        (self.func)(index, context);
     }
 }
 

@@ -15,19 +15,19 @@ pub struct Euclid {
 }
 
 impl Euclid {
-    pub fn new(
+    pub fn new_p(
         step_ticks: BindingGetP<usize>,
         steps: BindingGetP<u8>,
         pulses: BindingGetP<u8>,
-    ) -> Self {
-        Self {
+    ) -> Box<Self> {
+        Box::new(Self {
             step_ticks,
             steps,
             pulses,
             steps_last: None,
             pulses_last: None,
             pattern: [false; 64],
-        }
+        })
     }
 
     fn update_if(&mut self, steps: u8, pulses: u8) {
