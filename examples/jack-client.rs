@@ -128,13 +128,11 @@ fn main() {
 
     let step_seq = NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks, steps));
 
-    let setup = Arc::new(spinlock::Mutex::new(IndexFuncWrapper::new_boxed(
-        move |index: usize, _context: &mut dyn SchedContext| {
-            if index < gates.len() {
-                step_gate.set(gates[index].get());
-            }
-        },
-    )));
+    let setup = IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
+        if index < gates.len() {
+            step_gate.set(gates[index].get());
+        }
+    });
     step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
     let ntrig = note_trig.clone();
