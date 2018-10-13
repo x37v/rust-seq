@@ -56,11 +56,6 @@ pub struct Children<'a> {
     children: &'a mut ChildList,
 }
 
-pub struct DefaultGraphContext<'a> {
-    parent: &'a mut dyn SchedContext,
-    children: &'a mut dyn ChildExec,
-}
-
 pub type ANodeP = Arc<spinlock::Mutex<dyn GraphNode>>;
 pub type AChildP = Box<LNode<ANodeP>>;
 pub type ChildList = LList<ANodeP>;
@@ -190,6 +185,9 @@ impl RootClock {
             children: LList::new(),
         }
     }
+    pub fn child_append(&mut self, child: AChildP) {
+        self.children.push_back(child);
+    }
 }
 
 impl SchedCall for RootClock {
@@ -226,12 +224,17 @@ impl<F> FuncWrapper<F>
 where
     F: Fn(&mut dyn SchedContext, &mut dyn ChildExec) -> bool + Send,
 {
-    pub fn new_p(func: F, max_children: ChildCount) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self {
+    pub fn new_boxed(max_children: ChildCount, func: F) -> Box<Self> {
+        Box::new(Self {
             func: Box::new(func),
             max_children,
-        }))
+        })
     }
+    /*
+    pub fn new_p(max_children: ChildCount, func: F) -> Arc<spinlock::Mutex<GraphNodeWrapper>> {
+        GraphNodeWrapper::new_p(Self::new_boxed(max_children, func))
+    }
+    */
 }
 
 impl<F> GraphExec for FuncWrapper<F>

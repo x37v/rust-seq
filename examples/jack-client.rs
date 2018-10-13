@@ -4,14 +4,14 @@ extern crate sched;
 
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
-use sched::binding::{BindingGetP, ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
+use sched::binding::{ParamBindingGet, ParamBindingSet, SpinlockParamBinding};
 use sched::context::{ChildContext, SchedContext};
+#[allow(unused_imports)]
 use sched::euclid::Euclid;
-use sched::graph::{AChildP, ChildList, FuncWrapper, GraphExec, RootClock};
+use sched::graph::{ChildCount, ChildExec, FuncWrapper, GraphNode, GraphNodeWrapper, RootClock};
 use sched::midi::{MidiValue, NoteTrigger};
 use sched::spinlock;
-use sched::util::Clamp;
-use sched::{LList, LNode, Sched, Scheduler, TimeResched, TimeSched};
+use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;
 use std::sync::mpsc::sync_channel;
@@ -92,8 +92,9 @@ fn main() {
     });
 
     let ntrig = note_trig.clone();
-    let trig = FuncWrapper::new_p(
-        move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
+    let trig = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
+        ChildCount::None,
+        move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
             let ntrig = ntrig.lock();
             ntrig.note_with_dur(
                 TimeSched::Relative(0),
@@ -105,7 +106,7 @@ fn main() {
             );
             true
         },
-    );
+    ));
 
     /*
     let euclid = Arc::new(spinlock::Mutex::new(Euclid::new(
@@ -117,8 +118,9 @@ fn main() {
     clock.child_append(LNode::new_boxed(euclid));
     */
 
-    let div = FuncWrapper::new_p(
-        move |context: &mut dyn SchedContext, children: &mut ChildList| {
+    let div = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
+        ChildCount::Inf,
+        move |context: &mut dyn SchedContext, children: &mut dyn ChildExec| {
             let div = ppq.get() / 4;
             if context.context_tick() % div == 0 {
                 let tick = context.context_tick() / div;
@@ -127,18 +129,17 @@ fn main() {
                     println!("gate: {}", index);
                     let tick_period = context.base_tick_period_micros() * (div as f32);
                     let mut ccontext = ChildContext::new(context, tick, tick_period);
-                    for c in children.iter() {
-                        c.lock().exec(&mut ccontext);
-                    }
+                    children.exec_all(&mut ccontext);
                 }
             }
             true
         },
-    );
+    ));
 
     let ntrig = note_trig.clone();
-    let display = FuncWrapper::new_p(
-        move |context: &mut dyn SchedContext, _childen: &mut ChildList| {
+    let display = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
+        ChildCount::None,
+        move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
             let ntrig = ntrig.lock();
             let num = (context.context_tick() % 16) as u8 * 2;
             ntrig.note_with_dur(
@@ -151,7 +152,7 @@ fn main() {
             );
             true
         },
-    );
+    ));
     div.lock().child_append(LNode::new_boxed(trig));
     div.lock().child_append(LNode::new_boxed(display));
 
