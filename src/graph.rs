@@ -33,13 +33,8 @@ pub trait ChildExec {
     fn count(&self) -> ChildCount;
 }
 
-pub trait GraphIndexContext: SchedContext {
-    fn index(&self) -> usize; //the index that we were called with
-    fn as_sched_context(&mut self) -> &mut SchedContext;
-}
-
 pub trait GraphIndexExec: Send {
-    fn exec_index(&mut self, context: &mut dyn GraphIndexContext);
+    fn exec_index(&mut self, index: usize, context: &mut dyn SchedContext);
 }
 
 pub trait GraphNode {
@@ -52,8 +47,18 @@ pub struct GraphNodeWrapper {
     children: ChildList,
 }
 
-pub struct Children<'a> {
+pub struct NChildGraphNodeWrapper {
+    exec: Box<GraphExec>,
+    children: ChildList,
+    index_children: IndexChildList,
+}
+
+struct Children<'a> {
     children: &'a mut ChildList,
+}
+struct NChildren<'a> {
+    children: &'a mut ChildList,
+    index_children: &'a mut IndexChildList,
 }
 
 pub type ANodeP = Arc<spinlock::Mutex<dyn GraphNode>>;
@@ -102,6 +107,35 @@ impl GraphNodeWrapper {
             exec,
             children: LList::new(),
         }))
+    }
+}
+
+impl NChildGraphNodeWrapper {
+    pub fn new_p(exec: Box<GraphExec>) -> Arc<spinlock::Mutex<Self>> {
+        Arc::new(spinlock::Mutex::new(Self {
+            exec,
+            children: LList::new(),
+            index_children: LList::new(),
+        }))
+    }
+}
+
+impl GraphNode for NChildGraphNodeWrapper {
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
+        let mut children = NChildren::new(&mut self.children, &mut self.index_children);
+        self.exec.exec(context, &mut children)
+    }
+    fn child_append(&mut self, child: AChildP) -> bool {
+        //only allow 1 child max
+        if match self.exec.children_max() {
+            ChildCount::None => false,
+            ChildCount::Some(_) | ChildCount::Inf => self.children.count() == 0,
+        } {
+            self.children.push_back(child);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -173,6 +207,64 @@ impl<'a> ChildExec for Children<'a> {
     }
     fn count(&self) -> ChildCount {
         ChildCount::Some(self.children.count())
+    }
+}
+
+impl<'a> NChildren<'a> {
+    pub fn new(children: &'a mut ChildList, index_children: &'a mut IndexChildList) -> Self {
+        Self {
+            children,
+            index_children,
+        }
+    }
+
+    fn exec_index_callbacks(&mut self, index: usize, context: &mut dyn SchedContext) {
+        for c in self.index_children.iter() {
+            c.lock().exec_index(index, context);
+        }
+    }
+}
+
+impl<'a> ChildExec for NChildren<'a> {
+    fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
+        if let Some(c) = self.children.pop_front() {
+            self.exec_index_callbacks(index, context);
+            if c.lock().exec(context) {
+                self.children.push_front(c);
+            }
+        }
+        self.count()
+    }
+
+    fn exec_range(
+        &mut self,
+        context: &mut dyn SchedContext,
+        range: std::ops::Range<usize>,
+    ) -> ChildCount {
+        if let Some(c) = self.children.pop_front() {
+            let mut pop = true;
+            {
+                let mut l = c.lock();
+                for index in range {
+                    self.exec_index_callbacks(index, context);
+                    pop |= !l.exec(context);
+                }
+            }
+            if !pop {
+                self.children.push_front(c);
+            }
+        }
+        self.count()
+    }
+
+    fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
+        self.exec(context, 0)
+    }
+    fn count(&self) -> ChildCount {
+        match self.children.count() {
+            0 => ChildCount::None,
+            _ => ChildCount::Inf,
+        }
     }
 }
 
