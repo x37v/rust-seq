@@ -357,16 +357,14 @@ impl<F> IndexFuncWrapper<F>
 where
     F: Fn(usize, &mut dyn SchedContext) + Send,
 {
-    pub fn new_boxed(func: F) -> Box<Self> {
-        Box::new(Self {
+    pub fn new(func: F) -> Self {
+        Self {
             func: Box::new(func),
-        })
+        }
     }
 
-    pub fn new_p(func: F) -> Arc<spinlock::Mutex<Box<Self>>> {
-        Arc::new(spinlock::Mutex::new(Box::new(Self {
-            func: Box::new(func),
-        })))
+    pub fn new_p(func: F) -> Arc<spinlock::Mutex<Self>> {
+        Arc::new(spinlock::Mutex::new(Self::new(func)))
     }
 }
 
