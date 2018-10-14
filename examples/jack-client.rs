@@ -4,7 +4,9 @@ extern crate sched;
 
 use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
-use sched::binding::{ParamBindingGet, ParamBindingSet, SpinlockParamBinding, ValueLatch};
+use sched::binding::{
+    ParamBindingGet, ParamBindingLatch, ParamBindingSet, SpinlockParamBinding, ValueLatch,
+};
 use sched::context::{ChildContext, SchedContext};
 #[allow(unused_imports)]
 use sched::euclid::Euclid;

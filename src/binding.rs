@@ -20,6 +20,10 @@ pub trait ParamBindingSet<T>: Send + Sync {
     fn set(&self, value: T);
 }
 
+pub trait ParamBindingLatch {
+    fn store(&self);
+}
+
 pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {}
 
 //a binding and a value to set it to
@@ -49,12 +53,33 @@ pub struct ValueLatch<T> {
     set: BindingSetP<T>,
 }
 
+pub struct AggregateValueLatch {
+    latches: Vec<Arc<dyn ParamBindingLatch>>,
+}
+
 impl<T> ValueLatch<T> {
     pub fn new(get: BindingGetP<T>, set: BindingSetP<T>) -> Self {
         Self { get, set }
     }
-    pub fn store(&self) {
+}
+
+impl AggregateValueLatch {
+    pub fn new(latches: Vec<Arc<dyn ParamBindingLatch>>) -> Self {
+        Self { latches }
+    }
+}
+
+impl<T> ParamBindingLatch for ValueLatch<T> {
+    fn store(&self) {
         self.set.set(self.get.get());
+    }
+}
+
+impl ParamBindingLatch for AggregateValueLatch {
+    fn store(&self) {
+        for l in self.latches.iter() {
+            l.store();
+        }
     }
 }
 
