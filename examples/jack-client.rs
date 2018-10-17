@@ -55,18 +55,6 @@ fn main() {
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
     let step_index = SpinlockParamBinding::new_p(0usize);
 
-    //build up gates
-    let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
-        .iter()
-        .map(|v| SpinlockParamBinding::new_p(*v))
-        .collect();
-    let toggles = gates.clone();
-    let step_gate = SpinlockParamBinding::new_p(false);
-    let latches: Vec<ValueLatch<bool>> = gates
-        .iter()
-        .map(|g| ValueLatch::new(g.clone(), step_gate.clone()))
-        .collect();
-
     /*
     let addr_s = "127.0.0.1:10001";
     let addr = match SocketAddrV4::from_str(addr_s) {
@@ -105,67 +93,86 @@ fn main() {
     });
     */
 
-    let ntrig = note_trig.clone();
-    let trig = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
-        ChildCount::None,
-        move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
-            let ntrig = ntrig.lock();
-            ntrig.note_with_dur(
-                TimeSched::Relative(0),
-                TimeResched::Relative(1),
-                context.as_schedule_trigger_mut(),
-                9,
-                37,
-                127,
-            );
-            true
-        },
-    ));
+    let mut toggles = Vec::new();
+    for voice in 0..4 {
+        //build up gates
+        let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
+            .iter()
+            .map(|v| SpinlockParamBinding::new_p(*v))
+            .collect();
+        toggles.extend(gates.iter().cloned());
+        let step_gate = SpinlockParamBinding::new_p(false);
+        let latches: Vec<ValueLatch<bool>> = gates
+            .iter()
+            .map(|g| ValueLatch::new(g.clone(), step_gate.clone()))
+            .collect();
 
-    let step_gatec = step_gate.clone();
-    let gate = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
-        ChildCount::Inf,
-        move |context: &mut dyn SchedContext, children: &mut dyn ChildExec| {
-            if step_gatec.get() {
-                children.exec_all(context);
-            }
-            children.has_children()
-        },
-    ));
+        let ntrig = note_trig.clone();
+        let trig = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
+            ChildCount::None,
+            move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
+                let ntrig = ntrig.lock();
+                ntrig.note_with_dur(
+                    TimeSched::Relative(0),
+                    TimeResched::Relative(1),
+                    context.as_schedule_trigger_mut(),
+                    9,
+                    (37 + voice) as u8,
+                    127,
+                );
+                true
+            },
+        ));
 
-    let step_seq = NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks, steps));
+        let step_gatec = step_gate.clone();
+        let gate = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
+            ChildCount::Inf,
+            move |context: &mut dyn SchedContext, children: &mut dyn ChildExec| {
+                if step_gatec.get() {
+                    children.exec_all(context);
+                }
+                children.has_children()
+            },
+        ));
 
-    let step_indexc = step_index.clone();
-    let setup = IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
-        step_indexc.set(index);
-        if index < latches.len() {
-            latches[index].store();
-        }
-    });
-    step_seq.lock().index_child_append(LNode::new_boxed(setup));
+        let step_seq =
+            NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
-    let ntrig = note_trig.clone();
-    let display = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
-        ChildCount::None,
-        move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
-            let ntrig = ntrig.lock();
-            let num = step_index.get() as u8 * 2;
-            ntrig.note_with_dur(
-                TimeSched::Relative(0),
-                TimeResched::Relative(4410),
-                context.as_schedule_trigger_mut(),
-                2,
-                num,
-                127,
-            );
-            true
-        },
-    ));
-    gate.lock().child_append(LNode::new_boxed(trig));
-    gate.lock().child_append(LNode::new_boxed(display));
-    step_seq.lock().child_append(LNode::new_boxed(gate));
+        let step_indexc = step_index.clone();
+        let setup =
+            IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
+                step_indexc.set(index);
+                if index < latches.len() {
+                    latches[index].store();
+                }
+            });
+        step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
-    clock.child_append(LNode::new_boxed(step_seq));
+        let ntrig = note_trig.clone();
+        let step_indexc = step_index.clone();
+        let display = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
+            ChildCount::None,
+            move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
+                let ntrig = ntrig.lock();
+                let num = (voice * 16 + step_indexc.get()) as u8 * 2;
+                ntrig.note_with_dur(
+                    TimeSched::Relative(0),
+                    TimeResched::Relative(4410),
+                    context.as_schedule_trigger_mut(),
+                    2,
+                    num,
+                    127,
+                );
+                true
+            },
+        ));
+        gate.lock().child_append(LNode::new_boxed(trig));
+        gate.lock().child_append(LNode::new_boxed(display));
+        step_seq.lock().child_append(LNode::new_boxed(gate));
+
+        clock.child_append(LNode::new_boxed(step_seq));
+    }
+
     sched.schedule(TimeSched::Relative(0), clock);
 
     let mut ex = sched.executor().unwrap();
