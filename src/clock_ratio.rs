@@ -23,6 +23,7 @@ impl GraphExec for ClockRatio {
             let offset = mul * (context.context_tick() / div);
             for i in 0..mul {
                 let tick = offset + i;
+                //XXX child context 'base tick' should be offset by (i * period_micros)
                 let mut ccontext = ChildContext::new(context, tick, period_micros);
                 children.exec_all(&mut ccontext);
             }
