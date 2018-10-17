@@ -96,10 +96,10 @@ fn main() {
     let mut toggles = Vec::new();
     for voice in 0..4 {
         let l = match voice {
-            1 => 12,
+            1 => 6,
             2 => 5,
             3 => 6,
-            _ => 16,
+            _ => 8,
         };
         let steps = SpinlockParamBinding::new_p(l);
         //build up gates
