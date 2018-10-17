@@ -7,6 +7,7 @@ use sched::binding::bpm;
 use sched::binding::{
     ParamBindingGet, ParamBindingLatch, ParamBindingSet, SpinlockParamBinding, ValueLatch,
 };
+use sched::clock_ratio::ClockRatio;
 use sched::context::{ChildContext, SchedContext};
 #[allow(unused_imports)]
 use sched::euclid::Euclid;
@@ -51,7 +52,6 @@ fn main() {
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
     let pulses = SpinlockParamBinding::new_p(2);
-    let steps = SpinlockParamBinding::new_p(16);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
     let step_index = SpinlockParamBinding::new_p(0usize);
 
@@ -95,6 +95,13 @@ fn main() {
 
     let mut toggles = Vec::new();
     for voice in 0..4 {
+        let l = match voice {
+            1 => 12,
+            2 => 5,
+            3 => 6,
+            _ => 16,
+        };
+        let steps = SpinlockParamBinding::new_p(l);
         //build up gates
         let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
             .iter()
@@ -168,9 +175,18 @@ fn main() {
         ));
         gate.lock().child_append(LNode::new_boxed(trig));
         gate.lock().child_append(LNode::new_boxed(display));
+
         step_seq.lock().child_append(LNode::new_boxed(gate));
 
-        clock.child_append(LNode::new_boxed(step_seq));
+        if voice == 1 {
+            let mul = SpinlockParamBinding::new_p(3);
+            let div = SpinlockParamBinding::new_p(4);
+            let ratio = GraphNodeWrapper::new_p(ClockRatio::new_p(mul, div));
+            ratio.lock().child_append(LNode::new_boxed(step_seq));
+            clock.child_append(LNode::new_boxed(ratio));
+        } else {
+            clock.child_append(LNode::new_boxed(step_seq));
+        }
     }
 
     sched.schedule(TimeSched::Relative(0), clock);
