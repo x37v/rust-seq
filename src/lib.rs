@@ -9,6 +9,7 @@ pub mod context;
 pub mod graph;
 pub mod util;
 
+pub mod clock_ratio;
 pub mod euclid;
 pub mod midi;
 pub mod step_seq;
