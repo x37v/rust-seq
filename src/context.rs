@@ -24,6 +24,7 @@ pub struct RootContext<'a> {
 
 pub struct ChildContext<'a> {
     parent: &'a mut dyn SchedContext,
+    parent_tick_offset: isize,
     context_tick: usize,
     context_tick_period_micros: f32,
 }
@@ -147,20 +148,50 @@ impl<'a> ScheduleTrigger for RootContext<'a> {
 impl<'a> ChildContext<'a> {
     pub fn new(
         parent: &'a mut dyn SchedContext,
+        parent_tick_offset: isize,
         context_tick: usize,
         context_tick_period_micros: f32,
     ) -> Self {
         Self {
+            parent,
+            parent_tick_offset,
             context_tick,
             context_tick_period_micros,
-            parent,
         }
     }
+
+    pub fn context_to_parent_tick(&self, context_tick: usize) -> usize {
+        let bt = self.base_tick_period_micros();
+        if bt <= 0f32 {
+            0usize
+        } else {
+            (context_tick as f32 * self.context_tick_period_micros() / bt) as usize
+        }
+    }
+
+    pub fn translate_time(&self, time: &TimeSched) -> TimeSched {
+        *time //XXX IMPLEMENT
+              /*
+              match *time {
+                  TimeSched::Absolute(t) => TimeSched::Absolute(t),
+                  TimeSched::Relative(t) => TimeSched::Relative(t + self.parent_tick_offset),
+                  TimeSched::ContextAbsolute(t) => TimeSched::Absolute(add_clamped(
+                      add_clamped(
+                          self.context_to_parent_tick(t),
+                          -(self.context_tick() as isize),
+                      ),
+                      self.parent_tick_offset,
+                  )),
+                  TimeSched::ContextRelative(t) => {
+                      TimeSched::Absolute(add_clamped(self.base_tick(), self.parent_tick_offset))
+                  }
+              }
+              */    }
 }
 
 impl<'a> SchedContext for ChildContext<'a> {
     fn base_tick(&self) -> usize {
-        self.parent.base_tick()
+        add_clamped(self.parent.base_tick(), self.parent_tick_offset)
     }
     fn context_tick(&self) -> usize {
         self.context_tick
@@ -172,7 +203,7 @@ impl<'a> SchedContext for ChildContext<'a> {
         self.context_tick_period_micros
     }
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        //XXX translate time
+        let time = self.translate_time(&time);
         self.parent.schedule(time, func);
     }
 
