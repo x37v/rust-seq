@@ -302,7 +302,7 @@ impl SchedCall for RootClock {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
         let period_micros = self.period_micros.get();
         if self.children.count() > 0 {
-            let mut ccontext = ChildContext::new(context, self.tick, period_micros);
+            let mut ccontext = ChildContext::new(context, 0, self.tick, period_micros);
             let mut tmp = LList::new();
             std::mem::swap(&mut self.children, &mut tmp);
 
