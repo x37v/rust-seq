@@ -27,6 +27,12 @@ use std::thread;
 
 use std::io;
 
+fn remap_pad(num: u8) -> u8 {
+    let bank = num / 8;
+    let off = num % 8;
+    2 * ((7 - bank) * 8 + off)
+}
+
 fn main() {
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
@@ -161,12 +167,12 @@ fn main() {
             ChildCount::None,
             move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
                 let ntrig = ntrig.lock();
-                let num = (voice * 16 + step_indexc.get()) as u8 * 2;
+                let num = remap_pad(voice * 16 + step_indexc.get() as u8);
                 ntrig.note_with_dur(
                     TimeSched::Relative(0),
                     TimeResched::Relative(4410),
                     context.as_schedule_trigger_mut(),
-                    2,
+                    14,
                     num,
                     127,
                 );
@@ -204,14 +210,15 @@ fn main() {
                 } = val
                 {
                     match chan {
-                        2 => {
-                            let index = (num >> 1) as usize;
+                        15 => {
+                            let index = num as usize;
                             if index < toggles.len() {
                                 let v = !toggles[index].get();
                                 toggles[index].set(v);
                                 println!("toggle {}, {}", index, v);
                             }
                         }
+                        /*
                         8 => {
                             if let Some(offset) = match num {
                                 48 => Some(1.0f32),
@@ -223,6 +230,7 @@ fn main() {
                                 println!("BPM {}", c);
                             }
                         }
+                        */
                         _ => (),
                     }
                 }
