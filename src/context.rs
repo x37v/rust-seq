@@ -29,6 +29,14 @@ pub struct ChildContext<'a> {
     context_tick_period_micros: f32,
 }
 
+fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick: isize) -> isize {
+    if dest_micros_per_tick <= 0f32 {
+        0isize
+    } else {
+        (src_tick as f32 * src_micros_per_tick / dest_micros_per_tick) as isize
+    }
+}
+
 impl<'a> RootContext<'a> {
     pub fn new(
         tick: usize,
@@ -160,33 +168,29 @@ impl<'a> ChildContext<'a> {
         }
     }
 
-    pub fn context_to_parent_tick(&self, context_tick: usize) -> usize {
-        let bt = self.base_tick_period_micros();
-        if bt <= 0f32 {
-            0usize
-        } else {
-            (context_tick as f32 * self.context_tick_period_micros() / bt) as usize
+    pub fn translate_time(&self, time: &TimeSched) -> TimeSched {
+        match *time {
+            TimeSched::Absolute(t) => TimeSched::Absolute(t),
+            TimeSched::Relative(t) => TimeSched::Absolute(add_clamped(self.base_tick(), t)),
+            TimeSched::ContextAbsolute(t) => {
+                let offset = translate_tick(
+                    self.base_tick_period_micros(),
+                    self.context_tick_period_micros(),
+                    t as isize - self.context_tick() as isize,
+                );
+                TimeSched::Absolute(add_clamped(self.base_tick(), offset))
+            }
+            TimeSched::ContextRelative(t) => {
+                //convert to base ticks, absolute from our base tick
+                let offset = translate_tick(
+                    self.base_tick_period_micros(),
+                    self.context_tick_period_micros(),
+                    t,
+                );
+                TimeSched::Absolute(add_clamped(self.base_tick(), offset))
+            }
         }
     }
-
-    pub fn translate_time(&self, time: &TimeSched) -> TimeSched {
-        *time //XXX IMPLEMENT
-              /*
-              match *time {
-                  TimeSched::Absolute(t) => TimeSched::Absolute(t),
-                  TimeSched::Relative(t) => TimeSched::Relative(t + self.parent_tick_offset),
-                  TimeSched::ContextAbsolute(t) => TimeSched::Absolute(add_clamped(
-                      add_clamped(
-                          self.context_to_parent_tick(t),
-                          -(self.context_tick() as isize),
-                      ),
-                      self.parent_tick_offset,
-                  )),
-                  TimeSched::ContextRelative(t) => {
-                      TimeSched::Absolute(add_clamped(self.base_tick(), self.parent_tick_offset))
-                  }
-              }
-              */    }
 }
 
 impl<'a> SchedContext for ChildContext<'a> {
@@ -214,17 +218,20 @@ impl<'a> SchedContext for ChildContext<'a> {
 
 impl<'a> ScheduleTrigger for ChildContext<'a> {
     fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
-        self.parent.schedule_trigger(time, index); //XXX translate time
+        self.parent
+            .schedule_trigger(self.translate_time(&time), index);
     }
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {
-        self.parent.schedule_valued_trigger(time, index, values); //XXX translate time
+        self.parent
+            .schedule_valued_trigger(self.translate_time(&time), index, values);
     }
     fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {
-        self.parent.schedule_value(time, value); //XXX translate time
+        self.parent
+            .schedule_value(self.translate_time(&time), value);
     }
 
     fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched {
-        self.parent.add_time(time, dur) //XXX translate time
+        self.parent.add_time(&self.translate_time(&time), dur)
     }
 }
 
