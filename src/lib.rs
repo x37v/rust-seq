@@ -14,4 +14,7 @@ pub mod euclid;
 pub mod midi;
 pub mod step_seq;
 
+//XXX move to its own crate?
+pub mod quneo_display;
+
 pub use base::*;
