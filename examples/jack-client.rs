@@ -16,6 +16,7 @@ use sched::graph::{
     IndexFuncWrapper, NChildGraphNodeWrapper, RootClock,
 };
 use sched::midi::{MidiValue, NoteTrigger};
+use sched::quneo_display::QuNeoDisplay;
 use sched::spinlock;
 use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
@@ -26,6 +27,8 @@ use std::sync::Arc;
 use std::thread;
 
 use std::io;
+
+use sched::quneo_display::DisplayType as QDisplayType;
 
 fn remap_pad(num: u8) -> u8 {
     let bank = num / 8;
@@ -50,6 +53,8 @@ fn main() {
 
     let (msender, mreceiver) = sync_channel(1024);
     let note_trig = Arc::new(spinlock::Mutex::new(NoteTrigger::new(0, msender)));
+
+    let qdisplay = Arc::new(spinlock::Mutex::new(QuNeoDisplay::new()));
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
     let bpm = Arc::new(bpm::ClockBPMBinding(bpm_binding.clone()));
@@ -161,21 +166,14 @@ fn main() {
             });
         step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
+        //let qdisplayc = qdisplay.clone();
         let ntrig = note_trig.clone();
         let step_indexc = step_index.clone();
         let display = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
             ChildCount::None,
             move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
-                let ntrig = ntrig.lock();
-                let num = remap_pad(voice * 16 + step_indexc.get() as u8);
-                ntrig.note_with_dur(
-                    TimeSched::Relative(0),
-                    TimeResched::Relative(4410),
-                    context.as_schedule_trigger_mut(),
-                    15,
-                    num,
-                    127,
-                );
+                //XXX let ntrig = ntrig.lock();
+                //XXX update runtime
                 true
             },
         ));
@@ -216,6 +214,11 @@ fn main() {
                                 let v = !toggles[index].get();
                                 toggles[index].set(v);
                                 println!("toggle {}, {}", index, v);
+                                qdisplay.lock().update(
+                                    QDisplayType::Pad,
+                                    index,
+                                    if v { 127 } else { 0 },
+                                );
                             }
                         }
                         /*
@@ -239,6 +242,27 @@ fn main() {
 
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
 
+        let mut out_p = midi_out.writer(ps);
+        let mut write_midi = |time: u32, bytes: &[u8]| {
+            let _ = out_p.write(&jack::RawMidi { time, bytes });
+        };
+        let mut write_midi_value = |time: u32, value: &MidiValue| {
+            let mut iter = value.iter();
+            match iter.len() {
+                3 => write_midi(
+                    time,
+                    &[
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                    ],
+                ),
+                2 => write_midi(time, &[iter.next().unwrap(), iter.next().unwrap()]),
+                1 => write_midi(time, &[iter.next().unwrap()]),
+                _ => (),
+            };
+        };
+
         //evaluate triggers
         let note_trig = note_trig.lock();
         ex.eval_triggers(&mut |time, index, _block_time, _trig_context| {
@@ -247,25 +271,19 @@ fn main() {
             }
         });
 
+        {
+            let mut display = qdisplay.lock();
+            let mut it = display.draw_iter();
+            while let Some(d) = it.next() {
+                write_midi_value(0, &d);
+            }
+        }
+
         //evaluate midi
         let block_time = ex.time_last();
-        let mut out_p = midi_out.writer(ps);
         while let Some(midi) = mreceiver.try_recv().ok() {
             let time = (midi.tick() - block_time) as u32 % ps.n_frames();
-            let mut iter = midi.value().iter();
-            let mut write = |bytes: &[u8]| {
-                let _ = out_p.write(&jack::RawMidi { time, bytes });
-            };
-            match iter.len() {
-                3 => write(&[
-                    iter.next().unwrap(),
-                    iter.next().unwrap(),
-                    iter.next().unwrap(),
-                ]),
-                2 => write(&[iter.next().unwrap(), iter.next().unwrap()]),
-                1 => write(&[iter.next().unwrap()]),
-                _ => (),
-            };
+            write_midi_value(time, midi.value());
         }
 
         jack::Control::Continue
