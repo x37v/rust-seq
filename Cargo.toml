@@ -8,6 +8,7 @@ xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop" }
 spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop" }
 euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git"}
 rand = "0.5.5"
+num = "0.2.0"
 
 [dev-dependencies]
 jack = { git = "https://github.com/RustAudio/rust-jack.git" }
