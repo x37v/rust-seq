@@ -11,6 +11,21 @@ pub enum MidiValue {
         num: u8,
         vel: u8,
     },
+    ContCtrl {
+        chan: u8,
+        num: u8,
+        val: u8,
+    },
+}
+
+trait MidiClamp {
+    fn mclamp(&self) -> u8;
+}
+
+impl MidiClamp for u8 {
+    fn mclamp(&self) -> u8 {
+        num::clamp(*self, 0, 127)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -106,8 +121,14 @@ impl<'a> Iterator for MidiValueIterator<'a> {
                         MidiStatus::NoteOff
                     } as u8,
                 ),
-                1 => Some(num & 0x7F),
-                2 => Some(vel & 0x7F),
+                1 => Some(num.mclamp()),
+                2 => Some(vel.mclamp()),
+                _ => None,
+            },
+            MidiValue::ContCtrl { chan, num, val } => match self.index {
+                0 => Some(chan & 0x0F | MidiStatus::ContCtrl as u8),
+                1 => Some(num.mclamp()),
+                2 => Some(val.mclamp()),
                 _ => None,
             },
         };
@@ -123,6 +144,7 @@ impl<'a> ExactSizeIterator for MidiValueIterator<'a> {
     fn len(&self) -> usize {
         match self.value {
             MidiValue::Note { .. } => 3,
+            MidiValue::ContCtrl { .. } => 3,
         }
     }
 }
