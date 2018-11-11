@@ -5,6 +5,7 @@ pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
 use std::cell::Cell;
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
@@ -83,6 +84,13 @@ impl ParamBindingLatch for AggregateValueLatch {
     }
 }
 
+/// SpinlockParamBinding: wrap any `Copy` type in a `spinlock:Mutex` so it can be shared across
+/// threads.
+///
+/// *Note*: AtomicBool, AtomicUsize, and AtomicIsize ParamBindingGet/ParamBindingSet
+/// implementations exist below, these are be better to use for bool, usize and isize wrapping.
+///
+
 pub struct SpinlockParamBinding<T: Copy> {
     lock: spinlock::Mutex<Cell<T>>,
 }
@@ -113,6 +121,46 @@ impl<T: Copy + Send> ParamBindingSet<T> for SpinlockParamBinding<T> {
 impl<T: Copy + Send> ParamBindingGet<T> for SpinlockParamBinding<T> {
     fn get(&self) -> T {
         self.lock.lock().get()
+    }
+}
+
+// AtomicBool, AtomicUsize, AtomicIsize implementations of ParamBindingGet/ParamBindingSet
+
+const GET_ORDERING: Ordering = Ordering::SeqCst;
+const SET_ORDERING: Ordering = Ordering::SeqCst;
+
+impl ParamBindingGet<usize> for AtomicUsize {
+    fn get(&self) -> usize {
+        self.load(GET_ORDERING)
+    }
+}
+
+impl ParamBindingGet<isize> for AtomicIsize {
+    fn get(&self) -> isize {
+        self.load(GET_ORDERING)
+    }
+}
+
+impl ParamBindingGet<bool> for AtomicBool {
+    fn get(&self) -> bool {
+        self.load(GET_ORDERING)
+    }
+}
+
+impl ParamBindingSet<usize> for AtomicUsize {
+    fn set(&self, value: usize) {
+        self.store(value, SET_ORDERING);
+    }
+}
+impl ParamBindingSet<isize> for AtomicIsize {
+    fn set(&self, value: isize) {
+        self.store(value, SET_ORDERING);
+    }
+}
+
+impl ParamBindingSet<bool> for AtomicBool {
+    fn set(&self, value: bool) {
+        self.store(value, SET_ORDERING);
     }
 }
 
