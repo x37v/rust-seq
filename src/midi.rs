@@ -103,6 +103,12 @@ impl MidiValue {
                         num: bytes[1],
                         vel: bytes[2],
                     })
+                } else if status == MidiStatus::ContCtrl as u8 {
+                    Some(MidiValue::ContCtrl {
+                        chan,
+                        num: bytes[1],
+                        val: bytes[2],
+                    })
                 } else {
                     None
                 }
@@ -252,6 +258,7 @@ mod tests {
     fn try_from() {
         //NoteOn = 0x90,
         //NoteOff = 0x80,
+        //ContCtrl = 0xB0,
 
         //too short
         assert_eq!(None, MidiValue::try_from(&[1]));
@@ -260,6 +267,8 @@ mod tests {
         assert_eq!(None, MidiValue::try_from(&[0x80, 1]));
         assert_eq!(None, MidiValue::try_from(&[0x91, 1]));
         assert_eq!(None, MidiValue::try_from(&[0x81, 1]));
+        assert_eq!(None, MidiValue::try_from(&[0xB1, 1]));
+        assert_eq!(None, MidiValue::try_from(&[0xB0, 1]));
 
         //just right
         assert_eq!(
@@ -281,8 +290,28 @@ mod tests {
             MidiValue::try_from(&[0x82, 7, 96])
         );
 
+        assert_eq!(
+            Some(MidiValue::ContCtrl {
+                chan: 2,
+                num: 7,
+                val: 96
+            }),
+            MidiValue::try_from(&[0xB2, 7, 96])
+        );
+
+        assert_eq!(
+            Some(MidiValue::ContCtrl {
+                chan: 15,
+                num: 123,
+                val: 15
+            }),
+            MidiValue::try_from(&[0xBF, 123, 15])
+        );
+
         //too long
         assert_eq!(None, MidiValue::try_from(&[0x83, 2, 64, 3]));
         assert_eq!(None, MidiValue::try_from(&[0x82, 7, 96, 2]));
+        assert_eq!(None, MidiValue::try_from(&[0xB2, 7, 96, 2]));
+        assert_eq!(None, MidiValue::try_from(&[0xB0, 7, 96, 2]));
     }
 }
