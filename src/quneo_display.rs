@@ -163,7 +163,7 @@ impl QuNeoDisplay {
         v
     }
 
-    pub fn draw_iter<'a>(&'a mut self) -> QuNeoDisplayIter<'a> {
+    pub fn draw_iter(&mut self) -> QuNeoDisplayIter {
         QuNeoDisplayIter {
             display: self,
             index: 0,
