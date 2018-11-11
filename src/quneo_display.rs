@@ -72,6 +72,10 @@ impl QuNeoDisplay {
         self.next = [0; DISPLAY_BYTES]
     }
 
+    pub fn force_draw(&mut self) {
+        self.last = [0xFF; DISPLAY_BYTES];
+    }
+
     fn byte_offset(&self, display: DisplayType) -> usize {
         match display {
             DisplayType::Pad => 0,
