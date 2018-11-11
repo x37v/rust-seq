@@ -22,6 +22,7 @@ use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
@@ -57,12 +58,12 @@ fn main() {
     let qdisplay = Arc::new(spinlock::Mutex::new(QuNeoDisplay::new()));
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
-    let bpm = Arc::new(bpm::ClockBPMBinding(bpm_binding.clone()));
-    let ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
+    let _bpm = Arc::new(bpm::ClockBPMBinding(bpm_binding.clone()));
+    let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
 
-    let pulses = SpinlockParamBinding::new_p(2);
+    let _pulses = SpinlockParamBinding::new_p(2);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
     let step_index = SpinlockParamBinding::new_p(0usize);
 
@@ -114,12 +115,12 @@ fn main() {
         };
         let steps = SpinlockParamBinding::new_p(l);
         //build up gates
-        let gates: Vec<Arc<SpinlockParamBinding<bool>>> = vec![false; 16]
+        let gates: Vec<Arc<AtomicBool>> = vec![false; 16]
             .iter()
-            .map(|v| SpinlockParamBinding::new_p(*v))
+            .map(|v| Arc::new(AtomicBool::new(*v)))
             .collect();
         toggles.extend(gates.iter().cloned());
-        let step_gate = SpinlockParamBinding::new_p(false);
+        let step_gate = Arc::new(AtomicBool::new(false));
         let latches: Vec<ValueLatch<bool>> = gates
             .iter()
             .map(|g| ValueLatch::new(g.clone(), step_gate.clone()))
@@ -167,11 +168,11 @@ fn main() {
         step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
         //let qdisplayc = qdisplay.clone();
-        let ntrig = note_trig.clone();
-        let step_indexc = step_index.clone();
+        let _ntrig = note_trig.clone();
+        let _step_indexc = step_index.clone();
         let display = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
             ChildCount::None,
-            move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
+            move |_context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
                 //XXX let ntrig = ntrig.lock();
                 //XXX update runtime
                 true
@@ -204,7 +205,7 @@ fn main() {
                     on: true,
                     chan,
                     num,
-                    vel,
+                    vel: _,
                 } = val
                 {
                     match chan {
@@ -214,10 +215,19 @@ fn main() {
                                 let v = !toggles[index].get();
                                 toggles[index].set(v);
                                 println!("toggle {}, {}", index, v);
-                                qdisplay.lock().update(
-                                    QDisplayType::Pad,
-                                    index,
-                                    if v { 127 } else { 0 },
+                                let mut d = qdisplay.lock();
+                                d.update(QDisplayType::Pad, index, if v { 127 } else { 0 });
+                                for i in 0..9 {
+                                    d.update(QDisplayType::Slider, i, 1 + (i * 14) as u8);
+                                }
+                                d.update(QDisplayType::Rotary, 0, (index * 2) as u8);
+                                d.update(QDisplayType::Rotary, 1, ((64 + index * 2) % 127) as u8);
+                                d.update(QDisplayType::Rhombus, 0, (index * 2) as u8);
+                                d.update(QDisplayType::Rhombus, 0, ((64 + index * 2) % 127) as u8);
+                                d.update(
+                                    QDisplayType::Button,
+                                    (index / 2) % 15,
+                                    if index % 2 == 1 { 127 } else { 0 },
                                 );
                             }
                         }
