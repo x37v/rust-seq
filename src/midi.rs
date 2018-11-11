@@ -28,6 +28,10 @@ impl MidiClamp for u8 {
     }
 }
 
+fn status_byte(status: MidiStatus, chan: u8) -> u8 {
+    chan & 0x0F | status as u8
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum MidiStatus {
@@ -114,19 +118,20 @@ impl<'a> Iterator for MidiValueIterator<'a> {
     fn next(&mut self) -> Option<u8> {
         let r = match self.value {
             MidiValue::Note { on, chan, num, vel } => match self.index {
-                0 => Some(
-                    chan & 0x0F | if *on {
+                0 => Some(status_byte(
+                    if *on {
                         MidiStatus::NoteOn
                     } else {
                         MidiStatus::NoteOff
-                    } as u8,
-                ),
+                    },
+                    *chan,
+                )),
                 1 => Some(num.mclamp()),
                 2 => Some(vel.mclamp()),
                 _ => None,
             },
             MidiValue::ContCtrl { chan, num, val } => match self.index {
-                0 => Some(chan & 0x0F | MidiStatus::ContCtrl as u8),
+                0 => Some(status_byte(MidiStatus::ContCtrl, *chan)),
                 1 => Some(num.mclamp()),
                 2 => Some(val.mclamp()),
                 _ => None,
