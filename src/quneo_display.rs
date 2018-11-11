@@ -128,7 +128,13 @@ impl QuNeoDisplay {
                     num: remap_pad(display_index),
                 });
             }
-            Some(DisplayType::Slider) => {}
+            Some(DisplayType::Slider) => {
+                v = Some(MidiValue::ContCtrl {
+                    chan: self.slider_channel,
+                    num: remap_slider(display_index),
+                    val: self.next[index],
+                });
+            }
             Some(DisplayType::Rotary) => {}
             Some(DisplayType::Button) => {}
             Some(DisplayType::Rhombus) => {}
@@ -155,4 +161,9 @@ fn remap_pad(num: u8) -> u8 {
     let bank = num / 8;
     let off = num % 8;
     2 * ((7 - bank) * 8 + off)
+}
+
+fn remap_slider(num: u8) -> u8 {
+    let vals = [11, 10, 9, 8, 1, 2, 3, 4, 5];
+    vals[num as usize]
 }
