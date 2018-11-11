@@ -124,7 +124,7 @@ impl QuNeoDisplay {
                 v = Some(MidiValue::Note {
                     on: true,
                     chan: self.pad_channel,
-                    vel: self.next[index],
+                    vel: value,
                     num: remap_pad(display_index),
                 });
             }
@@ -132,12 +132,32 @@ impl QuNeoDisplay {
                 v = Some(MidiValue::ContCtrl {
                     chan: self.slider_channel,
                     num: remap_slider(display_index),
-                    val: self.next[index],
+                    val: value,
                 });
             }
-            Some(DisplayType::Rotary) => {}
-            Some(DisplayType::Button) => {}
-            Some(DisplayType::Rhombus) => {}
+            Some(DisplayType::Rotary) => {
+                v = Some(MidiValue::ContCtrl {
+                    chan: self.rotary_channel,
+                    num: remap_rotary(display_index),
+                    val: value,
+                });
+            }
+            Some(DisplayType::Button) => {
+                v = Some(MidiValue::Note {
+                    on: true,
+                    chan: self.button_channel,
+                    vel: value,
+                    num: remap_button(display_index),
+                });
+            }
+            Some(DisplayType::Rhombus) => {
+                v = Some(MidiValue::Note {
+                    on: true,
+                    chan: self.rhombus_channel,
+                    vel: value,
+                    num: remap_rhombus(display_index),
+                });
+            }
         }
 
         v
@@ -165,5 +185,24 @@ fn remap_pad(num: u8) -> u8 {
 
 fn remap_slider(num: u8) -> u8 {
     let vals = [11, 10, 9, 8, 1, 2, 3, 4, 5];
+    vals[num as usize]
+}
+
+fn remap_rotary(num: u8) -> u8 {
+    let vals = [6, 7];
+    vals[num as usize]
+}
+
+fn remap_button(num: u8) -> u8 {
+    let vals = [
+        33, 34, 35, //diamond, square, arrow
+        36, 37, 38, 39, 40, 41, 42, 43, // left, right
+        46, 47, 48, 49, //up, down
+    ];
+    vals[num as usize]
+}
+
+fn remap_rhombus(num: u8) -> u8 {
+    let vals = [44, 45];
     vals[num as usize]
 }
