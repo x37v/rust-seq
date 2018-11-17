@@ -22,7 +22,7 @@ use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 use std::net::{SocketAddrV4, UdpSocket};
 use std::str::FromStr;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 use std::thread;
@@ -31,10 +31,24 @@ use std::io;
 
 use sched::quneo_display::DisplayType as QDisplayType;
 
-fn remap_pad(num: u8) -> u8 {
-    let bank = num / 8;
-    let off = num % 8;
-    2 * ((7 - bank) * 8 + off)
+struct PageData {
+    gates: Vec<Arc<AtomicBool>>,
+    clock_mul: Arc<dyn ParamBindingSet<u8>>,
+    clock_div: Arc<dyn ParamBindingSet<u8>>,
+}
+
+impl PageData {
+    pub fn new(
+        gates: Vec<Arc<AtomicBool>>,
+        clock_mul: Arc<dyn ParamBindingSet<u8>>,
+        clock_div: Arc<dyn ParamBindingSet<u8>>,
+    ) -> Self {
+        Self {
+            gates: gates,
+            clock_mul: clock_mul.clone(),
+            clock_div: clock_div.clone(),
+        }
+    }
 }
 
 fn main() {
@@ -105,21 +119,20 @@ fn main() {
     });
     */
 
-    let mut toggles = Vec::new();
-    for voice in 0..4 {
-        let l = match voice {
-            1 => 6,
-            2 => 5,
-            3 => 6,
-            _ => 8,
-        };
-        let steps = SpinlockParamBinding::new_p(l);
+    let mut current_page = Arc::new(AtomicUsize::new(0));
+
+    let mut page_data: Vec<PageData> = Vec::new();
+
+    for page in 0..64 {
+        let steps = Arc::new(AtomicUsize::new(16));
+        let note = Arc::new(AtomicUsize::new(page + 37));
+
         //build up gates
-        let gates: Vec<Arc<AtomicBool>> = vec![false; 16]
+        let gates: Vec<Arc<AtomicBool>> = vec![false; 64]
             .iter()
             .map(|v| Arc::new(AtomicBool::new(*v)))
             .collect();
-        toggles.extend(gates.iter().cloned());
+
         let step_gate = Arc::new(AtomicBool::new(false));
         let latches: Vec<ValueLatch<bool>> = gates
             .iter()
@@ -136,7 +149,7 @@ fn main() {
                     TimeResched::Relative(1),
                     context.as_schedule_trigger_mut(),
                     9,
-                    (37 + voice) as u8,
+                    note.get() as u8,
                     127,
                 );
                 true
@@ -157,41 +170,44 @@ fn main() {
         let step_seq =
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
-        let step_indexc = step_index.clone();
+        let qdisplayc = qdisplay.clone();
+        let ntrig = note_trig.clone();
+        let cpage = current_page.clone();
         let setup =
             IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
-                step_indexc.set(index);
                 if index < latches.len() {
                     latches[index].store();
+                }
+
+                //XXX need to flash somehow then return to normal state
+                //could schedule:
+                //1) update to flash color
+                //2) update to no color
+                //3) return to normal color
+                if page == cpage.get() {
+                    let ntrig = ntrig.lock();
+                    let mut d = qdisplayc.lock();
+                    d.update(QDisplayType::Pad, index, 64);
                 }
             });
         step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
-        //let qdisplayc = qdisplay.clone();
-        let _ntrig = note_trig.clone();
-        let _step_indexc = step_index.clone();
-        let display = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
-            ChildCount::None,
-            move |_context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
-                //XXX let ntrig = ntrig.lock();
-                //XXX update runtime
-                true
-            },
-        ));
         gate.lock().child_append(LNode::new_boxed(trig));
-        gate.lock().child_append(LNode::new_boxed(display));
 
         step_seq.lock().child_append(LNode::new_boxed(gate));
 
-        if voice == 1 {
-            let mul = SpinlockParamBinding::new_p(3);
-            let div = SpinlockParamBinding::new_p(4);
-            let ratio = GraphNodeWrapper::new_p(ClockRatio::new_p(mul, div));
-            ratio.lock().child_append(LNode::new_boxed(step_seq));
-            clock.child_append(LNode::new_boxed(ratio));
-        } else {
-            clock.child_append(LNode::new_boxed(step_seq));
-        }
+        let mul = SpinlockParamBinding::new_p(1);
+        let div = SpinlockParamBinding::new_p(1);
+
+        page_data.push(PageData::new(
+            gates.iter().cloned().collect(),
+            mul.clone(),
+            div.clone(),
+        ));
+
+        let ratio = GraphNodeWrapper::new_p(ClockRatio::new_p(mul, div));
+        ratio.lock().child_append(LNode::new_boxed(step_seq));
+        clock.child_append(LNode::new_boxed(ratio));
     }
 
     sched.schedule(TimeSched::Relative(0), clock);
@@ -210,25 +226,15 @@ fn main() {
                 {
                     match chan {
                         15 => {
-                            let index = num as usize;
-                            if index < toggles.len() {
-                                let v = !toggles[index].get();
-                                toggles[index].set(v);
-                                println!("toggle {}, {}", index, v);
-                                let mut d = qdisplay.lock();
-                                d.update(QDisplayType::Pad, index, if v { 127 } else { 0 });
-                                for i in 0..9 {
-                                    d.update(QDisplayType::Slider, i, 1 + (i * 14) as u8);
+                            let page = current_page.get();
+                            if page < page_data.len() {
+                                let index = num as usize;
+                                if index < page_data[page].gates.len() {
+                                    let v = !page_data[page].gates[index].get();
+                                    page_data[page].gates[index].set(v);
+                                    let mut d = qdisplay.lock();
+                                    d.update(QDisplayType::Pad, index, if v { 127 } else { 0 });
                                 }
-                                d.update(QDisplayType::Rotary, 0, (index * 2) as u8);
-                                d.update(QDisplayType::Rotary, 1, ((64 + index * 2) % 127) as u8);
-                                d.update(QDisplayType::Rhombus, 0, (index * 2) as u8);
-                                d.update(QDisplayType::Rhombus, 0, ((64 + index * 2) % 127) as u8);
-                                d.update(
-                                    QDisplayType::Button,
-                                    (index / 2) % 15,
-                                    if index % 2 == 1 { 127 } else { 0 },
-                                );
                             }
                         }
                         /*
