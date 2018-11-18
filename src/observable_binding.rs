@@ -2,20 +2,24 @@ use base::{LList, LNode};
 use binding::ParamBindingSet;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
+use std::sync::mpsc::SyncSender;
 
-type ObserverNode = LNode<SyncSender<ObservableId>>;
-type ObserverList = LList<SyncSender<ObservableId>>;
+pub type ObserverNode = Box<LNode<SyncSender<ObservableId>>>;
+pub type ObserverList = LList<SyncSender<ObservableId>>;
 
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub struct ObservableId(usize);
 
 impl ObservableId {
     fn new() -> Self {
         ObservableId(ID_COUNT.fetch_add(1, Ordering::Relaxed))
     }
+}
+
+pub fn new_observer_node(sender: SyncSender<ObservableId>) -> ObserverNode {
+    LNode::new_boxed(sender)
 }
 
 pub struct ObservableBindingSet<B, T> {
@@ -38,9 +42,14 @@ where
         }
     }
 
+    pub fn add_observer(&mut self, observer_node: ObserverNode) {
+        let mut l = self.observers.lock();
+        l.push_back(observer_node);
+    }
+
     fn notify(&self) {
-        let g = self.observers.lock();
-        for c in g.iter() {
+        let l = self.observers.lock();
+        for c in l.iter() {
             let _ = c.try_send(self.id);
         }
     }
@@ -62,48 +71,87 @@ mod tests {
     use super::*;
     use binding::{ParamBindingSet, SpinlockParamBinding};
     use std::sync::atomic::{AtomicIsize, Ordering};
+    use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+
     use std::thread;
 
     #[test]
     fn id_expectation() {
-        //we would never reset the ids but in these unit tests we want to make sure we start at 0
-        ID_COUNT.store(0, Ordering::SeqCst);
         let mut u = ObservableBindingSet::new(AtomicUsize::new(2));
-        assert_eq!(0, u.id.0);
+        let mut id = u.id.0;
 
         u = ObservableBindingSet::new(AtomicUsize::new(3));
-        assert_eq!(1, u.id.0);
+        assert!(u.id.0 > id);
+        id = u.id.0;
 
         let i = ObservableBindingSet::new(AtomicIsize::new(7));
-        assert_eq!(2, i.id.0);
+        assert!(i.id.0 > id);
+        id = i.id.0;
 
         let b = ObservableBindingSet::new(SpinlockParamBinding::new(false));
-        assert_eq!(3, b.id.0);
+        assert!(b.id.0 > id);
+        id = b.id.0;
 
         let child = thread::spawn(move || {
             let mut u = ObservableBindingSet::new(AtomicUsize::new(2));
-            assert_eq!(4, u.id.0);
+            assert!(u.id.0 > id);
+            id = u.id.0;
 
             u = ObservableBindingSet::new(AtomicUsize::new(3));
-            assert_eq!(5, u.id.0);
+            assert!(u.id.0 > id);
+            id = u.id.0;
 
             let i = ObservableBindingSet::new(AtomicIsize::new(7));
-            assert_eq!(6, i.id.0);
+            assert!(i.id.0 > id);
+            id = i.id.0;
 
             let b = ObservableBindingSet::new(SpinlockParamBinding::new(false));
-            assert_eq!(7, b.id.0);
+            assert!(b.id.0 > id);
+            id = b.id.0;
         });
         assert!(child.join().is_ok());
 
         u = ObservableBindingSet::new(AtomicUsize::new(3));
-        assert_eq!(8, u.id.0);
+        assert!(u.id.0 > id);
     }
 
     #[test]
-    fn id_expectation2() {
-        //we would never reset the ids but in these unit tests we want to make sure we start at 0
-        ID_COUNT.store(0, Ordering::SeqCst);
+    fn observe() {
+        let (s1, r1) = sync_channel(16);
+
         let mut u = ObservableBindingSet::new(AtomicUsize::new(2));
-        assert_eq!(0, u.id.0);
+        let id = u.id;
+
+        assert!(r1.try_recv().is_err());
+
+        let o = new_observer_node(s1);
+        u.add_observer(o);
+        assert!(r1.try_recv().is_err());
+
+        //gets one notification
+        u.set(23);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+
+        u.set(11);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+
+        let (s2, r2) = sync_channel(16);
+        assert!(r1.try_recv().is_err());
+        assert!(r2.try_recv().is_err());
+
+        u.set(11);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+        assert!(r2.try_recv().is_err());
+
+        u.add_observer(new_observer_node(s2));
+
+        u.set(80);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert_eq!(id, r2.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+        assert!(r2.try_recv().is_err());
     }
 }
