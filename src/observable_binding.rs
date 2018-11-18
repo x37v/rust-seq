@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
 use base::{LList, LNode};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
-use std::sync::atomic::{AtomicUsize, AtomicPtr, Ordering};
 use binding::ParamBindingSet;
+use std::marker::PhantomData;
+use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 
 type ObserverNode = LNode<SyncSender<ObservableId>>;
 type ObserverList = LList<SyncSender<ObservableId>>;
@@ -12,6 +12,12 @@ static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub struct ObservableId(usize);
 
+impl ObservableId {
+    fn new() -> Self {
+        ObservableId(ID_COUNT.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
 pub struct ObservableBindingSet<B, T> {
     id: ObservableId,
     binding: T,
@@ -20,18 +26,19 @@ pub struct ObservableBindingSet<B, T> {
 }
 
 impl<B, T> ObservableBindingSet<B, T>
-where T: ParamBindingSet<B>
+where
+    T: ParamBindingSet<B>,
 {
     pub fn new(binding: T) -> Self {
         Self {
-            id: ObservableId(ID_COUNT.fetch_add(1, Ordering::Relaxed)),
+            id: ObservableId::new(),
             binding,
             observers: spinlock::Mutex::new(LList::new()),
             _phantom: Default::default(),
         }
     }
 
-     fn notify(&self) {
+    fn notify(&self) {
         let g = self.observers.lock();
         for c in g.iter() {
             let _ = c.try_send(self.id);
@@ -40,8 +47,9 @@ where T: ParamBindingSet<B>
 }
 
 impl<B, T> ParamBindingSet<B> for ObservableBindingSet<B, T>
-where B: Copy + Send,
-      T: ParamBindingSet<B>
+where
+    B: Copy + Send,
+    T: ParamBindingSet<B>,
 {
     fn set(&self, value: B) {
         self.binding.set(value);
@@ -52,9 +60,9 @@ where B: Copy + Send,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use binding::{ParamBindingSet, SpinlockParamBinding};
     use std::sync::atomic::{AtomicIsize, Ordering};
     use std::thread;
-    use binding::{ParamBindingSet, SpinlockParamBinding};
 
     #[test]
     fn id_expectation() {
@@ -65,7 +73,7 @@ mod tests {
 
         u = ObservableBindingSet::new(AtomicUsize::new(3));
         assert_eq!(1, u.id.0);
-        
+
         let i = ObservableBindingSet::new(AtomicIsize::new(7));
         assert_eq!(2, i.id.0);
 
@@ -78,7 +86,7 @@ mod tests {
 
             u = ObservableBindingSet::new(AtomicUsize::new(3));
             assert_eq!(5, u.id.0);
-            
+
             let i = ObservableBindingSet::new(AtomicIsize::new(7));
             assert_eq!(6, i.id.0);
 
