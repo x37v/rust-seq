@@ -169,15 +169,26 @@ pub mod bpm {
     extern crate spinlock;
     use std::sync::Arc;
 
+    pub trait Clock {
+        fn bpm(&self) -> f32;
+        fn set_bpm(&mut self, bpm: f32);
+
+        fn period_micros(&self) -> f32;
+        fn set_period_micros(&mut self, period_micros: f32);
+
+        fn ppq(&self) -> usize;
+        fn set_ppq(&mut self, ppq: usize);
+    }
+
     pub struct ClockData {
         bpm: f32,
         period_micros: f32,
         ppq: usize,
     }
 
-    pub struct ClockPeriodMicroBinding(pub Arc<spinlock::Mutex<ClockData>>);
-    pub struct ClockBPMBinding(pub Arc<spinlock::Mutex<ClockData>>);
-    pub struct ClockPPQBinding(pub Arc<spinlock::Mutex<ClockData>>);
+    pub struct ClockPeriodMicroBinding(pub Arc<spinlock::Mutex<Clock>>);
+    pub struct ClockBPMBinding(pub Arc<spinlock::Mutex<Clock>>);
+    pub struct ClockPPQBinding(pub Arc<spinlock::Mutex<Clock>>);
 
     impl ClockData {
         pub fn period_micro(bpm: f32, ppq: usize) -> f32 {
@@ -191,21 +202,23 @@ pub mod bpm {
                 ppq,
             }
         }
+    }
 
-        pub fn bpm(&self) -> f32 {
+    impl Clock for ClockData {
+        fn bpm(&self) -> f32 {
             self.bpm
         }
 
-        pub fn set_bpm(&mut self, bpm: f32) {
+        fn set_bpm(&mut self, bpm: f32) {
             self.bpm = if bpm < 0f32 { 0.001f32 } else { bpm };
             self.period_micros = Self::period_micro(self.bpm, self.ppq);
         }
 
-        pub fn period_micros(&self) -> f32 {
+        fn period_micros(&self) -> f32 {
             self.period_micros
         }
 
-        pub fn set_period_micros(&mut self, period_micros: f32) {
+        fn set_period_micros(&mut self, period_micros: f32) {
             self.period_micros = if period_micros < 0.001f32 {
                 0.001f32
             } else {
@@ -214,11 +227,11 @@ pub mod bpm {
             self.bpm = 60e6f32 / (self.period_micros * self.ppq as f32);
         }
 
-        pub fn ppq(&self) -> usize {
+        fn ppq(&self) -> usize {
             self.ppq
         }
 
-        pub fn set_ppq(&mut self, ppq: usize) {
+        fn set_ppq(&mut self, ppq: usize) {
             self.ppq = if ppq < 1 { 1 } else { ppq };
             self.period_micros = Self::period_micro(self.bpm, self.ppq);
         }
@@ -263,6 +276,7 @@ pub mod bpm {
 
 #[cfg(test)]
 mod tests {
+    use super::bpm::Clock;
     use super::*;
 
     #[test]
