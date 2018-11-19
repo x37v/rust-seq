@@ -235,5 +235,13 @@ mod tests {
         assert_eq!(id, r1.try_recv().unwrap());
         assert!(r1.try_recv().is_err());
         assert_eq!(2, u.get());
+
+        let c = u.clone();
+        c.set(40);
+
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+        assert_eq!(40, u.get());
+        assert_eq!(40, c.get());
     }
 }
