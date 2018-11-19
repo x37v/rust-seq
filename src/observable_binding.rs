@@ -10,6 +10,7 @@ pub type ObserverNode = Box<LNode<SyncSender<ObservableId>>>;
 pub type ObserverList = LList<SyncSender<ObservableId>>;
 
 trait Observable {
+    fn id(&self) -> ObservableId;
     fn add_observer(&self, observer_node: ObserverNode);
 }
 
@@ -28,9 +29,8 @@ pub struct ObservableData {
 }
 
 pub struct ObservableBinding<B, T> {
-    id: ObservableId,
+    observer_data: ObservableData,
     binding: T,
-    observers: spinlock::Mutex<ObserverList>,
     _phantom: PhantomData<AtomicPtr<Box<B>>>, //XXX used atomic so we can share across threads, could have been mutex..
 }
 
@@ -40,20 +40,15 @@ impl ObservableId {
     }
 }
 
-impl<B, T> ObservableBinding<B, T>
-where
-    B: Send + Copy,
-{
-    pub fn new(binding: T) -> Self {
+impl ObservableData {
+    pub fn new() -> Self {
         Self {
             id: ObservableId::new(),
-            binding,
             observers: spinlock::Mutex::new(LList::new()),
-            _phantom: Default::default(),
         }
     }
 
-    fn notify(&self) {
+    pub fn notify(&self) {
         let l = self.observers.lock();
         for c in l.iter() {
             let _ = c.try_send(self.id);
@@ -61,10 +56,39 @@ where
     }
 }
 
-impl<B, T> Observable for ObservableBinding<B, T> {
+impl Observable for ObservableData {
+    fn id(&self) -> ObservableId {
+        self.id
+    }
     fn add_observer(&self, observer_node: ObserverNode) {
         let mut l = self.observers.lock();
         l.push_back(observer_node);
+    }
+}
+
+impl<B, T> ObservableBinding<B, T>
+where
+    B: Send + Copy,
+{
+    pub fn new(binding: T) -> Self {
+        Self {
+            binding,
+            _phantom: Default::default(),
+            observer_data: ObservableData::new(),
+        }
+    }
+
+    fn notify(&self) {
+        self.observer_data.notify();
+    }
+}
+
+impl<B, T> Observable for ObservableBinding<B, T> {
+    fn id(&self) -> ObservableId {
+        self.observer_data.id()
+    }
+    fn add_observer(&self, observer_node: ObserverNode) {
+        self.observer_data.add_observer(observer_node);
     }
 }
 
@@ -98,28 +122,36 @@ impl<B, T> Deref for ObservableBinding<B, T> {
 }
 
 pub mod bpm {
-    pub struct ObservableClockData(pub ::binding::bpm::ClockData);
+    pub struct ObservableClockData {
+        clock_data: ::binding::bpm::ClockData,
+    }
+
+    impl ObservableClockData {
+        pub fn new(clock_data: ::binding::bpm::ClockData) -> Self {
+            Self { clock_data }
+        }
+    }
 
     impl ::binding::bpm::Clock for ObservableClockData {
         fn bpm(&self) -> f32 {
-            self.0.bpm()
+            self.clock_data.bpm()
         }
         fn set_bpm(&mut self, bpm: f32) {
-            self.0.set_bpm(bpm);
+            self.clock_data.set_bpm(bpm);
         }
 
         fn period_micros(&self) -> f32 {
-            self.0.period_micros()
+            self.clock_data.period_micros()
         }
         fn set_period_micros(&mut self, period_micros: f32) {
-            self.0.set_period_micros(period_micros);
+            self.clock_data.set_period_micros(period_micros);
         }
 
         fn ppq(&self) -> usize {
-            self.0.ppq()
+            self.clock_data.ppq()
         }
         fn set_ppq(&mut self, ppq: usize) {
-            self.0.set_ppq(ppq);
+            self.clock_data.set_ppq(ppq);
         }
     }
 }
@@ -137,51 +169,51 @@ mod tests {
     #[test]
     fn id_expectation() {
         let mut u: ObservableBinding<usize, _> = ObservableBinding::new(AtomicUsize::new(2));
-        let mut id = u.id.0;
+        let mut id = u.id().0;
 
         u = ObservableBinding::new(AtomicUsize::new(3));
         assert_eq!(3, u.get());
-        assert!(u.id.0 > id);
-        id = u.id.0;
+        assert!(u.id().0 > id);
+        id = u.id().0;
 
         let i: ObservableBinding<isize, _> = ObservableBinding::new(AtomicIsize::new(7));
-        assert!(i.id.0 > id);
-        id = i.id.0;
+        assert!(i.id().0 > id);
+        id = i.id().0;
 
         let b: ObservableBinding<bool, _> =
             ObservableBinding::new(SpinlockParamBinding::new(false));
-        assert!(b.id.0 > id);
+        assert!(b.id().0 > id);
 
         assert_eq!(false, b.get());
-        id = b.id.0;
+        id = b.id().0;
 
         b.set(true);
-        assert_eq!(id, b.id.0);
+        assert_eq!(id, b.id().0);
         assert_eq!(true, b.get());
 
         let child = thread::spawn(move || {
             let mut u: ObservableBinding<usize, _> = ObservableBinding::new(AtomicUsize::new(2));
-            assert!(u.id.0 > id);
-            id = u.id.0;
+            assert!(u.id().0 > id);
+            id = u.id().0;
 
             u = ObservableBinding::new(AtomicUsize::new(3));
-            assert!(u.id.0 > id);
-            id = u.id.0;
+            assert!(u.id().0 > id);
+            id = u.id().0;
 
             let i: ObservableBinding<isize, _> = ObservableBinding::new(AtomicIsize::new(7));
-            assert!(i.id.0 > id);
+            assert!(i.id().0 > id);
             assert_eq!(7, i.get());
-            id = i.id.0;
+            id = i.id().0;
 
             let b: ObservableBinding<bool, _> =
                 ObservableBinding::new(SpinlockParamBinding::new(false));
-            assert!(b.id.0 > id);
-            id = b.id.0;
+            assert!(b.id().0 > id);
+            id = b.id().0;
         });
         assert!(child.join().is_ok());
 
         u = ObservableBinding::new(AtomicUsize::new(3));
-        assert!(u.id.0 > id);
+        assert!(u.id().0 > id);
     }
 
     #[test]
@@ -211,7 +243,7 @@ mod tests {
         let (s1, r1) = sync_channel(16);
 
         let mut u: ObservableBinding<usize, _> = ObservableBinding::new(AtomicUsize::new(2));
-        let id = u.id;
+        let id = u.id();
 
         assert!(r1.try_recv().is_err());
 
@@ -263,7 +295,7 @@ mod tests {
 
         let mut u: Arc<ObservableBinding<usize, _>> =
             Arc::new(ObservableBinding::new(AtomicUsize::new(2)));
-        let id = u.id;
+        let id = u.id();
         assert!(r1.try_recv().is_err());
 
         let o = new_observer_node(s1);
