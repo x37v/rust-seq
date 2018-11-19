@@ -9,19 +9,22 @@ use std::sync::mpsc::SyncSender;
 pub type ObserverNode = Box<LNode<SyncSender<ObservableId>>>;
 pub type ObserverList = LList<SyncSender<ObservableId>>;
 
+trait Observable {
+    fn add_observer(&self, observer_node: ObserverNode);
+}
+
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub struct ObservableId(usize);
 
-impl ObservableId {
-    fn new() -> Self {
-        ObservableId(ID_COUNT.fetch_add(1, Ordering::Relaxed))
-    }
-}
-
 pub fn new_observer_node(sender: SyncSender<ObservableId>) -> ObserverNode {
     LNode::new_boxed(sender)
+}
+
+pub struct ObservableData {
+    id: ObservableId,
+    observers: spinlock::Mutex<ObserverList>,
 }
 
 pub struct ObservableBinding<B, T> {
@@ -29,6 +32,12 @@ pub struct ObservableBinding<B, T> {
     binding: T,
     observers: spinlock::Mutex<ObserverList>,
     _phantom: PhantomData<AtomicPtr<Box<B>>>, //XXX used atomic so we can share across threads, could have been mutex..
+}
+
+impl ObservableId {
+    fn new() -> Self {
+        ObservableId(ID_COUNT.fetch_add(1, Ordering::Relaxed))
+    }
 }
 
 impl<B, T> ObservableBinding<B, T>
@@ -44,16 +53,18 @@ where
         }
     }
 
-    pub fn add_observer(&self, observer_node: ObserverNode) {
-        let mut l = self.observers.lock();
-        l.push_back(observer_node);
-    }
-
     fn notify(&self) {
         let l = self.observers.lock();
         for c in l.iter() {
             let _ = c.try_send(self.id);
         }
+    }
+}
+
+impl<B, T> Observable for ObservableBinding<B, T> {
+    fn add_observer(&self, observer_node: ObserverNode) {
+        let mut l = self.observers.lock();
+        l.push_back(observer_node);
     }
 }
 
@@ -83,6 +94,33 @@ impl<B, T> Deref for ObservableBinding<B, T> {
 
     fn deref(&self) -> &Self::Target {
         &self.binding
+    }
+}
+
+pub mod bpm {
+    pub struct ObservableClockData(pub ::binding::bpm::ClockData);
+
+    impl ::binding::bpm::Clock for ObservableClockData {
+        fn bpm(&self) -> f32 {
+            self.0.bpm()
+        }
+        fn set_bpm(&mut self, bpm: f32) {
+            self.0.set_bpm(bpm);
+        }
+
+        fn period_micros(&self) -> f32 {
+            self.0.period_micros()
+        }
+        fn set_period_micros(&mut self, period_micros: f32) {
+            self.0.set_period_micros(period_micros);
+        }
+
+        fn ppq(&self) -> usize {
+            self.0.ppq()
+        }
+        fn set_ppq(&mut self, ppq: usize) {
+            self.0.set_ppq(ppq);
+        }
     }
 }
 
