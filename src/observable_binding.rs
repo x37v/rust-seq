@@ -6,6 +6,8 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 use std::sync::mpsc::SyncSender;
 
+static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
+
 pub type ObserverNode = Box<LNode<SyncSender<ObservableId>>>;
 pub type ObserverList = LList<SyncSender<ObservableId>>;
 
@@ -14,14 +16,8 @@ trait Observable {
     fn add_observer(&self, observer_node: ObserverNode);
 }
 
-static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
-
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub struct ObservableId(usize);
-
-pub fn new_observer_node(sender: SyncSender<ObservableId>) -> ObserverNode {
-    LNode::new_boxed(sender)
-}
 
 pub struct ObservableData {
     id: ObservableId,
@@ -32,6 +28,10 @@ pub struct ObservableBinding<B, T> {
     observer_data: ObservableData,
     binding: T,
     _phantom: PhantomData<AtomicPtr<Box<B>>>, //XXX used atomic so we can share across threads, could have been mutex..
+}
+
+pub fn new_observer_node(sender: SyncSender<ObservableId>) -> ObserverNode {
+    LNode::new_boxed(sender)
 }
 
 impl ObservableId {
