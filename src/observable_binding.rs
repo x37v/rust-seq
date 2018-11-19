@@ -25,9 +25,9 @@ pub struct ObservableData {
 }
 
 pub struct ObservableBinding<B, T> {
-    observer_data: ObservableData,
     binding: T,
     _phantom: PhantomData<AtomicPtr<Box<B>>>, //XXX used atomic so we can share across threads, could have been mutex..
+    observer_data: ObservableData,
 }
 
 pub fn new_observer_node(sender: SyncSender<ObservableId>) -> ObserverNode {
