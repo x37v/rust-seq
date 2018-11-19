@@ -44,7 +44,7 @@ where
         }
     }
 
-    pub fn add_observer(&mut self, observer_node: ObserverNode) {
+    pub fn add_observer(&self, observer_node: ObserverNode) {
         let mut l = self.observers.lock();
         l.push_back(observer_node);
     }
@@ -92,6 +92,7 @@ mod tests {
     use binding::{ParamBindingSet, SpinlockParamBinding};
     use std::sync::atomic::{AtomicIsize, Ordering};
     use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+    use std::sync::Arc;
 
     use std::thread;
 
@@ -216,5 +217,23 @@ mod tests {
         assert!(r1.try_recv().is_err());
         assert!(r2.try_recv().is_err());
         assert_eq!(800, u.get());
+    }
+
+    #[test]
+    fn observe_arc() {
+        let (s1, r1) = sync_channel(16);
+
+        let mut u: Arc<ObservableBinding<usize, _>> =
+            Arc::new(ObservableBinding::new(AtomicUsize::new(2)));
+        let id = u.id;
+        assert!(r1.try_recv().is_err());
+
+        let o = new_observer_node(s1);
+        u.add_observer(o);
+
+        u.set(2);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+        assert_eq!(2, u.get());
     }
 }
