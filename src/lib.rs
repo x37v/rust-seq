@@ -7,6 +7,7 @@ mod base;
 pub mod binding;
 pub mod context;
 pub mod graph;
+pub mod observable_binding;
 pub mod util;
 
 pub mod clock_ratio;
