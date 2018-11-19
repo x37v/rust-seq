@@ -124,11 +124,28 @@ impl<B, T> Deref for ObservableBinding<B, T> {
 pub mod bpm {
     pub struct ObservableClockData {
         clock_data: ::binding::bpm::ClockData,
+        observer_data: super::ObservableData,
     }
 
     impl ObservableClockData {
         pub fn new(clock_data: ::binding::bpm::ClockData) -> Self {
-            Self { clock_data }
+            Self {
+                clock_data,
+                observer_data: super::ObservableData::new(),
+            }
+        }
+
+        fn notify(&self) {
+            self.observer_data.notify();
+        }
+    }
+
+    impl super::Observable for ObservableClockData {
+        fn id(&self) -> super::ObservableId {
+            self.observer_data.id()
+        }
+        fn add_observer(&self, observer_node: super::ObserverNode) {
+            self.observer_data.add_observer(observer_node);
         }
     }
 
@@ -138,6 +155,7 @@ pub mod bpm {
         }
         fn set_bpm(&mut self, bpm: f32) {
             self.clock_data.set_bpm(bpm);
+            self.notify();
         }
 
         fn period_micros(&self) -> f32 {
@@ -145,6 +163,7 @@ pub mod bpm {
         }
         fn set_period_micros(&mut self, period_micros: f32) {
             self.clock_data.set_period_micros(period_micros);
+            self.notify();
         }
 
         fn ppq(&self) -> usize {
@@ -152,6 +171,7 @@ pub mod bpm {
         }
         fn set_ppq(&mut self, ppq: usize) {
             self.clock_data.set_ppq(ppq);
+            self.notify();
         }
     }
 }
@@ -159,6 +179,7 @@ pub mod bpm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use binding::bpm::Clock;
     use binding::{ParamBindingSet, SpinlockParamBinding};
     use std::sync::atomic::{AtomicIsize, Ordering};
     use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
@@ -313,5 +334,58 @@ mod tests {
         assert!(r1.try_recv().is_err());
         assert_eq!(40, u.get());
         assert_eq!(40, c.get());
+    }
+
+    #[test]
+    fn bpm() {
+        let (s1, r1) = sync_channel(16);
+        let b = Arc::new(spinlock::Mutex::new(bpm::ObservableClockData::new(
+            ::binding::bpm::ClockData::new(120.0, 96),
+        )));
+        let id = b.lock().id();
+        assert!(r1.try_recv().is_err());
+
+        let bpm = Arc::new(::binding::bpm::ClockBPMBinding(b.clone()));
+        let ppq = Arc::new(::binding::bpm::ClockPPQBinding(b.clone()));
+        let micros = Arc::new(::binding::bpm::ClockPeriodMicroBinding(b.clone()));
+        let micros2 = micros.clone();
+
+        let c = b.clone();
+        assert_eq!(5208f32, c.lock().period_micros().floor());
+        assert_eq!(5208f32, micros.get().floor());
+        assert_eq!(120f32, c.lock().bpm());
+        assert_eq!(120f32, bpm.get());
+        assert_eq!(96, c.lock().ppq());
+        assert_eq!(96, ppq.get());
+
+        let o = new_observer_node(s1);
+        b.lock().add_observer(o);
+
+        bpm.set(2.0);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+        assert_eq!(2f32, bpm.get());
+
+        bpm.set(1.0);
+        ppq.set(960);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+        assert_eq!(1f32, c.lock().bpm());
+        assert_eq!(1f32, bpm.get());
+        assert_eq!(960, c.lock().ppq());
+        assert_eq!(960, ppq.get());
+
+        ppq.set(9600);
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
+        assert_eq!(9600, c.lock().ppq());
+        assert_eq!(9600, ppq.get());
+
+        micros2.set(5_208.333333f32);
+        assert_eq!(5208f32, c.lock().period_micros().floor());
+        assert_eq!(5208f32, micros.get().floor());
+        assert_eq!(id, r1.try_recv().unwrap());
+        assert!(r1.try_recv().is_err());
     }
 }
