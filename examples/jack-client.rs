@@ -31,6 +31,7 @@ use sched::quneo_display::DisplayType as QDisplayType;
 use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
 struct PageData {
+    index: Arc<ObservableBinding<usize, AtomicUsize>>,
     gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
     clock_mul: Arc<dyn ParamBindingSet<u8>>,
     clock_div: Arc<dyn ParamBindingSet<u8>>,
@@ -38,12 +39,14 @@ struct PageData {
 
 impl PageData {
     pub fn new(
+        index: Arc<ObservableBinding<usize, AtomicUsize>>,
         gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
         clock_mul: Arc<dyn ParamBindingSet<u8>>,
         clock_div: Arc<dyn ParamBindingSet<u8>>,
     ) -> Self {
         Self {
-            gates: gates,
+            index,
+            gates,
             clock_mul: clock_mul.clone(),
             clock_div: clock_div.clone(),
         }
@@ -124,7 +127,7 @@ fn main() {
     let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
 
     for page in 0..64 {
-        let steps = Arc::new(AtomicUsize::new(16));
+        let steps = Arc::new(AtomicUsize::new(32));
         let note = Arc::new(AtomicUsize::new(page + 37));
 
         //build up gates
@@ -173,9 +176,12 @@ fn main() {
         let step_seq =
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
+        let index_binding = Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
+        let index_bindingc = index_binding.clone();
         let cpage = current_page.clone();
         let setup =
             IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
+                index_bindingc.set(index);
                 if index < latches.len() {
                     latches[index].store();
                 }
@@ -190,10 +196,13 @@ fn main() {
         let div = SpinlockParamBinding::new_p(1);
 
         page_data.push(Arc::new(spinlock::Mutex::new(PageData::new(
+            index_binding.clone(),
             gates.iter().cloned().collect(),
             mul.clone(),
             div.clone(),
         ))));
+
+        index_binding.add_observer(new_observer_node(notify_sender.clone()));
 
         let ratio = GraphNodeWrapper::new_p(ClockRatio::new_p(mul, div));
         ratio.lock().child_append(LNode::new_boxed(step_seq));
@@ -202,22 +211,28 @@ fn main() {
 
     sched.schedule(TimeSched::Relative(0), clock);
 
-    let mut draw_data: Vec<Arc<spinlock::Mutex<PageData>>> = page_data.iter().cloned().collect();
+    let draw_data: Vec<Arc<spinlock::Mutex<PageData>>> = page_data.iter().cloned().collect();
     jack_connections.add_observer(new_observer_node(notify_sender));
+    let force_id = jack_connections.id();
     let drawer = Box::new(QuNeoDrawer::new(
         midi_trig.clone(),
-        TimeResched::Relative(4410),
+        TimeResched::Relative(441),
         Box::new(move |display: &mut QuNeoDisplay| {
             //TODO make sure the notification is actually something we care about
-            if notify_receiver.try_iter().next().is_some() {
-                let page = draw_data[0].lock();
-                for i in 0..page.gates.len() {
-                    display.update(
-                        QDisplayType::Pad,
-                        i,
-                        if page.gates[i].get() { 127u8 } else { 0u8 },
-                    );
-                }
+            let force = notify_receiver.try_iter().any(|x| x == force_id);
+            let page = draw_data[0].lock();
+            for i in 0..page.gates.len() {
+                display.update(
+                    QDisplayType::Pad,
+                    i,
+                    if page.gates[i].get() { 127u8 } else { 0u8 },
+                );
+            }
+            let index = page.index.get();
+            if index < 64 {
+                display.update(QDisplayType::Pad, index, 32);
+            }
+            if force {
                 display.force_draw();
             }
         }),
