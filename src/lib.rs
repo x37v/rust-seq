@@ -10,6 +10,7 @@ pub mod binding_cache;
 pub mod context;
 pub mod graph;
 pub mod observable_binding;
+pub mod trigger;
 pub mod util;
 
 pub mod clock_ratio;

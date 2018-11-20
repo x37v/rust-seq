@@ -2,6 +2,7 @@ use base::{ScheduleTrigger, TimeResched, TimeSched};
 use binding::{ParamBindingGet, SpinlockParamBinding, ValueSet};
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
+use trigger::{Trigger, TriggerId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MidiValue {
@@ -178,34 +179,17 @@ impl MidiValueAt {
 }
 
 pub struct MidiTrigger {
-    trigger_index: usize,
+    trigger_index: TriggerId,
     value: Arc<SpinlockParamBinding<MidiValue>>,
     sender: SyncSender<MidiValueAt>,
 }
 
 impl MidiTrigger {
-    pub fn new(trigger_index: usize, sender: SyncSender<MidiValueAt>) -> Self {
+    pub fn new(sender: SyncSender<MidiValueAt>) -> Self {
         Self {
-            trigger_index,
+            trigger_index: TriggerId::new(),
             value: Arc::new(SpinlockParamBinding::new(MidiValue::None)),
             sender,
-        }
-    }
-
-    pub fn trigger_index(&self) -> usize {
-        self.trigger_index
-    }
-
-    pub fn eval(&self, tick: usize) {
-        let msg = self.value.get();
-        match msg {
-            MidiValue::None => (),
-            _ => {
-                let v = MidiValueAt::new(tick, msg);
-                if let Err(e) = self.sender.try_send(v) {
-                    println!("midi send error: {:?}", e);
-                }
-            }
         }
     }
 
@@ -252,6 +236,25 @@ impl MidiTrigger {
             self.trigger_index,
             &[ValueSet::MIDI(value, self.value.clone())],
         );
+    }
+}
+
+impl Trigger for MidiTrigger {
+    fn trigger_index(&self) -> TriggerId {
+        self.trigger_index
+    }
+
+    fn trigger_eval(&self, tick: usize, _context: &mut dyn ScheduleTrigger) {
+        let msg = self.value.get();
+        match msg {
+            MidiValue::None => (),
+            _ => {
+                let v = MidiValueAt::new(tick, msg);
+                if let Err(e) = self.sender.try_send(v) {
+                    println!("midi send error: {:?}", e);
+                }
+            }
+        }
     }
 }
 

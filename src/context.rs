@@ -3,6 +3,7 @@ use base::{
     TimedNodeData, TimedTrig,
 };
 use binding::ValueSet;
+use trigger::TriggerId;
 use util::add_clamped;
 
 pub trait SchedContext: ScheduleTrigger {
@@ -93,7 +94,7 @@ impl<'a> SchedContext for RootContext<'a> {
 }
 
 impl<'a> ScheduleTrigger for RootContext<'a> {
-    fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
+    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId) {
         if let Some(mut n) = self.src_sink.pop_trig() {
             n.set_index(Some(index));
             n.set_time(self.to_tick(&time));
@@ -102,7 +103,7 @@ impl<'a> ScheduleTrigger for RootContext<'a> {
             println!("OOPS");
         }
     }
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]) {
         if let Some(mut n) = self.src_sink.pop_trig() {
             n.set_index(Some(index));
             n.set_time(self.to_tick(&time));
@@ -217,11 +218,11 @@ impl<'a> SchedContext for ChildContext<'a> {
 }
 
 impl<'a> ScheduleTrigger for ChildContext<'a> {
-    fn schedule_trigger(&mut self, time: TimeSched, index: usize) {
+    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId) {
         self.parent
             .schedule_trigger(self.translate_time(&time), index);
     }
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]) {
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]) {
         self.parent
             .schedule_valued_trigger(self.translate_time(&time), index, values);
     }

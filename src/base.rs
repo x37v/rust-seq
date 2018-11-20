@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::sync::Arc;
 use std::thread;
+use trigger::{Trigger, TriggerId};
 use util::add_clamped;
 
 //XXX maybe context times should have an isize absolute offset?
@@ -58,8 +59,8 @@ pub trait InsertTimeSorted<T> {
 }
 
 pub trait ScheduleTrigger {
-    fn schedule_trigger(&mut self, time: TimeSched, index: usize);
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: usize, values: &[ValueSet]);
+    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId);
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]);
     fn schedule_value(&mut self, time: TimeSched, value: &ValueSet);
     fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched;
 }
@@ -69,6 +70,7 @@ pub type SchedFn = Box<dyn SchedCall>;
 pub type TimedTrigNode = Box<LNode<TimedTrig>>;
 pub type SchedFnNode = Box<LNode<TimedFn>>;
 pub type ValueSetNode = Box<LNode<ValueSet>>;
+pub type TriggerNode = Box<LNode<Arc<spinlock::Mutex<dyn Trigger>>>>;
 
 //implement sched_call for any Fn that with the correct sig
 impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
@@ -123,15 +125,15 @@ impl Default for TimedFn {
 
 pub struct TimedTrig {
     time: usize,
-    index: Option<usize>,
+    index: Option<TriggerId>,
     values: LList<ValueSet>,
 }
 
 impl TimedTrig {
-    pub fn set_index(&mut self, index: Option<usize>) {
+    pub fn set_index(&mut self, index: Option<TriggerId>) {
         self.index = index;
     }
-    pub fn index(&self) -> Option<usize> {
+    pub fn index(&self) -> Option<TriggerId> {
         self.index
     }
     pub fn add_value(&mut self, vnode: ValueSetNode) {
@@ -178,6 +180,7 @@ pub struct SrcSinkUpdater {
 
 pub struct Executor {
     list: LList<TimedFn>,
+    triggers: LList<Arc<spinlock::Mutex<dyn Trigger>>>,
     trigger_list: LList<TimedTrig>,
     time_last: usize,
     ticks_per_second_last: usize,
@@ -303,6 +306,7 @@ impl Scheduler {
             time: time.clone(),
             executor: Some(Executor {
                 list: LList::new(),
+                triggers: LList::new(),
                 trigger_list: LList::new(),
                 time,
                 time_last: 0,
@@ -349,12 +353,13 @@ impl Executor {
         self.list.insert_time_sorted(node);
     }
 
+    pub fn add_trigger(&mut self, trigger_node: TriggerNode) {
+        self.triggers.push_back(trigger_node);
+    }
+
     //signature of function is
     //time, index, block_time_start, trigger_schedule_object
-    pub fn eval_triggers<F: FnMut(usize, usize, usize, &mut dyn ScheduleTrigger)>(
-        &mut self,
-        func: &mut F,
-    ) {
+    fn eval_triggers(&mut self) {
         //triggers are evaluated at the end of the run so 'now' is actually 'next'
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
@@ -373,7 +378,13 @@ impl Executor {
                     &mut self.trigger_list,
                     &mut self.src_sink,
                 );
-                func(time, index, self.time_last, &mut context);
+                for trig in self.triggers.iter() {
+                    let trig = trig.lock();
+                    if trig.trigger_index() == index {
+                        trig.trigger_eval(time, &mut context);
+                    }
+                }
+                //XXX func(time, index, self.time_last, &mut context);
             }
             self.src_sink.dispose(trig);
         }
@@ -410,6 +421,7 @@ impl Executor {
         }
         self.time_last = now;
         self.time.store(next, Ordering::SeqCst);
+        self.eval_triggers();
     }
 }
 
@@ -490,7 +502,7 @@ mod tests {
                     //XXX shouldn't actually allocate this
                     Box::new(move |context: &mut dyn SchedContext| {
                         println!("inner dog {}, scheduled at {}", context.base_tick(), at);
-                        context.schedule_trigger(TimeSched::Relative(0), 1);
+                        context.schedule_trigger(TimeSched::Relative(0), TriggerId(1));
                         TimeResched::None
                     }),
                 );
