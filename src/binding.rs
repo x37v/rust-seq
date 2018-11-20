@@ -126,6 +126,15 @@ impl<T: Copy + Send> ParamBindingGet<T> for SpinlockParamBinding<T> {
     }
 }
 
+impl<T> Default for SpinlockParamBinding<T>
+where
+    T: Default + Copy,
+{
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
+}
+
 // AtomicBool, AtomicUsize, AtomicIsize implementations of ParamBindingGet/ParamBindingSet
 
 const GET_ORDERING: Ordering = Ordering::SeqCst;
