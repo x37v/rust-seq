@@ -1,4 +1,5 @@
-use midi::MidiValue;
+use midi::{MidiTrigger, MidiValue};
+use std::sync::Arc;
 
 //XXX move to its own crate
 
@@ -31,6 +32,11 @@ pub enum DisplayType {
 pub struct QuNeoDisplayIter<'a> {
     display: &'a mut QuNeoDisplay,
     index: usize,
+}
+
+pub struct QeNeoDrawer {
+    display: QuNeoDisplay,
+    midi_trigger: Arc<spinlock::Mutex<MidiTrigger>>,
 }
 
 impl<'a> Iterator for QuNeoDisplayIter<'a> {

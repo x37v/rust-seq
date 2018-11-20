@@ -1,5 +1,5 @@
 use base::{ScheduleTrigger, TimeResched, TimeSched};
-use binding::{ParamBindingGet, SpinlockParamBinding, SpinlockParamBindingP, ValueSet};
+use binding::{ParamBindingGet, SpinlockParamBinding, ValueSet};
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 
@@ -246,7 +246,7 @@ impl MidiTrigger {
         self.add(schedule, time, MidiValue::ContCtrl { chan, num, val });
     }
 
-    fn add(&self, schedule: &mut dyn ScheduleTrigger, time: TimeSched, value: MidiValue) {
+    pub fn add(&self, schedule: &mut dyn ScheduleTrigger, time: TimeSched, value: MidiValue) {
         schedule.schedule_valued_trigger(
             time,
             self.trigger_index,
