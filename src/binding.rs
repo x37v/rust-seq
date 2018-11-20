@@ -37,6 +37,8 @@ pub enum ValueSet {
     BOOL(bool, BindingSetP<bool>),
 }
 
+impl<X, T> ParamBinding<T> for X where X: ParamBindingGet<T> + ParamBindingSet<T> {}
+
 impl ValueSet {
     pub fn store(&self) {
         match self {
@@ -124,8 +126,6 @@ impl<T: Copy + Send> ParamBindingGet<T> for SpinlockParamBinding<T> {
     }
 }
 
-impl<T: Copy + Send> ParamBinding<T> for SpinlockParamBinding<T> {}
-
 // AtomicBool, AtomicUsize, AtomicIsize implementations of ParamBindingGet/ParamBindingSet
 
 const GET_ORDERING: Ordering = Ordering::SeqCst;
@@ -182,6 +182,7 @@ pub mod bpm {
         fn set_ppq(&mut self, ppq: usize);
     }
 
+    #[derive(Debug, Copy, Clone)]
     pub struct ClockData {
         bpm: f32,
         period_micros: f32,
