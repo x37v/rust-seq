@@ -2,7 +2,7 @@ use binding::{ParamBinding, SpinlockParamBinding};
 use failure::Fail;
 use std::any::Any;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
 use std::sync::Arc;
 
 #[derive(Debug, Fail)]
@@ -52,7 +52,27 @@ impl BindingCache {
         self.get_item::<AtomicUsize, usize>(key, default)
     }
 
-    pub fn get<T>(&mut self, key: String, default: T) -> Result<Arc<dyn ParamBinding<T>>, GetError>
+    pub fn get_isize(
+        &mut self,
+        key: String,
+        default: isize,
+    ) -> Result<Arc<dyn ParamBinding<isize>>, GetError> {
+        self.get_item::<AtomicIsize, isize>(key, default)
+    }
+
+    pub fn get_bool(
+        &mut self,
+        key: String,
+        default: bool,
+    ) -> Result<Arc<dyn ParamBinding<bool>>, GetError> {
+        self.get_item::<AtomicBool, bool>(key, default)
+    }
+
+    pub fn get_spinlock<T>(
+        &mut self,
+        key: String,
+        default: T,
+    ) -> Result<Arc<dyn ParamBinding<T>>, GetError>
     where
         T: Send + Copy + Default + 'static,
     {
@@ -70,8 +90,8 @@ mod tests {
     #[test]
     fn cache() {
         let mut c = BindingCache::new();
-        let x = c.get::<f32>("soda".to_string(), 43f32);
-        let y = c.get::<f32>("soda".to_string(), 12f32);
+        let x = c.get_spinlock::<f32>("soda".to_string(), 43f32);
+        let y = c.get_spinlock::<f32>("soda".to_string(), 12f32);
         assert!(x.is_ok());
         assert!(y.is_ok());
 
@@ -86,14 +106,14 @@ mod tests {
         assert_eq!(53f32, yr.get());
 
         c.0.insert("foo".to_string(), Box::new(3));
-        assert!(c.get::<f32>("foo".to_string(), 23f32).is_err());
+        assert!(c.get_spinlock::<f32>("foo".to_string(), 23f32).is_err());
 
-        let y = c.get::<f32>("soda".to_string(), 12f32);
+        let y = c.get_spinlock::<f32>("soda".to_string(), 12f32);
         let yr = y.unwrap();
         assert_eq!(53f32, xr.get());
         assert_eq!(53f32, yr.get());
 
-        let v = c.get::<f32>("soda".to_string(), 1f32);
+        let v = c.get_spinlock::<f32>("soda".to_string(), 1f32);
         assert!(v.is_ok());
         let v = v.unwrap();
         assert_eq!(53f32, v.get());
