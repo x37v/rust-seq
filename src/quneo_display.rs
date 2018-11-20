@@ -1,5 +1,9 @@
+use context::SchedContext;
 use midi::{MidiTrigger, MidiValue};
 use std::sync::Arc;
+use SchedCall;
+use TimeResched;
+use TimeSched;
 
 //XXX move to its own crate
 
@@ -29,14 +33,34 @@ pub enum DisplayType {
     Rhombus,
 }
 
+pub struct QuNeoDrawer<F> {
+    display: QuNeoDisplay,
+    func: Box<F>,
+    midi_trigger: Arc<spinlock::Mutex<MidiTrigger>>,
+    period: TimeResched,
+}
+
 pub struct QuNeoDisplayIter<'a> {
     display: &'a mut QuNeoDisplay,
     index: usize,
 }
 
-pub struct QeNeoDrawer {
-    display: QuNeoDisplay,
-    midi_trigger: Arc<spinlock::Mutex<MidiTrigger>>,
+impl<F> QuNeoDrawer<F>
+where
+    F: Fn(&mut QuNeoDisplay) + Send,
+{
+    pub fn new(
+        midi_trigger: Arc<spinlock::Mutex<MidiTrigger>>,
+        period: TimeResched,
+        func: Box<F>,
+    ) -> Self {
+        Self {
+            display: QuNeoDisplay::new(),
+            func,
+            midi_trigger,
+            period,
+        }
+    }
 }
 
 impl<'a> Iterator for QuNeoDisplayIter<'a> {
@@ -184,6 +208,24 @@ impl QuNeoDisplay {
 impl Default for QuNeoDisplay {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<F> SchedCall for QuNeoDrawer<F>
+where
+    F: Fn(&mut QuNeoDisplay) + Send,
+{
+    fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
+        (*self.func)(&mut self.display);
+        let mut it = self.display.draw_iter();
+        while let Some(d) = it.next() {
+            self.midi_trigger.lock().add(
+                context.as_schedule_trigger_mut(),
+                TimeSched::Relative(0),
+                d,
+            );
+        }
+        self.period
     }
 }
 
