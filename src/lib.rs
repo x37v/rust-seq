@@ -1,10 +1,12 @@
 #![feature(nll)]
 
+extern crate failure;
 pub extern crate spinlock;
 pub extern crate xnor_llist;
 
 mod base;
 pub mod binding;
+pub mod binding_cache;
 pub mod context;
 pub mod graph;
 pub mod observable_binding;
