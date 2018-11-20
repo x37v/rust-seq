@@ -436,22 +436,23 @@ mod tests {
         }
     }
 
+    /*
     struct TickStore {
         tick: Option<usize>,
     }
-
+    
     impl TickStore {
         fn tick(&self) -> Option<usize> {
             self.tick
         }
     }
-
+    
     impl Default for TickStore {
         fn default() -> Self {
             TickStore { tick: None }
         }
     }
-
+    
     impl GraphExec for TickStore {
         fn exec(&mut self, context: &mut dyn SchedContext, _children: &mut dyn ChildExec) -> bool {
             self.tick = Some(context.context_tick());
@@ -461,8 +462,7 @@ mod tests {
             ChildCount::Inf
         }
     }
-
-    /*
+    
     #[test]
     fn scheduled() {
         let mut s = Scheduler::new();
