@@ -4,7 +4,8 @@ extern crate sched;
 
 use sched::binding::bpm;
 use sched::binding::{
-    BindingP, ParamBindingGet, ParamBindingLatch, ParamBindingSet, SpinlockParamBinding, ValueLatch,
+    BindingP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
+    SpinlockParamBinding, ValueLatch,
 };
 use sched::clock_ratio::ClockRatio;
 use sched::context::SchedContext;
@@ -30,14 +31,14 @@ use sched::quneo_display::DisplayType as QDisplayType;
 use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
 struct PageData {
-    gates: Vec<Arc<AtomicBool>>,
+    gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
     clock_mul: Arc<dyn ParamBindingSet<u8>>,
     clock_div: Arc<dyn ParamBindingSet<u8>>,
 }
 
 impl PageData {
     pub fn new(
-        gates: Vec<Arc<AtomicBool>>,
+        gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
         clock_mul: Arc<dyn ParamBindingSet<u8>>,
         clock_div: Arc<dyn ParamBindingSet<u8>>,
     ) -> Self {
@@ -50,6 +51,7 @@ impl PageData {
 }
 
 fn main() {
+    let (notify_sender, notify_receiver) = sync_channel(16);
     let jack_connections: Arc<ObservableBinding<usize, _>> =
         Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
     let (client, _status) =
@@ -74,22 +76,6 @@ fn main() {
     let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
-
-    let (notify_sender, notify_receiver) = sync_channel(16);
-    jack_connections.add_observer(new_observer_node(notify_sender));
-    let drawer = Box::new(QuNeoDrawer::new(
-        midi_trig.clone(),
-        TimeResched::Relative(4410),
-        Box::new(move |display: &mut QuNeoDisplay| {
-            //TODO make sure the notification is actually something we care about
-            if notify_receiver.try_iter().next().is_some() {
-                for i in 0..64 {
-                    display.update(QDisplayType::Pad, i, (i * 2) as u8);
-                }
-                display.force_draw();
-            }
-        }),
-    ));
 
     let _pulses = SpinlockParamBinding::new_p(2);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
@@ -135,17 +121,20 @@ fn main() {
 
     let current_page = Arc::new(AtomicUsize::new(0));
 
-    let mut page_data: Vec<PageData> = Vec::new();
+    let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
 
     for page in 0..64 {
         let steps = Arc::new(AtomicUsize::new(16));
         let note = Arc::new(AtomicUsize::new(page + 37));
 
         //build up gates
-        let gates: Vec<Arc<AtomicBool>> = vec![false; 64]
+        let gates: Vec<Arc<ObservableBinding<bool, _>>> = vec![false; 64]
             .iter()
-            .map(|v| Arc::new(AtomicBool::new(*v)))
+            .map(|v| Arc::new(ObservableBinding::new(AtomicBool::new(*v))))
             .collect();
+        for g in gates.iter() {
+            g.add_observer(new_observer_node(notify_sender.clone()));
+        }
 
         let step_gate = Arc::new(AtomicBool::new(false));
         let latches: Vec<ValueLatch<bool>> = gates
@@ -200,11 +189,11 @@ fn main() {
         let mul = SpinlockParamBinding::new_p(1);
         let div = SpinlockParamBinding::new_p(1);
 
-        page_data.push(PageData::new(
+        page_data.push(Arc::new(spinlock::Mutex::new(PageData::new(
             gates.iter().cloned().collect(),
             mul.clone(),
             div.clone(),
-        ));
+        ))));
 
         let ratio = GraphNodeWrapper::new_p(ClockRatio::new_p(mul, div));
         ratio.lock().child_append(LNode::new_boxed(step_seq));
@@ -212,6 +201,28 @@ fn main() {
     }
 
     sched.schedule(TimeSched::Relative(0), clock);
+
+    let mut draw_data: Vec<Arc<spinlock::Mutex<PageData>>> = page_data.iter().cloned().collect();
+    jack_connections.add_observer(new_observer_node(notify_sender));
+    let drawer = Box::new(QuNeoDrawer::new(
+        midi_trig.clone(),
+        TimeResched::Relative(4410),
+        Box::new(move |display: &mut QuNeoDisplay| {
+            //TODO make sure the notification is actually something we care about
+            if notify_receiver.try_iter().next().is_some() {
+                let page = draw_data[0].lock();
+                for i in 0..page.gates.len() {
+                    display.update(
+                        QDisplayType::Pad,
+                        i,
+                        if page.gates[i].get() { 127u8 } else { 0u8 },
+                    );
+                }
+                display.force_draw();
+            }
+        }),
+    ));
+
     sched.schedule(TimeSched::Relative(0), drawer);
 
     let mut ex = sched.executor().unwrap();
@@ -231,10 +242,11 @@ fn main() {
                         15 => {
                             let page = current_page.get();
                             if page < page_data.len() {
+                                let page = page_data[page].lock();
                                 let index = num as usize;
-                                if index < page_data[page].gates.len() {
-                                    let v = !page_data[page].gates[index].get();
-                                    page_data[page].gates[index].set(v);
+                                if index < page.gates.len() {
+                                    let v = !page.gates[index].get();
+                                    page.gates[index].set(v);
                                 }
                             }
                         }
