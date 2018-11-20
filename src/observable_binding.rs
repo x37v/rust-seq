@@ -181,8 +181,8 @@ mod tests {
     use super::*;
     use binding::bpm::Clock;
     use binding::{ParamBindingSet, SpinlockParamBinding};
-    use std::sync::atomic::{AtomicIsize, Ordering};
-    use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+    use std::sync::atomic::AtomicIsize;
+    use std::sync::mpsc::sync_channel;
     use std::sync::Arc;
 
     use std::thread;

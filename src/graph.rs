@@ -380,11 +380,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{LList, Sched, Scheduler, SrcSink, TimeSched};
-    use binding::{ParamBindingSet, SpinlockParamBinding};
+    use base::{LList, SrcSink};
     use context::{RootContext, SchedContext};
     use std;
-    use std::thread;
 
     struct X {}
     struct Y {}

@@ -2,30 +2,26 @@ extern crate jack;
 extern crate rosc;
 extern crate sched;
 
-use rosc::{OscPacket, OscType};
 use sched::binding::bpm;
 use sched::binding::{
     ParamBindingGet, ParamBindingLatch, ParamBindingSet, SpinlockParamBinding, ValueLatch,
 };
 use sched::clock_ratio::ClockRatio;
-use sched::context::{ChildContext, SchedContext};
+use sched::context::SchedContext;
 #[allow(unused_imports)]
 use sched::euclid::Euclid;
 use sched::graph::{
-    ChildCount, ChildExec, FuncWrapper, GraphIndexExec, GraphNode, GraphNodeWrapper,
-    IndexFuncWrapper, NChildGraphNodeWrapper, RootClock,
+    ChildCount, ChildExec, FuncWrapper, GraphNode, GraphNodeWrapper, IndexFuncWrapper,
+    NChildGraphNodeWrapper, RootClock,
 };
 use sched::midi::{MidiValue, NoteTrigger};
 use sched::quneo_display::QuNeoDisplay;
 use sched::spinlock;
 use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
-use std::net::{SocketAddrV4, UdpSocket};
-use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
-use std::thread;
 
 use std::io;
 

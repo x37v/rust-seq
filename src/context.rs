@@ -238,11 +238,9 @@ impl<'a> ScheduleTrigger for ChildContext<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{LList, Sched, Scheduler, SrcSink, TimeSched};
-    use binding::{ParamBindingSet, SpinlockParamBinding};
-    use context::{RootContext, SchedContext};
-    use std;
-    use std::thread;
+    use base::{LList, SrcSink, TimeSched};
+    use binding::SpinlockParamBinding;
+    use context::RootContext;
     #[test]
     fn works() {
         let mut src_sink = SrcSink::new();
