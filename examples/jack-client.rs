@@ -321,7 +321,7 @@ impl jack::NotificationHandler for Notifications {
         //println!("JACK: thread init");
     }
 
-    fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
+    fn shutdown(&mut self, _status: jack::ClientStatus, _reason: &str) {
         /*
         println!(
             "JACK: shutdown with status {:?} because \"{}\"",
@@ -330,7 +330,7 @@ impl jack::NotificationHandler for Notifications {
         */
     }
 
-    fn freewheel(&mut self, _: &jack::Client, is_enabled: bool) {
+    fn freewheel(&mut self, _: &jack::Client, _is_enabled: bool) {
         /*
         println!(
             "JACK: freewheel mode is {}",
@@ -339,17 +339,17 @@ impl jack::NotificationHandler for Notifications {
         */
     }
 
-    fn buffer_size(&mut self, _: &jack::Client, sz: jack::Frames) -> jack::Control {
+    fn buffer_size(&mut self, _: &jack::Client, _sz: jack::Frames) -> jack::Control {
         //println!("JACK: buffer size changed to {}", sz);
         jack::Control::Continue
     }
 
-    fn sample_rate(&mut self, _: &jack::Client, srate: jack::Frames) -> jack::Control {
+    fn sample_rate(&mut self, _: &jack::Client, _srate: jack::Frames) -> jack::Control {
         //println!("JACK: sample rate changed to {}", srate);
         jack::Control::Continue
     }
 
-    fn client_registration(&mut self, _: &jack::Client, name: &str, is_reg: bool) {
+    fn client_registration(&mut self, _: &jack::Client, _name: &str, _is_reg: bool) {
         /*
         println!(
             "JACK: {} client with name \"{}\"",
@@ -359,7 +359,7 @@ impl jack::NotificationHandler for Notifications {
         */
     }
 
-    fn port_registration(&mut self, _: &jack::Client, port_id: jack::PortId, is_reg: bool) {
+    fn port_registration(&mut self, _: &jack::Client, _port_id: jack::PortId, _is_reg: bool) {
         /*
         println!(
             "JACK: {} port with id {}",
@@ -372,9 +372,9 @@ impl jack::NotificationHandler for Notifications {
     fn port_rename(
         &mut self,
         _: &jack::Client,
-        port_id: jack::PortId,
-        old_name: &str,
-        new_name: &str,
+        _port_id: jack::PortId,
+        _old_name: &str,
+        _new_name: &str,
     ) -> jack::Control {
         /*
         println!(
@@ -388,9 +388,9 @@ impl jack::NotificationHandler for Notifications {
     fn ports_connected(
         &mut self,
         _: &jack::Client,
-        port_id_a: jack::PortId,
-        port_id_b: jack::PortId,
-        are_connected: bool,
+        _port_id_a: jack::PortId,
+        _port_id_b: jack::PortId,
+        _are_connected: bool,
     ) {
         /*
         println!(
@@ -416,7 +416,7 @@ impl jack::NotificationHandler for Notifications {
         jack::Control::Continue
     }
 
-    fn latency(&mut self, _: &jack::Client, mode: jack::LatencyType) {
+    fn latency(&mut self, _: &jack::Client, _mode: jack::LatencyType) {
         /*
         println!(
             "JACK: {} latency has changed",
