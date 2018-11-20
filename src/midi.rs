@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MidiValue {
+    None,
     Note {
         on: bool,
         chan: u8,
@@ -142,6 +143,7 @@ impl<'a> Iterator for MidiValueIterator<'a> {
                 2 => Some(val.mclamp()),
                 _ => None,
             },
+            MidiValue::None => None,
         };
         //so we never overflow
         if r.is_some() {
@@ -156,6 +158,7 @@ impl<'a> ExactSizeIterator for MidiValueIterator<'a> {
         match self.value {
             MidiValue::Note { .. } => 3,
             MidiValue::ContCtrl { .. } => 3,
+            MidiValue::None => 0,
         }
     }
 }
@@ -181,6 +184,84 @@ pub struct NoteTrigger {
     num: SpinlockParamBindingP<u8>,
     vel: SpinlockParamBindingP<u8>,
     sender: SyncSender<MidiValueAt>,
+}
+
+pub struct MidiTrigger {
+    trigger_index: usize,
+    value: Arc<SpinlockParamBinding<MidiValue>>,
+    sender: SyncSender<MidiValueAt>,
+}
+
+impl MidiTrigger {
+    pub fn new(trigger_index: usize, sender: SyncSender<MidiValueAt>) -> Self {
+        Self {
+            trigger_index,
+            value: Arc::new(SpinlockParamBinding::new(MidiValue::None)),
+            sender,
+        }
+    }
+
+    pub fn trigger_index(&self) -> usize {
+        self.trigger_index
+    }
+
+    fn add(&self, schedule: &mut dyn ScheduleTrigger, time: TimeSched, value: MidiValue) {
+        schedule.schedule_valued_trigger(
+            time,
+            self.trigger_index,
+            &[ValueSet::MIDI(value, self.value.clone())],
+        );
+    }
+
+    pub fn eval(&self, tick: usize) {
+        let msg = self.value.get();
+        match msg {
+            MidiValue::None => (),
+            _ => {
+                let v = MidiValueAt::new(tick, msg);
+                if let Err(e) = self.sender.try_send(v) {
+                    println!("midi send error: {:?}", e);
+                }
+            }
+        }
+    }
+
+    pub fn note(
+        &self,
+        time: TimeSched,
+        schedule: &mut dyn ScheduleTrigger,
+        chan: u8,
+        on: bool,
+        num: u8,
+        vel: u8,
+    ) {
+        self.add(schedule, time, MidiValue::Note { on, chan, num, vel });
+    }
+
+    pub fn note_with_dur(
+        &self,
+        on_time: TimeSched,
+        dur: TimeResched,
+        schedule: &mut dyn ScheduleTrigger,
+        chan: u8,
+        num: u8,
+        vel: u8,
+    ) {
+        let off_time = schedule.add_time(&on_time, &dur);
+        self.note(on_time, schedule, chan, true, num, vel);
+        self.note(off_time, schedule, chan, false, num, vel);
+    }
+
+    pub fn cont_ctrl(
+        &self,
+        time: TimeSched,
+        schedule: &mut dyn ScheduleTrigger,
+        chan: u8,
+        num: u8,
+        val: u8,
+    ) {
+        self.add(schedule, time, MidiValue::ContCtrl { chan, num, val });
+    }
 }
 
 impl NoteTrigger {
