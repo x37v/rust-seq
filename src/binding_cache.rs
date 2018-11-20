@@ -117,6 +117,11 @@ mod tests {
         assert!(v.is_ok());
         let v = v.unwrap();
         assert_eq!(53f32, v.get());
+
+        assert!(c.get_spinlock::<f64>("soda".to_string(), 1f64).is_err());
+        assert!(c.get_usize("soda".to_string(), 1).is_err());
+        assert!(c.get_isize("soda".to_string(), 1).is_err());
+        assert!(c.get_bool("soda".to_string(), true).is_err());
     }
 
     /*
