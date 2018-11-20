@@ -4,7 +4,7 @@ extern crate sched;
 
 use sched::binding::bpm;
 use sched::binding::{
-    ParamBindingGet, ParamBindingLatch, ParamBindingSet, SpinlockParamBinding, ValueLatch,
+    BindingP, ParamBindingGet, ParamBindingLatch, ParamBindingSet, SpinlockParamBinding, ValueLatch,
 };
 use sched::clock_ratio::ClockRatio;
 use sched::context::SchedContext;
@@ -15,10 +15,11 @@ use sched::graph::{
     NChildGraphNodeWrapper, RootClock,
 };
 use sched::midi::{MidiTrigger, MidiValue};
-use sched::quneo_display::QuNeoDisplay;
+use sched::observable_binding::{new_observer_node, Observable, ObservableBinding};
 use sched::spinlock;
 use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
+
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
@@ -26,6 +27,7 @@ use std::sync::Arc;
 use std::io;
 
 use sched::quneo_display::DisplayType as QDisplayType;
+use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
 struct PageData {
     gates: Vec<Arc<AtomicBool>>,
@@ -48,6 +50,8 @@ impl PageData {
 }
 
 fn main() {
+    let jack_connections: Arc<ObservableBinding<usize, _>> =
+        Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
 
@@ -65,13 +69,27 @@ fn main() {
     let (msender, mreceiver) = sync_channel(1024);
     let midi_trig = Arc::new(spinlock::Mutex::new(MidiTrigger::new(0, msender)));
 
-    let qdisplay = Arc::new(spinlock::Mutex::new(QuNeoDisplay::new()));
-
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
     let _bpm = Arc::new(bpm::ClockBPMBinding(bpm_binding.clone()));
     let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
     let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = Box::new(RootClock::new(micros.clone()));
+
+    let (notify_sender, notify_receiver) = sync_channel(16);
+    jack_connections.add_observer(new_observer_node(notify_sender));
+    let drawer = Box::new(QuNeoDrawer::new(
+        midi_trig.clone(),
+        TimeResched::Relative(4410),
+        Box::new(move |display: &mut QuNeoDisplay| {
+            //TODO make sure the notification is actually something we care about
+            if notify_receiver.try_iter().next().is_some() {
+                for i in (0..64) {
+                    display.update(QDisplayType::Pad, i, (i * 2) as u8);
+                }
+                display.force_draw();
+            }
+        }),
+    ));
 
     let _pulses = SpinlockParamBinding::new_p(2);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
@@ -166,24 +184,12 @@ fn main() {
         let step_seq =
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
-        let qdisplayc = qdisplay.clone();
         let mtrig = midi_trig.clone();
         let cpage = current_page.clone();
         let setup =
             IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
                 if index < latches.len() {
                     latches[index].store();
-                }
-
-                //XXX need to flash somehow then return to normal state
-                //could schedule:
-                //1) update to flash color
-                //2) update to no color
-                //3) return to normal color
-                if page == cpage.get() {
-                    let _mtrig = mtrig.lock();
-                    let mut d = qdisplayc.lock();
-                    d.update(QDisplayType::Pad, index, 64);
                 }
             });
         step_seq.lock().index_child_append(LNode::new_boxed(setup));
@@ -207,6 +213,7 @@ fn main() {
     }
 
     sched.schedule(TimeSched::Relative(0), clock);
+    sched.schedule(TimeSched::Relative(0), drawer);
 
     let mut ex = sched.executor().unwrap();
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
@@ -228,8 +235,6 @@ fn main() {
                                 if index < page_data[page].gates.len() {
                                     let v = !page_data[page].gates[index].get();
                                     page_data[page].gates[index].set(v);
-                                    let mut d = qdisplay.lock();
-                                    d.update(QDisplayType::Pad, index, if v { 127 } else { 0 });
                                 }
                             }
                         }
@@ -283,14 +288,6 @@ fn main() {
             }
         });
 
-        {
-            let mut display = qdisplay.lock();
-            let mut it = display.draw_iter();
-            while let Some(d) = it.next() {
-                write_midi_value(0, &d);
-            }
-        }
-
         //evaluate midi
         let block_time = ex.time_last();
         while let Some(midi) = mreceiver.try_recv().ok() {
@@ -303,8 +300,10 @@ fn main() {
 
     let process = jack::ClosureProcessHandler::new(process_callback);
 
+    let notify = Notifications::new(jack_connections);
+
     // Activate the client, which starts the processing.
-    let active_client = client.activate_async(Notifications, process).unwrap();
+    let active_client = client.activate_async(notify, process).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");
@@ -314,7 +313,15 @@ fn main() {
     active_client.deactivate().unwrap();
 }
 
-struct Notifications;
+struct Notifications {
+    connection_count: BindingP<usize>,
+}
+
+impl Notifications {
+    pub fn new(connection_count: BindingP<usize>) -> Self {
+        Self { connection_count }
+    }
+}
 
 impl jack::NotificationHandler for Notifications {
     fn thread_init(&self, _: &jack::Client) {
@@ -390,8 +397,14 @@ impl jack::NotificationHandler for Notifications {
         _: &jack::Client,
         _port_id_a: jack::PortId,
         _port_id_b: jack::PortId,
-        _are_connected: bool,
+        are_connected: bool,
     ) {
+        let c = self.connection_count.get();
+        if are_connected {
+            self.connection_count.set(1 + c);
+        } else if (c > 0) {
+            self.connection_count.set(c - 1);
+        }
         /*
         println!(
             "JACK: ports with id {} and {} are {}",
