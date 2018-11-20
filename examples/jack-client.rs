@@ -280,16 +280,6 @@ fn main() {
             };
         };
 
-        /*
-        //evaluate triggers
-        let midi_trig = midi_trig.lock();
-        ex.eval_triggers(&mut |time, index, _block_time, _trig_context| {
-            if index == midi_trig.trigger_index() {
-                midi_trig.eval(time);
-            }
-        });
-        */
-
         //evaluate midi
         let block_time = ex.time_last();
         while let Some(midi) = mreceiver.try_recv().ok() {
