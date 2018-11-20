@@ -11,7 +11,7 @@ static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 pub type ObserverNode = Box<LNode<SyncSender<ObservableId>>>;
 pub type ObserverList = LList<SyncSender<ObservableId>>;
 
-trait Observable {
+pub trait Observable {
     fn id(&self) -> ObservableId;
     fn add_observer(&self, observer_node: ObserverNode);
 }
