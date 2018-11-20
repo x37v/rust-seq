@@ -263,7 +263,7 @@ mod tests {
     fn observe() {
         let (s1, r1) = sync_channel(16);
 
-        let mut u: ObservableBinding<usize, _> = ObservableBinding::new(AtomicUsize::new(2));
+        let u: ObservableBinding<usize, _> = ObservableBinding::new(AtomicUsize::new(2));
         let id = u.id();
 
         assert!(r1.try_recv().is_err());
@@ -314,7 +314,7 @@ mod tests {
     fn observe_arc() {
         let (s1, r1) = sync_channel(16);
 
-        let mut u: Arc<ObservableBinding<usize, _>> =
+        let u: Arc<ObservableBinding<usize, _>> =
             Arc::new(ObservableBinding::new(AtomicUsize::new(2)));
         let id = u.id();
         assert!(r1.try_recv().is_err());

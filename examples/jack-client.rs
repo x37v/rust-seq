@@ -79,7 +79,7 @@ fn main() {
 
     let _pulses = SpinlockParamBinding::new_p(2);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
-    let step_index = SpinlockParamBinding::new_p(0usize);
+    let _step_index = SpinlockParamBinding::new_p(0usize);
 
     /*
     let addr_s = "127.0.0.1:10001";
@@ -119,7 +119,7 @@ fn main() {
     });
     */
 
-    let mut current_page = Arc::new(AtomicUsize::new(0));
+    let current_page = Arc::new(AtomicUsize::new(0));
 
     let mut page_data: Vec<PageData> = Vec::new();
 
@@ -185,7 +185,7 @@ fn main() {
                 //2) update to no color
                 //3) return to normal color
                 if page == cpage.get() {
-                    let ntrig = ntrig.lock();
+                    let _ntrig = ntrig.lock();
                     let mut d = qdisplayc.lock();
                     d.update(QDisplayType::Pad, index, 64);
                 }
