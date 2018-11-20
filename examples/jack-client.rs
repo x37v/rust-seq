@@ -14,7 +14,7 @@ use sched::graph::{
     ChildCount, ChildExec, FuncWrapper, GraphNode, GraphNodeWrapper, IndexFuncWrapper,
     NChildGraphNodeWrapper, RootClock,
 };
-use sched::midi::{MidiValue, NoteTrigger};
+use sched::midi::{MidiTrigger, MidiValue};
 use sched::quneo_display::QuNeoDisplay;
 use sched::spinlock;
 use sched::step_seq::StepSeq;
@@ -63,7 +63,7 @@ fn main() {
     sched.spawn_helper_threads();
 
     let (msender, mreceiver) = sync_channel(1024);
-    let note_trig = Arc::new(spinlock::Mutex::new(NoteTrigger::new(0, msender)));
+    let midi_trig = Arc::new(spinlock::Mutex::new(MidiTrigger::new(0, msender)));
 
     let qdisplay = Arc::new(spinlock::Mutex::new(QuNeoDisplay::new()));
 
@@ -135,12 +135,12 @@ fn main() {
             .map(|g| ValueLatch::new(g.clone(), step_gate.clone()))
             .collect();
 
-        let ntrig = note_trig.clone();
+        let mtrig = midi_trig.clone();
         let trig = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
             ChildCount::None,
             move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
-                let ntrig = ntrig.lock();
-                ntrig.note_with_dur(
+                let mtrig = mtrig.lock();
+                mtrig.note_with_dur(
                     TimeSched::Relative(0),
                     TimeResched::Relative(1),
                     context.as_schedule_trigger_mut(),
@@ -167,7 +167,7 @@ fn main() {
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
         let qdisplayc = qdisplay.clone();
-        let ntrig = note_trig.clone();
+        let mtrig = midi_trig.clone();
         let cpage = current_page.clone();
         let setup =
             IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
@@ -181,7 +181,7 @@ fn main() {
                 //2) update to no color
                 //3) return to normal color
                 if page == cpage.get() {
-                    let _ntrig = ntrig.lock();
+                    let _mtrig = mtrig.lock();
                     let mut d = qdisplayc.lock();
                     d.update(QDisplayType::Pad, index, 64);
                 }
@@ -276,10 +276,10 @@ fn main() {
         };
 
         //evaluate triggers
-        let note_trig = note_trig.lock();
+        let midi_trig = midi_trig.lock();
         ex.eval_triggers(&mut |time, index, _block_time, _trig_context| {
-            if index == note_trig.trigger_index() {
-                note_trig.eval(time);
+            if index == midi_trig.trigger_index() {
+                midi_trig.eval(time);
             }
         });
 
