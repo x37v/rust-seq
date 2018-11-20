@@ -18,24 +18,13 @@ impl BindingCache {
     pub fn new() -> Self {
         BindingCache(Default::default())
     }
-}
 
-pub trait CacheBindingF32 {
-    fn get_f32_binding(
-        &mut self,
-        key: String,
-        default: f32,
-    ) -> Result<Arc<dyn ParamBinding<f32>>, GetError>;
-}
-
-impl CacheBindingF32 for BindingCache {
-    fn get_f32_binding(
-        &mut self,
-        key: String,
-        default: f32,
-    ) -> Result<Arc<dyn ParamBinding<f32>>, GetError> {
+    pub fn get<T>(&mut self, key: String, default: T) -> Result<Arc<dyn ParamBinding<T>>, GetError>
+    where
+        T: Send + Copy + 'static,
+    {
         if let Some(v) = self.0.get_mut(&key) {
-            if let Some(b) = v.downcast_mut::<Arc<SpinlockParamBinding<f32>>>() {
+            if let Some(b) = v.downcast_mut::<Arc<SpinlockParamBinding<T>>>() {
                 Ok(b.clone())
             } else {
                 Err(GetError { key: key })
@@ -53,10 +42,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn blah() {
+    fn cache() {
         let mut c = BindingCache::new();
-        let x = c.get_f32_binding("soda".to_string(), 43f32);
-        let y = c.get_f32_binding("soda".to_string(), 12f32);
+        let x = c.get::<f32>("soda".to_string(), 43f32);
+        let y = c.get::<f32>("soda".to_string(), 12f32);
         assert!(x.is_ok());
         assert!(y.is_ok());
 
@@ -71,11 +60,16 @@ mod tests {
         assert_eq!(53f32, yr.get());
 
         c.0.insert("foo".to_string(), Box::new(3));
-        assert!(c.get_f32_binding("foo".to_string(), 23f32).is_err());
+        assert!(c.get::<f32>("foo".to_string(), 23f32).is_err());
 
-        let y = c.get_f32_binding("soda".to_string(), 12f32);
+        let y = c.get::<f32>("soda".to_string(), 12f32);
         let yr = y.unwrap();
         assert_eq!(53f32, xr.get());
         assert_eq!(53f32, yr.get());
+
+        let v = c.get::<f32>("soda".to_string(), 1f32);
+        assert!(v.is_ok());
+        let v = v.unwrap();
+        assert_eq!(53f32, v.get());
     }
 }
