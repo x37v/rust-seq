@@ -205,14 +205,6 @@ impl MidiTrigger {
         self.trigger_index
     }
 
-    fn add(&self, schedule: &mut dyn ScheduleTrigger, time: TimeSched, value: MidiValue) {
-        schedule.schedule_valued_trigger(
-            time,
-            self.trigger_index,
-            &[ValueSet::MIDI(value, self.value.clone())],
-        );
-    }
-
     pub fn eval(&self, tick: usize) {
         let msg = self.value.get();
         match msg {
@@ -261,6 +253,14 @@ impl MidiTrigger {
         val: u8,
     ) {
         self.add(schedule, time, MidiValue::ContCtrl { chan, num, val });
+    }
+
+    fn add(&self, schedule: &mut dyn ScheduleTrigger, time: TimeSched, value: MidiValue) {
+        schedule.schedule_valued_trigger(
+            time,
+            self.trigger_index,
+            &[ValueSet::MIDI(value, self.value.clone())],
+        );
     }
 }
 
