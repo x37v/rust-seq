@@ -67,7 +67,7 @@ fn main() {
     sched.spawn_helper_threads();
 
     let (msender, mreceiver) = sync_channel(1024);
-    let midi_trig = Arc::new(spinlock::Mutex::new(MidiTrigger::new(0, msender)));
+    let midi_trig = Arc::new(spinlock::Mutex::new(MidiTrigger::new(msender)));
 
     let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
     let _bpm = Arc::new(bpm::ClockBPMBinding(bpm_binding.clone()));
@@ -83,7 +83,7 @@ fn main() {
         Box::new(move |display: &mut QuNeoDisplay| {
             //TODO make sure the notification is actually something we care about
             if notify_receiver.try_iter().next().is_some() {
-                for i in (0..64) {
+                for i in 0..64 {
                     display.update(QDisplayType::Pad, i, (i * 2) as u8);
                 }
                 display.force_draw();
@@ -184,7 +184,6 @@ fn main() {
         let step_seq =
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
-        let mtrig = midi_trig.clone();
         let cpage = current_page.clone();
         let setup =
             IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
@@ -216,6 +215,7 @@ fn main() {
     sched.schedule(TimeSched::Relative(0), drawer);
 
     let mut ex = sched.executor().unwrap();
+    ex.add_trigger(LNode::new_boxed(midi_trig.clone()));
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         //read in midi
         for m in midi_in.iter(ps) {
@@ -280,6 +280,7 @@ fn main() {
             };
         };
 
+        /*
         //evaluate triggers
         let midi_trig = midi_trig.lock();
         ex.eval_triggers(&mut |time, index, _block_time, _trig_context| {
@@ -287,6 +288,7 @@ fn main() {
                 midi_trig.eval(time);
             }
         });
+        */
 
         //evaluate midi
         let block_time = ex.time_last();
@@ -402,7 +404,7 @@ impl jack::NotificationHandler for Notifications {
         let c = self.connection_count.get();
         if are_connected {
             self.connection_count.set(1 + c);
-        } else if (c > 0) {
+        } else if c > 0 {
             self.connection_count.set(c - 1);
         }
         /*
