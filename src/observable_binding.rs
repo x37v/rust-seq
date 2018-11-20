@@ -4,7 +4,7 @@ use binding::ParamBindingSet;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -18,6 +18,12 @@ trait Observable {
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub struct ObservableId(usize);
+
+pub struct Observer {
+    id: usize,
+    sender: SyncSender<ObservableId>,
+    receiver: Receiver<ObservableId>,
+}
 
 pub struct ObservableData {
     id: ObservableId,
@@ -37,6 +43,37 @@ pub fn new_observer_node(sender: SyncSender<ObservableId>) -> ObserverNode {
 impl ObservableId {
     fn new() -> Self {
         ObservableId(ID_COUNT.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl Observer {
+    pub fn new() -> Self {
+        let (sender, receiver) = sync_channel(256);
+        Self {
+            id: ID_COUNT.fetch_add(1, Ordering::Relaxed),
+            sender,
+            receiver,
+        }
+    }
+
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    pub fn sender(&self) -> SyncSender<ObservableId> {
+        self.sender.clone()
+    }
+
+    pub fn new_observer_node(&self) -> ObserverNode {
+        LNode::new_boxed(self.sender())
+    }
+}
+
+impl Iterator for Observer {
+    type Item = ObservableId;
+
+    fn next(&mut self) -> Option<ObservableId> {
+        self.receiver.try_recv().ok()
     }
 }
 
