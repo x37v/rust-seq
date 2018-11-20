@@ -4,6 +4,8 @@ extern crate xnor_llist;
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
+use midi::MidiValue;
+
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -35,6 +37,7 @@ pub enum ValueSet {
     I32(i32, BindingSetP<i32>),
     U8(u8, BindingSetP<u8>),
     BOOL(bool, BindingSetP<bool>),
+    MIDI(MidiValue, BindingSetP<MidiValue>),
 }
 
 impl<X, T> ParamBinding<T> for X where X: ParamBindingGet<T> + ParamBindingSet<T> {}
@@ -47,6 +50,7 @@ impl ValueSet {
             ValueSet::I32(v, b) => b.set(*v),
             ValueSet::U8(v, b) => b.set(*v),
             ValueSet::BOOL(v, b) => b.set(*v),
+            ValueSet::MIDI(v, b) => b.set(*v),
         }
     }
 }
