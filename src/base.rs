@@ -487,6 +487,7 @@ mod tests {
         s.spawn_helper_threads();
 
         let e = s.executor();
+        let trig = TriggerId::new();
         assert!(e.is_some());
         s.schedule(
             TimeSched::Absolute(0),
@@ -502,7 +503,7 @@ mod tests {
                     //XXX shouldn't actually allocate this
                     Box::new(move |context: &mut dyn SchedContext| {
                         println!("inner dog {}, scheduled at {}", context.base_tick(), at);
-                        context.schedule_trigger(TimeSched::Relative(0), TriggerId(1));
+                        context.schedule_trigger(TimeSched::Relative(0), trig);
                         TimeResched::None
                     }),
                 );
