@@ -32,20 +32,23 @@ use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
 struct PageData {
     index: Arc<ObservableBinding<usize, AtomicUsize>>,
+    length: Arc<ObservableBinding<usize, AtomicUsize>>,
     gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
-    clock_mul: Arc<dyn ParamBindingSet<u8>>,
-    clock_div: Arc<dyn ParamBindingSet<u8>>,
+    clock_mul: Arc<dyn ParamBinding<u8>>,
+    clock_div: Arc<dyn ParamBinding<u8>>,
 }
 
 impl PageData {
     pub fn new(
         index: Arc<ObservableBinding<usize, AtomicUsize>>,
+        length: Arc<ObservableBinding<usize, AtomicUsize>>,
         gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
-        clock_mul: Arc<dyn ParamBindingSet<u8>>,
-        clock_div: Arc<dyn ParamBindingSet<u8>>,
+        clock_mul: Arc<dyn ParamBinding<u8>>,
+        clock_div: Arc<dyn ParamBinding<u8>>,
     ) -> Self {
         Self {
             index,
+            length,
             gates,
             clock_mul: clock_mul.clone(),
             clock_div: clock_div.clone(),
@@ -124,11 +127,14 @@ fn main() {
 
     let current_page = Arc::new(AtomicUsize::new(0));
     let page_select_shift = Arc::new(AtomicBool::new(false));
+    let mul_select_shift = Arc::new(AtomicBool::new(false));
+    let div_select_shift = Arc::new(AtomicBool::new(false));
+    let len_select_shift = Arc::new(AtomicBool::new(false));
 
     let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
 
     for page in 0..64 {
-        let steps = Arc::new(AtomicUsize::new(16));
+        let steps = Arc::new(ObservableBinding::new(AtomicUsize::new(16)));
         let note = Arc::new(AtomicUsize::new(page + 37));
 
         //build up gates
@@ -197,6 +203,7 @@ fn main() {
 
         page_data.push(Arc::new(spinlock::Mutex::new(PageData::new(
             index_binding.clone(),
+            steps.clone(),
             gates.iter().cloned().collect(),
             mul.clone(),
             div.clone(),
@@ -215,6 +222,19 @@ fn main() {
     let draw_data: Vec<Arc<spinlock::Mutex<PageData>>> = page_data.iter().cloned().collect();
     jack_connections.add_observer(new_observer_node(notify_sender));
     let force_id = jack_connections.id();
+
+    let mul_select_shiftc = mul_select_shift.clone();
+    let div_select_shiftc = div_select_shift.clone();
+    let len_select_shiftc = len_select_shift.clone();
+    let page_select_shiftc = page_select_shift.clone();
+
+    let draw_one = |display: &mut QuNeoDisplay, index: usize, value: u8| {
+        for i in 0..64 {
+            display.update(QDisplayType::Pad, i, 0u8);
+        }
+        display.update(QDisplayType::Pad, index, value);
+    };
+
     let drawer = Box::new(QuNeoDrawer::new(
         midi_trig.clone(),
         TimeResched::Relative(441),
@@ -222,18 +242,30 @@ fn main() {
             //TODO make sure the notification is actually something we care about
             let force = notify_receiver.try_iter().any(|x| x == force_id);
             let page = cpage.get();
-            if page < draw_data.len() {
-                let page = draw_data[page].lock();
-                for i in 0..page.gates.len() {
-                    display.update(
-                        QDisplayType::Pad,
-                        i,
-                        if page.gates[i].get() { 127u8 } else { 0u8 },
-                    );
-                }
-                let index = page.index.get();
-                if index < 64 {
-                    display.update(QDisplayType::Pad, index, 32);
+            if page_select_shiftc.get() {
+                draw_one(display, page, 127u8);
+            } else {
+                if page < draw_data.len() {
+                    let page = draw_data[page].lock();
+                    if len_select_shiftc.get() {
+                        draw_one(display, page.length.get() - 1, 64u8);
+                    } else if div_select_shiftc.get() {
+                        draw_one(display, page.clock_div.get() as usize - 1, 127u8);
+                    } else if mul_select_shiftc.get() {
+                        draw_one(display, page.clock_mul.get() as usize - 1, 127u8);
+                    } else {
+                        for i in 0..page.gates.len() {
+                            display.update(
+                                QDisplayType::Pad,
+                                i,
+                                if page.gates[i].get() { 127u8 } else { 0u8 },
+                            );
+                        }
+                        let index = page.index.get();
+                        if index < 64 {
+                            display.update(QDisplayType::Pad, index, 32);
+                        }
+                    }
                 }
                 if force {
                     display.force_draw();
@@ -267,13 +299,25 @@ fn main() {
                                     if on {
                                         if page_select_shift.get() {
                                             current_page.set(index);
+                                        } else if len_select_shift.get() {
+                                            page.length.set(index + 1);
+                                        } else if div_select_shift.get() {
+                                            page.clock_div.set((index + 1) as u8);
+                                        } else if mul_select_shift.get() {
+                                            page.clock_mul.set((index + 1) as u8);
                                         } else {
                                             let v = !page.gates[index].get();
                                             page.gates[index].set(v);
                                         }
                                     }
-                                } else if index == 67 {
-                                    page_select_shift.set(on);
+                                } else {
+                                    match index {
+                                        67 => page_select_shift.set(on),
+                                        76 => mul_select_shift.set(on),
+                                        77 => div_select_shift.set(on),
+                                        79 => len_select_shift.set(on),
+                                        _ => (),
+                                    }
                                 }
                             }
                         }
