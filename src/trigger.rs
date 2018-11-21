@@ -1,5 +1,6 @@
+use binding::ValueSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use ScheduleTrigger;
+use {TimeResched, TimeSched};
 
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -11,6 +12,13 @@ pub struct TriggerId {
 pub trait Trigger {
     fn trigger_index(&self) -> TriggerId;
     fn trigger_eval(&self, tick: usize, context: &mut dyn ScheduleTrigger);
+}
+
+pub trait ScheduleTrigger {
+    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId);
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]);
+    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet);
+    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched;
 }
 
 impl TriggerId {

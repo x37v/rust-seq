@@ -1,8 +1,8 @@
-use base::{ScheduleTrigger, TimeResched, TimeSched};
+use base::{TimeResched, TimeSched};
 use binding::{ParamBindingGet, SpinlockParamBinding, ValueSet};
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
-use trigger::{Trigger, TriggerId};
+use trigger::{ScheduleTrigger, Trigger, TriggerId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MidiValue {

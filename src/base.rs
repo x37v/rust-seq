@@ -58,13 +58,6 @@ pub trait InsertTimeSorted<T> {
     fn insert_time_sorted(&mut self, node: Box<LNode<T>>);
 }
 
-pub trait ScheduleTrigger {
-    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId);
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]);
-    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet);
-    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched;
-}
-
 //an object to be put into a schedule and called later
 pub type SchedFn = Box<dyn SchedCall>;
 pub type TimedTrigNode = Box<LNode<TimedTrig>>;

@@ -1,9 +1,9 @@
 use base::{
-    InsertTimeSorted, LList, SchedFn, ScheduleTrigger, SrcSink, TimeResched, TimeSched, TimedFn,
-    TimedNodeData, TimedTrig,
+    InsertTimeSorted, LList, SchedFn, SrcSink, TimeResched, TimeSched, TimedFn, TimedNodeData,
+    TimedTrig,
 };
 use binding::ValueSet;
-use trigger::TriggerId;
+use trigger::{ScheduleTrigger, TriggerId};
 use util::add_clamped;
 
 pub trait SchedContext: ScheduleTrigger {
