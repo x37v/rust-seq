@@ -45,6 +45,7 @@ pub enum Value {
 pub trait Sched {
     fn schedule(&mut self, t: TimeSched, func: SchedFn);
 }
+
 pub trait SchedCall: Send {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched;
 }
