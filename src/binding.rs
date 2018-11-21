@@ -27,7 +27,10 @@ pub trait ParamBindingLatch {
     fn store(&self);
 }
 
-pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {}
+pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {
+    fn as_param_get(&self) -> &ParamBindingGet<T>;
+    fn as_param_set(&self) -> &ParamBindingSet<T>;
+}
 
 //a binding and a value to set it to
 #[derive(Clone)]
@@ -40,7 +43,17 @@ pub enum ValueSet {
     MIDI(MidiValue, BindingSetP<MidiValue>),
 }
 
-impl<X, T> ParamBinding<T> for X where X: ParamBindingGet<T> + ParamBindingSet<T> {}
+impl<X, T> ParamBinding<T> for X
+where
+    X: ParamBindingGet<T> + ParamBindingSet<T>,
+{
+    fn as_param_get(&self) -> &ParamBindingGet<T> {
+        self
+    }
+    fn as_param_set(&self) -> &ParamBindingSet<T> {
+        self
+    }
+}
 
 impl ValueSet {
     pub fn store(&self) {
