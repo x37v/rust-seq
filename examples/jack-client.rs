@@ -123,11 +123,12 @@ fn main() {
     */
 
     let current_page = Arc::new(AtomicUsize::new(0));
+    let page_select_shift = Arc::new(AtomicBool::new(false));
 
     let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
 
     for page in 0..64 {
-        let steps = Arc::new(AtomicUsize::new(32));
+        let steps = Arc::new(AtomicUsize::new(16));
         let note = Arc::new(AtomicUsize::new(page + 37));
 
         //build up gates
@@ -178,7 +179,6 @@ fn main() {
 
         let index_binding = Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
         let index_bindingc = index_binding.clone();
-        let cpage = current_page.clone();
         let setup =
             IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
                 index_bindingc.set(index);
@@ -211,6 +211,7 @@ fn main() {
 
     sched.schedule(TimeSched::Relative(0), clock);
 
+    let cpage = current_page.clone();
     let draw_data: Vec<Arc<spinlock::Mutex<PageData>>> = page_data.iter().cloned().collect();
     jack_connections.add_observer(new_observer_node(notify_sender));
     let force_id = jack_connections.id();
@@ -220,20 +221,23 @@ fn main() {
         Box::new(move |display: &mut QuNeoDisplay| {
             //TODO make sure the notification is actually something we care about
             let force = notify_receiver.try_iter().any(|x| x == force_id);
-            let page = draw_data[0].lock();
-            for i in 0..page.gates.len() {
-                display.update(
-                    QDisplayType::Pad,
-                    i,
-                    if page.gates[i].get() { 127u8 } else { 0u8 },
-                );
-            }
-            let index = page.index.get();
-            if index < 64 {
-                display.update(QDisplayType::Pad, index, 32);
-            }
-            if force {
-                display.force_draw();
+            let page = cpage.get();
+            if page < draw_data.len() {
+                let page = draw_data[page].lock();
+                for i in 0..page.gates.len() {
+                    display.update(
+                        QDisplayType::Pad,
+                        i,
+                        if page.gates[i].get() { 127u8 } else { 0u8 },
+                    );
+                }
+                let index = page.index.get();
+                if index < 64 {
+                    display.update(QDisplayType::Pad, index, 32);
+                }
+                if force {
+                    display.force_draw();
+                }
             }
         }),
     ));
@@ -247,7 +251,7 @@ fn main() {
         for m in midi_in.iter(ps) {
             if let Some(val) = MidiValue::try_from(m.bytes) {
                 if let MidiValue::Note {
-                    on: true,
+                    on,
                     chan,
                     num,
                     vel: _,
@@ -260,8 +264,16 @@ fn main() {
                                 let page = page_data[page].lock();
                                 let index = num as usize;
                                 if index < page.gates.len() {
-                                    let v = !page.gates[index].get();
-                                    page.gates[index].set(v);
+                                    if on {
+                                        if page_select_shift.get() {
+                                            current_page.set(index);
+                                        } else {
+                                            let v = !page.gates[index].get();
+                                            page.gates[index].set(v);
+                                        }
+                                    }
+                                } else if index == 67 {
+                                    page_select_shift.set(on);
                                 }
                             }
                         }
