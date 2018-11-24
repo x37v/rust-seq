@@ -378,7 +378,6 @@ impl Executor {
                         trig.trigger_eval(time, &mut context);
                     }
                 }
-                //XXX func(time, index, self.time_last, &mut context);
             }
             self.src_sink.dispose(trig);
         }
