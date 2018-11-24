@@ -213,26 +213,17 @@ impl SrcSinkUpdater {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => return false,
             }
-            match self
-                .node_cache_updater
-                .try_send(LNode::new_boxed(Default::default()))
-            {
+            match self.node_cache_updater.try_send(Default::default()) {
                 Ok(_) => continue,
                 Err(TrySendError::Full(_)) => (),
                 Err(TrySendError::Disconnected(_)) => return false,
             }
-            match self
-                .trig_cache_updater
-                .try_send(LNode::new_boxed(Default::default()))
-            {
+            match self.trig_cache_updater.try_send(Default::default()) {
                 Ok(_) => continue,
                 Err(TrySendError::Full(_)) => (),
                 Err(TrySendError::Disconnected(_)) => return false,
             }
-            match self
-                .value_set_cache_updater
-                .try_send(LNode::new_boxed(Default::default()))
-            {
+            match self.value_set_cache_updater.try_send(Default::default()) {
                 Ok(_) => continue,
                 Err(TrySendError::Full(_)) => (),
                 Err(TrySendError::Disconnected(_)) => return false,
