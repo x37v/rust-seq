@@ -152,6 +152,13 @@ where
     }
 }
 
+///implement get for sync types
+impl<T: Copy + Send + Sync> ParamBindingGet<T> for T {
+    fn get(&self) -> T {
+        *self
+    }
+}
+
 // AtomicBool, AtomicUsize, AtomicIsize implementations of ParamBindingGet/ParamBindingSet
 
 const GET_ORDERING: Ordering = Ordering::SeqCst;
