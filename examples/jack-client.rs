@@ -41,6 +41,7 @@ struct PageData {
     clock_div: Arc<dyn ParamBinding<u8>>,
     probability: Arc<dyn ParamBinding<f32>>,
     volume: Arc<dyn ParamBinding<f32>>,
+    volume_rand: Arc<dyn ParamBinding<f32>>,
 }
 
 impl PageData {
@@ -52,6 +53,7 @@ impl PageData {
         clock_div: Arc<dyn ParamBinding<u8>>,
         probability: Arc<dyn ParamBinding<f32>>,
         volume: Arc<dyn ParamBinding<f32>>,
+        volume_rand: Arc<dyn ParamBinding<f32>>,
     ) -> Self {
         Self {
             index,
@@ -61,6 +63,7 @@ impl PageData {
             clock_div,
             probability,
             volume,
+            volume_rand,
         }
     }
 }
@@ -149,7 +152,14 @@ fn main() {
         let probability = SpinlockParamBinding::new_p(1f32);
 
         let volume = SpinlockParamBinding::new_p(1.0f32);
-        let velocity = Arc::new(ParamBindingGetMul::new(volume.clone(), midi_maxf.clone()));
+        let volume_rand = SpinlockParamBinding::new_p(0f32);
+        let volume_rand_offset = Arc::new(ParamBindingGetRand::new(
+            Arc::new(0f32),
+            volume_rand.clone(),
+        ));
+
+        let velocity = Arc::new(ParamBindingGetSum::new(volume.clone(), volume_rand_offset));
+        let velocity = Arc::new(ParamBindingGetMul::new(velocity.clone(), midi_maxf.clone()));
         let velocity: Arc<ParamBindingGetCast<_, f32, u8>> =
             Arc::new(ParamBindingGetCast::new(velocity));
         let velocity = Arc::new(ParamBindingGetClamp::new(
@@ -237,6 +247,7 @@ fn main() {
             div.clone(),
             probability.clone(),
             volume.clone(),
+            volume_rand.clone(),
         ))));
 
         index_binding.add_observer(new_observer_node(notify_sender.clone()));
@@ -296,6 +307,11 @@ fn main() {
                             display.update(QDisplayType::Pad, index, 32);
                         }
                         display.update(QDisplayType::Slider, 4, (127f32 * page.volume.get()) as u8);
+                        display.update(
+                            QDisplayType::Slider,
+                            5,
+                            (127f32 * page.volume_rand.get()) as u8,
+                        );
                         display.update(
                             QDisplayType::Slider,
                             7,
@@ -379,6 +395,7 @@ fn main() {
                             let page = page_data[page].lock();
                             match num {
                                 102 => page.volume.set(val as f32 / 127f32),
+                                103 => page.volume_rand.set(val as f32 / 127f32),
                                 105 => page.probability.set(val as f32 / 127f32),
                                 _ => (),
                             }
