@@ -381,7 +381,9 @@ where
     /// use std::sync::Arc;
     ///
     /// let f = Arc::new(23f32);
-    /// let c : Arc<ParamBindingGetCast<f32, u8, _>> = Arc::new(ParamBindingGetCast::new(f));
+    /// let c : Arc<ParamBindingGetCast<f32, u8, _>> = Arc::new(ParamBindingGetCast::new(f.clone()));
+    /// assert_eq!(23f32, f.get());
+    /// assert_eq!(23u8, c.get());
     /// ```
     pub fn new(binding: Arc<B>) -> Self {
         Self {
