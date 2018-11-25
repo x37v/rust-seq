@@ -7,6 +7,8 @@ use sched::binding::{
     BindingP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
     SpinlockParamBinding, ValueLatch,
 };
+use sched::binding_op::*;
+
 use sched::clock_ratio::ClockRatio;
 use sched::context::SchedContext;
 #[allow(unused_imports)]
@@ -38,6 +40,7 @@ struct PageData {
     clock_mul: Arc<dyn ParamBinding<u8>>,
     clock_div: Arc<dyn ParamBinding<u8>>,
     probability: Arc<dyn ParamBinding<f32>>,
+    volume: Arc<dyn ParamBinding<f32>>,
 }
 
 impl PageData {
@@ -48,6 +51,7 @@ impl PageData {
         clock_mul: Arc<dyn ParamBinding<u8>>,
         clock_div: Arc<dyn ParamBinding<u8>>,
         probability: Arc<dyn ParamBinding<f32>>,
+        volume: Arc<dyn ParamBinding<f32>>,
     ) -> Self {
         Self {
             index,
@@ -56,6 +60,7 @@ impl PageData {
             clock_mul,
             clock_div,
             probability,
+            volume,
         }
     }
 }
@@ -136,9 +141,23 @@ fn main() {
     let len_select_shift = Arc::new(AtomicBool::new(false));
 
     let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
+    let midi_min = SpinlockParamBinding::new_p(0u8);
+    let midi_max = SpinlockParamBinding::new_p(127u8);
+    let midi_maxf = SpinlockParamBinding::new_p(127f32);
 
     for page in 0..64 {
         let probability = SpinlockParamBinding::new_p(1f32);
+
+        let volume = SpinlockParamBinding::new_p(1.0f32);
+        let velocity = Arc::new(ParamBindingGetMul::new(volume.clone(), midi_maxf.clone()));
+        let velocity: Arc<ParamBindingGetCast<_, f32, u8>> =
+            Arc::new(ParamBindingGetCast::new(velocity));
+        let velocity = Arc::new(ParamBindingGetClamp::new(
+            velocity,
+            midi_min.clone(),
+            midi_max.clone(),
+        ));
+
         let steps = Arc::new(ObservableBinding::new(AtomicUsize::new(16)));
         let note = Arc::new(AtomicUsize::new(page + 37));
 
@@ -162,13 +181,14 @@ fn main() {
             ChildCount::None,
             move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
                 let mtrig = mtrig.lock();
+                let vel = velocity.get();
                 mtrig.note_with_dur(
                     TimeSched::Relative(0),
                     TimeResched::Relative(1),
                     context.as_schedule_trigger_mut(),
                     9,
                     note.get() as u8,
-                    127,
+                    vel,
                 );
                 true
             },
@@ -216,6 +236,7 @@ fn main() {
             mul.clone(),
             div.clone(),
             probability.clone(),
+            volume.clone(),
         ))));
 
         index_binding.add_observer(new_observer_node(notify_sender.clone()));
@@ -274,9 +295,10 @@ fn main() {
                         if index < 64 {
                             display.update(QDisplayType::Pad, index, 32);
                         }
+                        display.update(QDisplayType::Slider, 4, (127f32 * page.volume.get()) as u8);
                         display.update(
                             QDisplayType::Slider,
-                            4,
+                            7,
                             (127f32 * page.probability.get()) as u8,
                         );
                     }
@@ -351,15 +373,15 @@ fn main() {
                             _ => (),
                         }
                     }
-                    MidiValue::ContCtrl {
-                        chan: 15,
-                        num: 102,
-                        val,
-                    } => {
+                    MidiValue::ContCtrl { chan: 15, num, val } => {
                         let page = current_page.get();
                         if page < page_data.len() {
                             let page = page_data[page].lock();
-                            page.probability.set(val as f32 / 127f32);
+                            match num {
+                                102 => page.volume.set(val as f32 / 127f32),
+                                105 => page.probability.set(val as f32 / 127f32),
+                                _ => (),
+                            }
                         }
                     }
                     _ => (),
