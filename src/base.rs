@@ -4,7 +4,7 @@ extern crate xnor_llist;
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
-use binding::ValueSet;
+use binding::BindingSet;
 use context::{RootContext, SchedContext};
 use std;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -63,7 +63,7 @@ pub trait InsertTimeSorted<T> {
 pub type SchedFn = Box<dyn SchedCall>;
 pub type TimedTrigNode = Box<LNode<TimedTrig>>;
 pub type SchedFnNode = Box<LNode<TimedFn>>;
-pub type ValueSetNode = Box<LNode<ValueSet>>;
+pub type BindingSetNode = Box<LNode<BindingSet>>;
 pub type TriggerNode = Box<LNode<Arc<spinlock::Mutex<dyn Trigger>>>>;
 
 //implement sched_call for any Fn that with the correct sig
@@ -120,7 +120,7 @@ impl Default for TimedFn {
 pub struct TimedTrig {
     time: usize,
     index: Option<TriggerId>,
-    values: LList<ValueSet>,
+    values: LList<BindingSet>,
 }
 
 impl TimedTrig {
@@ -130,10 +130,10 @@ impl TimedTrig {
     pub fn index(&self) -> Option<TriggerId> {
         self.index
     }
-    pub fn add_value(&mut self, vnode: ValueSetNode) {
+    pub fn add_value(&mut self, vnode: BindingSetNode) {
         self.values.push_front(vnode);
     }
-    pub fn values(&self) -> &LList<ValueSet> {
+    pub fn values(&self) -> &LList<BindingSet> {
         &self.values
     }
 }
@@ -160,7 +160,7 @@ impl Default for TimedTrig {
 pub struct SrcSink {
     node_cache: Receiver<SchedFnNode>,
     trig_cache: Receiver<TimedTrigNode>,
-    value_set_cache: Receiver<ValueSetNode>,
+    value_set_cache: Receiver<BindingSetNode>,
     dispose_schedule_sender: SyncSender<Box<dyn Send>>,
     updater: Option<SrcSinkUpdater>,
 }
@@ -168,7 +168,7 @@ pub struct SrcSink {
 pub struct SrcSinkUpdater {
     node_cache_updater: SyncSender<SchedFnNode>,
     trig_cache_updater: SyncSender<TimedTrigNode>,
-    value_set_cache_updater: SyncSender<ValueSetNode>,
+    value_set_cache_updater: SyncSender<BindingSetNode>,
     dispose_schedule_receiver: Receiver<Box<dyn Send>>,
 }
 
@@ -195,7 +195,7 @@ impl SrcSinkUpdater {
     pub fn new(
         node_cache_updater: SyncSender<SchedFnNode>,
         trig_cache_updater: SyncSender<TimedTrigNode>,
-        value_set_cache_updater: SyncSender<ValueSetNode>,
+        value_set_cache_updater: SyncSender<BindingSetNode>,
         dispose_schedule_receiver: Receiver<Box<dyn Send>>,
     ) -> Self {
         Self {
@@ -266,7 +266,7 @@ impl SrcSink {
         self.trig_cache.try_recv().ok()
     }
 
-    pub fn pop_value_set(&mut self) -> Option<ValueSetNode> {
+    pub fn pop_value_set(&mut self) -> Option<BindingSetNode> {
         self.value_set_cache.try_recv().ok()
     }
 

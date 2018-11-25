@@ -2,7 +2,7 @@ use base::{
     InsertTimeSorted, LList, SchedFn, SrcSink, TimeResched, TimeSched, TimedFn, TimedNodeData,
     TimedTrig,
 };
-use binding::ValueSet;
+use binding::BindingSet;
 use trigger::{ScheduleTrigger, TriggerId};
 use util::add_clamped;
 
@@ -103,7 +103,12 @@ impl<'a> ScheduleTrigger for RootContext<'a> {
             println!("OOPS");
         }
     }
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]) {
+    fn schedule_valued_trigger(
+        &mut self,
+        time: TimeSched,
+        index: TriggerId,
+        values: &[BindingSet],
+    ) {
         if let Some(mut n) = self.src_sink.pop_trig() {
             n.set_index(Some(index));
             n.set_time(self.to_tick(&time));
@@ -121,7 +126,7 @@ impl<'a> ScheduleTrigger for RootContext<'a> {
             println!("OOPS");
         }
     }
-    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {
+    fn schedule_value(&mut self, time: TimeSched, value: &BindingSet) {
         if let Some(mut n) = self.src_sink.pop_trig() {
             n.set_index(None);
             n.set_time(self.to_tick(&time));
@@ -222,11 +227,16 @@ impl<'a> ScheduleTrigger for ChildContext<'a> {
         self.parent
             .schedule_trigger(self.translate_time(&time), index);
     }
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]) {
+    fn schedule_valued_trigger(
+        &mut self,
+        time: TimeSched,
+        index: TriggerId,
+        values: &[BindingSet],
+    ) {
         self.parent
             .schedule_valued_trigger(self.translate_time(&time), index, values);
     }
-    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet) {
+    fn schedule_value(&mut self, time: TimeSched, value: &BindingSet) {
         self.parent
             .schedule_value(self.translate_time(&time), value);
     }
@@ -255,7 +265,10 @@ mod tests {
         c.schedule_valued_trigger(
             TimeSched::Relative(0),
             trig,
-            &[ValueSet::F32(3.0, fbinding), ValueSet::I32(2084, ibinding)],
+            &[
+                BindingSet::F32(3.0, fbinding),
+                BindingSet::I32(2084, ibinding),
+            ],
         );
     }
 }

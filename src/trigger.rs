@@ -1,4 +1,4 @@
-use binding::ValueSet;
+use binding::BindingSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use {TimeResched, TimeSched};
 
@@ -16,8 +16,8 @@ pub trait Trigger {
 
 pub trait ScheduleTrigger {
     fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId);
-    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[ValueSet]);
-    fn schedule_value(&mut self, time: TimeSched, value: &ValueSet);
+    fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[BindingSet]);
+    fn schedule_value(&mut self, time: TimeSched, value: &BindingSet);
     fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched;
 }
 

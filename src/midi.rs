@@ -1,5 +1,5 @@
 use base::{TimeResched, TimeSched};
-use binding::{ParamBindingGet, SpinlockParamBinding, ValueSet};
+use binding::{BindingSet, ParamBindingGet, SpinlockParamBinding};
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use trigger::{ScheduleTrigger, Trigger, TriggerId};
@@ -234,7 +234,7 @@ impl MidiTrigger {
         schedule.schedule_valued_trigger(
             time,
             self.trigger_index,
-            &[ValueSet::Midi(value, self.value.clone())],
+            &[BindingSet::Midi(value, self.value.clone())],
         );
     }
 }

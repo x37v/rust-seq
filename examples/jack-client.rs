@@ -4,8 +4,8 @@ extern crate sched;
 
 use sched::binding::bpm;
 use sched::binding::{
-    BindingP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
-    SpinlockParamBinding, ValueLatch,
+    BindingLatch, BindingP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
+    SpinlockParamBinding,
 };
 use sched::binding_op::*;
 
@@ -181,9 +181,9 @@ fn main() {
         }
 
         let step_gate = Arc::new(AtomicBool::new(false));
-        let latches: Vec<ValueLatch<bool>> = gates
+        let latches: Vec<BindingLatch<bool>> = gates
             .iter()
-            .map(|g| ValueLatch::new(g.clone(), step_gate.clone()))
+            .map(|g| BindingLatch::new(g.clone(), step_gate.clone()))
             .collect();
 
         let mtrig = midi_trig.clone();

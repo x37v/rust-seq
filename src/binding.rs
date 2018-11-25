@@ -31,7 +31,7 @@ pub trait ParamBinding<T>: ParamBindingSet<T> + ParamBindingGet<T> {
 
 //a binding and a value to set it to
 #[derive(Clone)]
-pub enum ValueSet {
+pub enum BindingSet {
     None,
     F32(f32, BindingSetP<f32>),
     I32(i32, BindingSetP<i32>),
@@ -52,47 +52,47 @@ where
     }
 }
 
-impl ValueSet {
+impl BindingSet {
     pub fn store(&self) {
         match self {
-            ValueSet::None => (),
-            ValueSet::F32(v, b) => b.set(*v),
-            ValueSet::I32(v, b) => b.set(*v),
-            ValueSet::U8(v, b) => b.set(*v),
-            ValueSet::Bool(v, b) => b.set(*v),
-            ValueSet::Midi(v, b) => b.set(*v),
+            BindingSet::None => (),
+            BindingSet::F32(v, b) => b.set(*v),
+            BindingSet::I32(v, b) => b.set(*v),
+            BindingSet::U8(v, b) => b.set(*v),
+            BindingSet::Bool(v, b) => b.set(*v),
+            BindingSet::Midi(v, b) => b.set(*v),
         }
     }
 }
 
-pub struct ValueLatch<T> {
+pub struct BindingLatch<T> {
     get: BindingGetP<T>,
     set: BindingSetP<T>,
 }
 
-pub struct AggregateValueLatch {
+pub struct AggregateBindingLatch {
     latches: Vec<Arc<dyn ParamBindingLatch>>,
 }
 
-impl<T> ValueLatch<T> {
+impl<T> BindingLatch<T> {
     pub fn new(get: BindingGetP<T>, set: BindingSetP<T>) -> Self {
         Self { get, set }
     }
 }
 
-impl AggregateValueLatch {
+impl AggregateBindingLatch {
     pub fn new(latches: Vec<Arc<dyn ParamBindingLatch>>) -> Self {
         Self { latches }
     }
 }
 
-impl<T> ParamBindingLatch for ValueLatch<T> {
+impl<T> ParamBindingLatch for BindingLatch<T> {
     fn store(&self) {
         self.set.set(self.get.get());
     }
 }
 
-impl ParamBindingLatch for AggregateValueLatch {
+impl ParamBindingLatch for AggregateBindingLatch {
     fn store(&self) {
         for l in self.latches.iter() {
             l.store();
@@ -109,9 +109,9 @@ pub struct SpinlockParamBinding<T: Copy> {
     lock: spinlock::Mutex<Cell<T>>,
 }
 
-impl Default for ValueSet {
+impl Default for BindingSet {
     fn default() -> Self {
-        ValueSet::None
+        BindingSet::None
     }
 }
 
