@@ -25,11 +25,11 @@ pub struct GetClampBelow<T, B, Max> {
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-/// Get an random numeric value [min, max(.
+/// Get an uniform random numeric value [min, max(.
 ///
 /// This generates a new random value that is greater than or equal to `min` and less than `max`
 /// every time you call `.get()` on it.
-pub struct GetRand<T, Min, Max> {
+pub struct GetUniformRand<T, Min, Max> {
     min: Arc<Min>,
     max: Arc<Max>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
@@ -187,13 +187,13 @@ where
     }
 }
 
-impl<T, Min, Max> GetRand<T, Min, Max>
+impl<T, Min, Max> GetUniformRand<T, Min, Max>
 where
     T: Send,
     Min: ParamBindingGet<T>,
     Max: ParamBindingGet<T>,
 {
-    /// Construct a new `GetRand`
+    /// Construct a new `GetUniformRand`
     ///
     /// # Arguments
     ///
@@ -211,7 +211,7 @@ where
     }
 }
 
-impl<T, Min, Max> ParamBindingGet<T> for GetRand<T, Min, Max>
+impl<T, Min, Max> ParamBindingGet<T> for GetUniformRand<T, Min, Max>
 where
     T: rand::distributions::uniform::SampleUniform + PartialOrd,
     Min: ParamBindingGet<T>,
