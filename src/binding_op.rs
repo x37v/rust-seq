@@ -368,6 +368,21 @@ where
     /// # Arguments
     ///
     /// * `binding` - the binding to cast
+    ///
+    /// # Example
+    ///
+    /// Sometimes you might have to specify the destination type of the cast.
+    /// Here we specify both the source and the destination, `f32` into `u8`.
+    /// The type of the source binding can be discovered easily by the compiler.
+    ///
+    /// ```
+    /// use sched::binding::ParamBindingGet;
+    /// use sched::binding_op::ParamBindingGetCast;
+    /// use std::sync::Arc;
+    ///
+    /// let f = Arc::new(23f32);
+    /// let c : Arc<ParamBindingGetCast<f32, u8, _>> = Arc::new(ParamBindingGetCast::new(f));
+    /// ```
     pub fn new(binding: Arc<B>) -> Self {
         Self {
             binding,
