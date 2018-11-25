@@ -4,7 +4,8 @@ extern crate xnor_llist;
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
-use binding::BindingSet;
+use binding::set::BindingSet;
+use binding::ParamBindingLatch;
 use context::{RootContext, SchedContext};
 use std;
 use std::sync::atomic::{AtomicUsize, Ordering};

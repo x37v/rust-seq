@@ -2,7 +2,7 @@ use base::{
     InsertTimeSorted, LList, SchedFn, SrcSink, TimeResched, TimeSched, TimedFn, TimedNodeData,
     TimedTrig,
 };
-use binding::BindingSet;
+use binding::set::BindingSet;
 use trigger::{ScheduleTrigger, TriggerId};
 use util::add_clamped;
 

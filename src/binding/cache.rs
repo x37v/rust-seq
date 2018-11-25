@@ -1,4 +1,5 @@
-use binding::{ParamBinding, SpinlockParamBinding};
+use super::spinlock::SpinlockParamBinding;
+use super::*;
 use failure::Fail;
 use std::any::Any;
 use std::collections::HashMap;

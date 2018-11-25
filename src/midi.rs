@@ -1,5 +1,5 @@
 use base::{TimeResched, TimeSched};
-use binding::{BindingSet, ParamBindingGet, SpinlockParamBinding};
+use binding::{set::BindingSet, spinlock::SpinlockParamBinding, ParamBindingGet};
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use trigger::{ScheduleTrigger, Trigger, TriggerId};

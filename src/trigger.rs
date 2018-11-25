@@ -1,4 +1,4 @@
-use binding::BindingSet;
+use binding::set::BindingSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use {TimeResched, TimeSched};
 
