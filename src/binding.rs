@@ -1,9 +1,6 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
-pub use xnor_llist::List as LList;
-pub use xnor_llist::Node as LNode;
-
 use midi::MidiValue;
 
 use std::cell::Cell;
@@ -157,7 +154,8 @@ impl<T: Copy + Send + Sync> ParamBindingGet<T> for T {
     }
 }
 
-// AtomicBool, AtomicUsize, AtomicIsize implementations of ParamBindingGet/ParamBindingSet
+/// Implementations of `ParamBindingGet` and `ParamBindingSet` for `AtomicBool`, `AtomicUsize`,
+/// and `AtomicIsize`
 
 const GET_ORDERING: Ordering = Ordering::SeqCst;
 const SET_ORDERING: Ordering = Ordering::SeqCst;
