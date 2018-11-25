@@ -4,6 +4,7 @@ extern crate sched;
 
 use sched::binding::bpm;
 use sched::binding::ops::*;
+use sched::binding::set::BindingSet;
 use sched::binding::{
     latch::BindingLatch, spinlock::SpinlockParamBinding, BindingP, ParamBinding, ParamBindingGet,
     ParamBindingLatch, ParamBindingSet,
@@ -212,13 +213,13 @@ fn main() {
 
         let index_binding = Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
         let index_bindingc = index_binding.clone();
-        let setup =
-            IndexFuncWrapper::new_p(move |index: usize, _context: &mut dyn SchedContext| {
-                index_bindingc.set(index);
-                if index < latches.len() {
-                    latches[index].store();
-                }
-            });
+        let setup = IndexFuncWrapper::new_p(move |index: usize, context: &mut dyn SchedContext| {
+            let t = TimeSched::ContextAbsolute(context.context_tick());
+            context.schedule_value(t, &BindingSet::USize(index, index_bindingc.clone()));
+            if index < latches.len() {
+                latches[index].store();
+            }
+        });
         step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
         let prob = GraphNodeWrapper::new_p(ProbabilityGate::new_p(probability.clone()));
