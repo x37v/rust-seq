@@ -3,10 +3,24 @@ use rand::prelude::*;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-///Clamp a numeric binding between a minimum and maximum value, inclusive.
+///Clamp a numeric binding between [min, max], inclusive.
 pub struct ParamBindingGetClamp<T, B, Min, Max> {
     binding: Arc<B>,
     min: Arc<Min>,
+    max: Arc<Max>,
+    _phantom: spinlock::Mutex<PhantomData<T>>,
+}
+
+///Clamp a numeric above a min value, inclusive.
+pub struct ParamBindingGetClampAbove<T, B, Min> {
+    binding: Arc<B>,
+    min: Arc<Min>,
+    _phantom: spinlock::Mutex<PhantomData<T>>,
+}
+
+///Clamp a numeric below a max value, inclusive.
+pub struct ParamBindingGetClampBelow<T, B, Max> {
+    binding: Arc<B>,
     max: Arc<Max>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
@@ -74,6 +88,70 @@ where
         let min = self.min.get();
         let max = self.max.get();
         num::clamp(b, min, max)
+    }
+}
+
+impl<T, B, Min> ParamBindingGetClampAbove<T, B, Min>
+where
+    T: Send + Copy + PartialOrd,
+    B: ParamBindingGet<T>,
+    Min: ParamBindingGet<T>,
+{
+    pub fn new(binding: Arc<B>, min: Arc<Min>) -> Self {
+        Self {
+            binding,
+            min,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T, B, Min> ParamBindingGet<T> for ParamBindingGetClampAbove<T, B, Min>
+where
+    T: PartialOrd,
+    B: ParamBindingGet<T>,
+    Min: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        let b = self.binding.get();
+        let min = self.min.get();
+        if b < min {
+            min
+        } else {
+            b
+        }
+    }
+}
+
+impl<T, B, Max> ParamBindingGetClampBelow<T, B, Max>
+where
+    T: Send + Copy + PartialOrd,
+    B: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
+{
+    pub fn new(binding: Arc<B>, max: Arc<Max>) -> Self {
+        Self {
+            binding,
+            max,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T, B, Max> ParamBindingGet<T> for ParamBindingGetClampBelow<T, B, Max>
+where
+    T: PartialOrd,
+    B: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        let b = self.binding.get();
+        let max = self.max.get();
+        if b > max {
+            max
+        } else {
+            b
+        }
     }
 }
 
