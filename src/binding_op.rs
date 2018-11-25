@@ -202,10 +202,14 @@ where
 impl<B, I, O> ParamBindingGet<O> for ParamBindingGetCast<B, I, O>
 where
     I: num::NumCast,
-    O: num::NumCast,
+    O: num::NumCast + Default,
     B: ParamBindingGet<I>,
 {
     fn get(&self) -> O {
-        O::from(self.binding.get()).unwrap()
+        if let Some(v) = O::from(self.binding.get()) {
+            v
+        } else {
+            Default::default()
+        }
     }
 }
