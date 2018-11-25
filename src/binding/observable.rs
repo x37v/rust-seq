@@ -217,7 +217,7 @@ pub mod bpm {
 mod tests {
     use super::*;
     use binding::bpm::Clock;
-    use binding::{ParamBindingSet, SpinlockParamBinding};
+    use binding::{spinlock::SpinlockParamBinding, ParamBindingSet};
     use std::sync::atomic::AtomicIsize;
     use std::sync::mpsc::sync_channel;
     use std::sync::Arc;

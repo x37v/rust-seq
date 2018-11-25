@@ -3,12 +3,13 @@ extern crate rosc;
 extern crate sched;
 
 use sched::binding::bpm;
+use sched::binding::ops::*;
 use sched::binding::{
-    BindingLatch, BindingP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
-    SpinlockParamBinding,
+    latch::BindingLatch, spinlock::SpinlockParamBinding, BindingP, ParamBinding, ParamBindingGet,
+    ParamBindingLatch, ParamBindingSet,
 };
-use sched::binding_op::*;
 
+use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::clock_ratio::ClockRatio;
 use sched::context::SchedContext;
 #[allow(unused_imports)]
@@ -18,7 +19,6 @@ use sched::graph::{
     NChildGraphNodeWrapper, RootClock,
 };
 use sched::midi::{MidiTrigger, MidiValue};
-use sched::observable_binding::{new_observer_node, Observable, ObservableBinding};
 use sched::probability_gate::ProbabilityGate;
 use sched::spinlock;
 use sched::step_seq::StepSeq;

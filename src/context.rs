@@ -250,7 +250,7 @@ impl<'a> ScheduleTrigger for ChildContext<'a> {
 mod tests {
     use super::*;
     use base::{LList, SrcSink, TimeSched};
-    use binding::SpinlockParamBinding;
+    use binding::spinlock::SpinlockParamBinding;
     use context::RootContext;
     #[test]
     fn works() {

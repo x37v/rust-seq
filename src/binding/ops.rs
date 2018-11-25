@@ -377,7 +377,7 @@ where
     ///
     /// ```
     /// use sched::binding::ParamBindingGet;
-    /// use sched::binding_op::ParamBindingGetCast;
+    /// use sched::binding::ops::ParamBindingGetCast;
     /// use std::sync::Arc;
     ///
     /// let f = Arc::new(23f32);
