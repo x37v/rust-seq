@@ -2,6 +2,7 @@ use binding::ParamBindingGet;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+///Clamp a numeric binding between a minimum and maximum value, inclusive.
 pub struct ParamBindingGetClamp<T, B, Min, Max> {
     binding: Arc<B>,
     min: Arc<Min>,
@@ -9,23 +10,27 @@ pub struct ParamBindingGetClamp<T, B, Min, Max> {
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
+///Sum two numeric bindings.
 pub struct ParamBindingGetSum<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
+///Multiply two numeric bindings.
 pub struct ParamBindingGetMul<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
+///Negate a signed numeric binding.
 pub struct ParamBindingGetNegate<T, B> {
     binding: Arc<B>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
+///Cast one numeric binding to another.
 pub struct ParamBindingGetCast<B, I, O> {
     binding: Arc<B>,
     _iphantom: spinlock::Mutex<PhantomData<I>>,
