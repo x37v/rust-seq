@@ -21,6 +21,11 @@ pub struct ParamBindingGetMul<T, L, R> {
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
+pub struct ParamBindingGetNegate<T, B> {
+    binding: Arc<B>,
+    _phantom: spinlock::Mutex<PhantomData<T>>,
+}
+
 pub struct ParamBindingGetCast<B, I, O> {
     binding: Arc<B>,
     _iphantom: spinlock::Mutex<PhantomData<I>>,
@@ -108,6 +113,29 @@ where
 {
     fn get(&self) -> T {
         self.left.get().mul(self.right.get())
+    }
+}
+
+impl<T, B> ParamBindingGetNegate<T, B>
+where
+    T: Send,
+    B: ParamBindingGet<T>,
+{
+    pub fn new(binding: Arc<B>) -> Self {
+        Self {
+            binding,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T, B> ParamBindingGet<T> for ParamBindingGetNegate<T, B>
+where
+    T: num::Signed,
+    B: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        -self.binding.get()
     }
 }
 
