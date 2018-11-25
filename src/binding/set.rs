@@ -1,6 +1,10 @@
 use super::*;
 
-//a binding and a value to set it to
+/// A Binding and a value to set it to.
+///
+/// # Note:
+///
+/// Used for [`trigger`](../../trigger/index.html)
 #[derive(Clone)]
 pub enum BindingSet {
     None,
