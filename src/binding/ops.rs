@@ -66,6 +66,8 @@ pub struct GetNegate<T, B> {
 }
 
 /// Cast one numeric binding to another.
+///
+/// *Note*: if the cast fails, it returns `Default::default()` of the destination value.
 pub struct GetCast<I, O, B> {
     binding: Arc<B>,
     _iphantom: spinlock::Mutex<PhantomData<I>>,
