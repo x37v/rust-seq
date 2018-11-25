@@ -153,7 +153,7 @@ fn main() {
 
         let volume = SpinlockParamBinding::new_p(1.0f32);
         let volume_rand = SpinlockParamBinding::new_p(0f32);
-        let volume_rand_offset = Arc::new(GetRand::new(Arc::new(0f32), volume_rand.clone()));
+        let volume_rand_offset = Arc::new(GetUniformRand::new(Arc::new(0f32), volume_rand.clone()));
 
         let velocity = Arc::new(GetSum::new(volume.clone(), volume_rand_offset));
         let velocity = Arc::new(GetMul::new(velocity.clone(), midi_maxf.clone()));
