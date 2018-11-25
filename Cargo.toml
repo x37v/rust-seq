@@ -7,7 +7,7 @@ authors = ["Alex Norman <alex@x37v.info>"]
 xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop" }
 spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop" }
 euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git"}
-rand = "0.5.5"
+rand = "0.6.1"
 num = "0.2.0"
 failure = "0.1.3"
 

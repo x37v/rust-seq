@@ -1,6 +1,7 @@
 #![feature(nll)]
 
 extern crate failure;
+extern crate rand;
 pub extern crate spinlock;
 pub extern crate xnor_llist;
 
@@ -16,6 +17,7 @@ pub mod util;
 pub mod clock_ratio;
 pub mod euclid;
 pub mod midi;
+pub mod probability_gate;
 pub mod step_seq;
 
 //XXX move to its own crate?
