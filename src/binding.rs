@@ -36,8 +36,8 @@ pub enum ValueSet {
     F32(f32, BindingSetP<f32>),
     I32(i32, BindingSetP<i32>),
     U8(u8, BindingSetP<u8>),
-    BOOL(bool, BindingSetP<bool>),
-    MIDI(MidiValue, BindingSetP<MidiValue>),
+    Bool(bool, BindingSetP<bool>),
+    Midi(MidiValue, BindingSetP<MidiValue>),
 }
 
 impl<X, T> ParamBinding<T> for X
@@ -59,8 +59,8 @@ impl ValueSet {
             ValueSet::F32(v, b) => b.set(*v),
             ValueSet::I32(v, b) => b.set(*v),
             ValueSet::U8(v, b) => b.set(*v),
-            ValueSet::BOOL(v, b) => b.set(*v),
-            ValueSet::MIDI(v, b) => b.set(*v),
+            ValueSet::Bool(v, b) => b.set(*v),
+            ValueSet::Midi(v, b) => b.set(*v),
         }
     }
 }

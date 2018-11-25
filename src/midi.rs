@@ -234,7 +234,7 @@ impl MidiTrigger {
         schedule.schedule_valued_trigger(
             time,
             self.trigger_index,
-            &[ValueSet::MIDI(value, self.value.clone())],
+            &[ValueSet::Midi(value, self.value.clone())],
         );
     }
 }
