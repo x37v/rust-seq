@@ -377,5 +377,4 @@ mod tests {
         assert_eq!(5208f32, c.lock().period_micros().floor());
         assert_eq!(5208f32, micros.get().floor());
     }
-
 }
