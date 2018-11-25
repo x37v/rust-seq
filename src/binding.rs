@@ -103,12 +103,10 @@ impl ParamBindingLatch for AggregateValueLatch {
     }
 }
 
-/// SpinlockParamBinding: wrap any `Copy` type in a `spinlock:Mutex` so it can be shared across
-/// threads.
+/// Wrap any `Copy` type in a `spinlock::Mutex` so it can be shared across threads.
 ///
-/// *Note*: AtomicBool, AtomicUsize, and AtomicIsize ParamBindingGet/ParamBindingSet
-/// implementations exist below, these are be better to use for bool, usize and isize wrapping.
-///
+/// *Note*: `AtomicBool`, `AtomicUsize`, and `AtomicIsize` `ParamBindingGet` and `ParamBindingSet`
+/// implementations exist below, these are be better to use for `bool`, `usize` and `isize` wrapping.
 
 pub struct SpinlockParamBinding<T: Copy> {
     lock: spinlock::Mutex<Cell<T>>,
