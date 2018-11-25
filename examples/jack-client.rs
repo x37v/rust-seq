@@ -17,6 +17,7 @@ use sched::graph::{
 };
 use sched::midi::{MidiTrigger, MidiValue};
 use sched::observable_binding::{new_observer_node, Observable, ObservableBinding};
+use sched::probability_gate::ProbabilityGate;
 use sched::spinlock;
 use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
@@ -36,6 +37,7 @@ struct PageData {
     gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
     clock_mul: Arc<dyn ParamBinding<u8>>,
     clock_div: Arc<dyn ParamBinding<u8>>,
+    probability: Arc<dyn ParamBinding<f32>>,
 }
 
 impl PageData {
@@ -45,13 +47,15 @@ impl PageData {
         gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
         clock_mul: Arc<dyn ParamBinding<u8>>,
         clock_div: Arc<dyn ParamBinding<u8>>,
+        probability: Arc<dyn ParamBinding<f32>>,
     ) -> Self {
         Self {
             index,
             length,
             gates,
-            clock_mul: clock_mul.clone(),
-            clock_div: clock_div.clone(),
+            clock_mul,
+            clock_div,
+            probability,
         }
     }
 }
@@ -134,6 +138,7 @@ fn main() {
     let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
 
     for page in 0..64 {
+        let probability = SpinlockParamBinding::new_p(1f32);
         let steps = Arc::new(ObservableBinding::new(AtomicUsize::new(16)));
         let note = Arc::new(AtomicUsize::new(page + 37));
 
@@ -194,7 +199,10 @@ fn main() {
             });
         step_seq.lock().index_child_append(LNode::new_boxed(setup));
 
-        gate.lock().child_append(LNode::new_boxed(trig));
+        let prob = GraphNodeWrapper::new_p(ProbabilityGate::new_p(probability.clone()));
+        prob.lock().child_append(LNode::new_boxed(trig));
+
+        gate.lock().child_append(LNode::new_boxed(prob));
 
         step_seq.lock().child_append(LNode::new_boxed(gate));
 
@@ -207,6 +215,7 @@ fn main() {
             gates.iter().cloned().collect(),
             mul.clone(),
             div.clone(),
+            probability.clone(),
         ))));
 
         index_binding.add_observer(new_observer_node(notify_sender.clone()));
@@ -265,6 +274,11 @@ fn main() {
                         if index < 64 {
                             display.update(QDisplayType::Pad, index, 32);
                         }
+                        display.update(
+                            QDisplayType::Slider,
+                            4,
+                            (127f32 * page.probability.get()) as u8,
+                        );
                     }
                 }
                 if force {
@@ -282,60 +296,73 @@ fn main() {
         //read in midi
         for m in midi_in.iter(ps) {
             if let Some(val) = MidiValue::try_from(m.bytes) {
-                if let MidiValue::Note {
-                    on,
-                    chan,
-                    num,
-                    vel: _,
-                } = val
-                {
-                    match chan {
-                        15 => {
-                            let page = current_page.get();
-                            if page < page_data.len() {
-                                let page = page_data[page].lock();
-                                let index = num as usize;
-                                if index < page.gates.len() {
-                                    if on {
-                                        if page_select_shift.get() {
-                                            current_page.set(index);
-                                        } else if len_select_shift.get() {
-                                            page.length.set(index + 1);
-                                        } else if div_select_shift.get() {
-                                            page.clock_div.set((index + 1) as u8);
-                                        } else if mul_select_shift.get() {
-                                            page.clock_mul.set((index + 1) as u8);
-                                        } else {
-                                            let v = !page.gates[index].get();
-                                            page.gates[index].set(v);
+                match val {
+                    MidiValue::Note {
+                        on,
+                        chan,
+                        num,
+                        vel: _,
+                    } => {
+                        match chan {
+                            15 => {
+                                let page = current_page.get();
+                                if page < page_data.len() {
+                                    let page = page_data[page].lock();
+                                    let index = num as usize;
+                                    if index < page.gates.len() {
+                                        if on {
+                                            if page_select_shift.get() {
+                                                current_page.set(index);
+                                            } else if len_select_shift.get() {
+                                                page.length.set(index + 1);
+                                            } else if div_select_shift.get() {
+                                                page.clock_div.set((index + 1) as u8);
+                                            } else if mul_select_shift.get() {
+                                                page.clock_mul.set((index + 1) as u8);
+                                            } else {
+                                                let v = !page.gates[index].get();
+                                                page.gates[index].set(v);
+                                            }
                                         }
-                                    }
-                                } else {
-                                    match index {
-                                        67 => page_select_shift.set(on),
-                                        76 => mul_select_shift.set(on),
-                                        77 => div_select_shift.set(on),
-                                        79 => len_select_shift.set(on),
-                                        _ => (),
+                                    } else {
+                                        match index {
+                                            67 => page_select_shift.set(on),
+                                            76 => mul_select_shift.set(on),
+                                            77 => div_select_shift.set(on),
+                                            79 => len_select_shift.set(on),
+                                            _ => (),
+                                        }
                                     }
                                 }
                             }
-                        }
-                        /*
-                        8 => {
-                            if let Some(offset) = match num {
-                                48 => Some(1.0f32),
-                                49 => Some(-1.0f32),
-                                _ => None,
-                            } {
-                                let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f32) / 127f32);
-                                bpm.set(c);
-                                println!("BPM {}", c);
+                            /*
+                            8 => {
+                                if let Some(offset) = match num {
+                                    48 => Some(1.0f32),
+                                    49 => Some(-1.0f32),
+                                    _ => None,
+                                } {
+                                    let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f32) / 127f32);
+                                    bpm.set(c);
+                                    println!("BPM {}", c);
+                                }
                             }
+                            */
+                            _ => (),
                         }
-                        */
-                        _ => (),
                     }
+                    MidiValue::ContCtrl {
+                        chan: 15,
+                        num: 102,
+                        val,
+                    } => {
+                        let page = current_page.get();
+                        if page < page_data.len() {
+                            let page = page_data[page].lock();
+                            page.probability.set(val as f32 / 127f32);
+                        }
+                    }
+                    _ => (),
                 }
             }
         }
