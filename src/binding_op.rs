@@ -3,7 +3,7 @@ use rand::prelude::*;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-///Clamp a numeric binding between [min, max], inclusive.
+/// Clamp a numeric binding between [min, max], inclusive.
 pub struct ParamBindingGetClamp<T, B, Min, Max> {
     binding: Arc<B>,
     min: Arc<Min>,
@@ -11,58 +11,61 @@ pub struct ParamBindingGetClamp<T, B, Min, Max> {
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Clamp a numeric above a min value, inclusive.
+/// Clamp a numeric above a min value, inclusive.
 pub struct ParamBindingGetClampAbove<T, B, Min> {
     binding: Arc<B>,
     min: Arc<Min>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Clamp a numeric below a max value, inclusive.
+/// Clamp a numeric below a max value, inclusive.
 pub struct ParamBindingGetClampBelow<T, B, Max> {
     binding: Arc<B>,
     max: Arc<Max>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Get an random numeric value [min, max(.
+/// Get an random numeric value [min, max(.
+///
+/// This generates a new random value that is greater than or equal to `min` and less than `max`
+/// every time you call `.get()` on it.
 pub struct ParamBindingGetRand<T, Min, Max> {
     min: Arc<Min>,
     max: Arc<Max>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Sum two numeric bindings.
+/// Sum two numeric bindings.
 pub struct ParamBindingGetSum<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Multiply two numeric bindings.
+/// Multiply two numeric bindings.
 pub struct ParamBindingGetMul<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Divide two numeric bindings.
+/// Divide two numeric bindings.
 ///
 ///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
-///so you probably still want to protect against it.
+/// so you probably still want to protect against it.
 pub struct ParamBindingGetDiv<T, N, D> {
     num: Arc<N>,
     den: Arc<D>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Negate a signed numeric binding.
+/// Negate a signed numeric binding.
 pub struct ParamBindingGetNegate<T, B> {
     binding: Arc<B>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
-///Cast one numeric binding to another.
+/// Cast one numeric binding to another.
 pub struct ParamBindingGetCast<I, O, B> {
     binding: Arc<B>,
     _iphantom: spinlock::Mutex<PhantomData<I>>,
@@ -76,6 +79,13 @@ where
     Min: ParamBindingGet<T>,
     Max: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetClamp`
+    ///
+    /// # Arguments
+    ///
+    /// * `binding` - the binding value to clamp
+    /// * `min` - the binding for the minimum value
+    /// * `max` - the binding for the maximum value
     pub fn new(binding: Arc<B>, min: Arc<Min>, max: Arc<Max>) -> Self {
         Self {
             binding,
@@ -107,6 +117,12 @@ where
     B: ParamBindingGet<T>,
     Min: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetClampAbove`
+    ///
+    /// # Arguments
+    ///
+    /// * `binding` - the binding value to clamp
+    /// * `min` - the binding for the minimum value
     pub fn new(binding: Arc<B>, min: Arc<Min>) -> Self {
         Self {
             binding,
@@ -139,6 +155,12 @@ where
     B: ParamBindingGet<T>,
     Max: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetClampBelow`
+    ///
+    /// # Arguments
+    ///
+    /// * `binding` - the binding value to clamp
+    /// * `max` - the binding for the maximum value
     pub fn new(binding: Arc<B>, max: Arc<Max>) -> Self {
         Self {
             binding,
@@ -171,6 +193,15 @@ where
     Min: ParamBindingGet<T>,
     Max: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetRand`
+    ///
+    /// # Arguments
+    ///
+    /// * `min` - the binding for the minimum value
+    /// * `max` - the binding for the maximum value
+    ///
+    /// # Notes
+    /// The max is **exclusive** so you will never get that value in the output.
     pub fn new(min: Arc<Min>, max: Arc<Max>) -> Self {
         Self {
             min,
@@ -203,6 +234,12 @@ where
     L: ParamBindingGet<T>,
     R: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetSum`
+    ///
+    /// # Arguments
+    ///
+    /// * `left` - the binding for left value of the sum
+    /// * `right` - the binding for the right value of the sum
     pub fn new(left: Arc<L>, right: Arc<R>) -> Self {
         Self {
             left,
@@ -229,6 +266,12 @@ where
     L: ParamBindingGet<T>,
     R: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetMul`
+    ///
+    /// # Arguments
+    ///
+    /// * `left` - the binding for left value of the multiplication
+    /// * `right` - the binding for the right value of the multiplication
     pub fn new(left: Arc<L>, right: Arc<R>) -> Self {
         Self {
             left,
@@ -255,6 +298,12 @@ where
     N: ParamBindingGet<T>,
     D: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetDiv`
+    ///
+    /// # Arguments
+    ///
+    /// * `num` - the binding for numerator value of the division
+    /// * `den` - the binding for denominator value of the division
     pub fn new(num: Arc<N>, den: Arc<D>) -> Self {
         Self {
             num,
@@ -285,6 +334,11 @@ where
     T: Send,
     B: ParamBindingGet<T>,
 {
+    /// Construct a new `ParamBindingGetNegate`
+    ///
+    /// # Arguments
+    ///
+    /// * `binding` - the binding to negate
     pub fn new(binding: Arc<B>) -> Self {
         Self {
             binding,
@@ -309,6 +363,11 @@ where
     O: Send,
     B: ParamBindingGet<I>,
 {
+    /// Construct a new `ParamBindingGetCast`
+    ///
+    /// # Arguments
+    ///
+    /// * `binding` - the binding to cast
     pub fn new(binding: Arc<B>) -> Self {
         Self {
             binding,
