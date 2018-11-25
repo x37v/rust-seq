@@ -1,10 +1,18 @@
 use binding::ParamBindingGet;
+use rand::prelude::*;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 ///Clamp a numeric binding between a minimum and maximum value, inclusive.
 pub struct ParamBindingGetClamp<T, B, Min, Max> {
     binding: Arc<B>,
+    min: Arc<Min>,
+    max: Arc<Max>,
+    _phantom: spinlock::Mutex<PhantomData<T>>,
+}
+
+///Get an random numeric value [min, max(.
+pub struct ParamBindingGetRand<T, Min, Max> {
     min: Arc<Min>,
     max: Arc<Max>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
@@ -66,6 +74,38 @@ where
         let min = self.min.get();
         let max = self.max.get();
         num::clamp(b, min, max)
+    }
+}
+
+impl<T, Min, Max> ParamBindingGetRand<T, Min, Max>
+where
+    T: Send,
+    Min: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
+{
+    pub fn new(min: Arc<Min>, max: Arc<Max>) -> Self {
+        Self {
+            min,
+            max,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T, Min, Max> ParamBindingGet<T> for ParamBindingGetRand<T, Min, Max>
+where
+    T: rand::distributions::uniform::SampleUniform + PartialOrd,
+    Min: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        let min = self.min.get();
+        let max = self.max.get();
+        if min >= max {
+            min
+        } else {
+            thread_rng().gen_range(min, max)
+        }
     }
 }
 
