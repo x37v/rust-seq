@@ -11,6 +11,7 @@ pub enum BindingSet {
     F32(f32, BindingSetP<f32>),
     I32(i32, BindingSetP<i32>),
     U8(u8, BindingSetP<u8>),
+    USize(usize, BindingSetP<usize>),
     Bool(bool, BindingSetP<bool>),
     Midi(MidiValue, BindingSetP<MidiValue>),
 }
@@ -22,6 +23,7 @@ impl ParamBindingLatch for BindingSet {
             BindingSet::F32(v, b) => b.set(*v),
             BindingSet::I32(v, b) => b.set(*v),
             BindingSet::U8(v, b) => b.set(*v),
+            BindingSet::USize(v, b) => b.set(*v),
             BindingSet::Bool(v, b) => b.set(*v),
             BindingSet::Midi(v, b) => b.set(*v),
         }
