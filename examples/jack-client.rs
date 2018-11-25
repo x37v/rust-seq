@@ -160,7 +160,7 @@ fn main() {
 
         let velocity = Arc::new(ParamBindingGetSum::new(volume.clone(), volume_rand_offset));
         let velocity = Arc::new(ParamBindingGetMul::new(velocity.clone(), midi_maxf.clone()));
-        let velocity: Arc<ParamBindingGetCast<_, f32, u8>> =
+        let velocity: Arc<ParamBindingGetCast<f32, u8, _>> =
             Arc::new(ParamBindingGetCast::new(velocity));
         let velocity = Arc::new(ParamBindingGetClamp::new(
             velocity,

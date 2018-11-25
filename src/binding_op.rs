@@ -48,7 +48,7 @@ pub struct ParamBindingGetMul<T, L, R> {
 
 ///Divide two numeric bindings.
 ///
-///*Note* this does protected against divide by zero but just provides `Default::default()` for `T`
+///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
 ///so you probably still want to protect against it.
 pub struct ParamBindingGetDiv<T, N, D> {
     num: Arc<N>,
@@ -63,7 +63,7 @@ pub struct ParamBindingGetNegate<T, B> {
 }
 
 ///Cast one numeric binding to another.
-pub struct ParamBindingGetCast<B, I, O> {
+pub struct ParamBindingGetCast<I, O, B> {
     binding: Arc<B>,
     _iphantom: spinlock::Mutex<PhantomData<I>>,
     _ophantom: spinlock::Mutex<PhantomData<O>>,
@@ -303,7 +303,7 @@ where
     }
 }
 
-impl<B, I, O> ParamBindingGetCast<B, I, O>
+impl<I, O, B> ParamBindingGetCast<I, O, B>
 where
     I: Send,
     O: Send,
@@ -318,7 +318,7 @@ where
     }
 }
 
-impl<B, I, O> ParamBindingGet<O> for ParamBindingGetCast<B, I, O>
+impl<I, O, B> ParamBindingGet<O> for ParamBindingGetCast<I, O, B>
 where
     I: num::NumCast,
     O: num::NumCast + Default,
