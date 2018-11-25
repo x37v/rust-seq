@@ -141,9 +141,9 @@ fn main() {
     let len_select_shift = Arc::new(AtomicBool::new(false));
 
     let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
-    let midi_min = SpinlockParamBinding::new_p(0u8);
-    let midi_max = SpinlockParamBinding::new_p(127u8);
-    let midi_maxf = SpinlockParamBinding::new_p(127f32);
+    let midi_min = Arc::new(0u8);
+    let midi_max = Arc::new(127u8);
+    let midi_maxf = Arc::new(127f32);
 
     for page in 0..64 {
         let probability = SpinlockParamBinding::new_p(1f32);
