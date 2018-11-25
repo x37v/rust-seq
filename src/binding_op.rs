@@ -46,6 +46,16 @@ pub struct ParamBindingGetMul<T, L, R> {
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
+///Divide two numeric bindings.
+///
+///*Note* this does protected against divide by zero but just provides `Default::default()` for `T`
+///so you probably still want to protect against it.
+pub struct ParamBindingGetDiv<T, N, D> {
+    num: Arc<N>,
+    den: Arc<D>,
+    _phantom: spinlock::Mutex<PhantomData<T>>,
+}
+
 ///Negate a signed numeric binding.
 pub struct ParamBindingGetNegate<T, B> {
     binding: Arc<B>,
@@ -236,6 +246,37 @@ where
 {
     fn get(&self) -> T {
         self.left.get().mul(self.right.get())
+    }
+}
+
+impl<T, N, D> ParamBindingGetDiv<T, N, D>
+where
+    T: Send,
+    N: ParamBindingGet<T>,
+    D: ParamBindingGet<T>,
+{
+    pub fn new(num: Arc<N>, den: Arc<D>) -> Self {
+        Self {
+            num,
+            den,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T, N, D> ParamBindingGet<T> for ParamBindingGetDiv<T, N, D>
+where
+    T: std::ops::Div + num::Num + num::Zero + Default,
+    N: ParamBindingGet<T>,
+    D: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        let d = self.den.get();
+        if d.is_zero() {
+            Default::default()
+        } else {
+            self.num.get().div(d)
+        }
     }
 }
 
