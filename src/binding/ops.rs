@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 /// Clamp a numeric binding between [min, max], inclusive.
-pub struct ParamBindingGetClamp<T, B, Min, Max> {
+pub struct GetClamp<T, B, Min, Max> {
     binding: Arc<B>,
     min: Arc<Min>,
     max: Arc<Max>,
@@ -12,14 +12,14 @@ pub struct ParamBindingGetClamp<T, B, Min, Max> {
 }
 
 /// Clamp a numeric above a min value, inclusive.
-pub struct ParamBindingGetClampAbove<T, B, Min> {
+pub struct GetClampAbove<T, B, Min> {
     binding: Arc<B>,
     min: Arc<Min>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
 /// Clamp a numeric below a max value, inclusive.
-pub struct ParamBindingGetClampBelow<T, B, Max> {
+pub struct GetClampBelow<T, B, Max> {
     binding: Arc<B>,
     max: Arc<Max>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
@@ -29,21 +29,21 @@ pub struct ParamBindingGetClampBelow<T, B, Max> {
 ///
 /// This generates a new random value that is greater than or equal to `min` and less than `max`
 /// every time you call `.get()` on it.
-pub struct ParamBindingGetRand<T, Min, Max> {
+pub struct GetRand<T, Min, Max> {
     min: Arc<Min>,
     max: Arc<Max>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
 /// Sum two numeric bindings.
-pub struct ParamBindingGetSum<T, L, R> {
+pub struct GetSum<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
 /// Multiply two numeric bindings.
-pub struct ParamBindingGetMul<T, L, R> {
+pub struct GetMul<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
@@ -53,33 +53,33 @@ pub struct ParamBindingGetMul<T, L, R> {
 ///
 ///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
 /// so you probably still want to protect against it.
-pub struct ParamBindingGetDiv<T, N, D> {
+pub struct GetDiv<T, N, D> {
     num: Arc<N>,
     den: Arc<D>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
 /// Negate a signed numeric binding.
-pub struct ParamBindingGetNegate<T, B> {
+pub struct GetNegate<T, B> {
     binding: Arc<B>,
     _phantom: spinlock::Mutex<PhantomData<T>>,
 }
 
 /// Cast one numeric binding to another.
-pub struct ParamBindingGetCast<I, O, B> {
+pub struct GetCast<I, O, B> {
     binding: Arc<B>,
     _iphantom: spinlock::Mutex<PhantomData<I>>,
     _ophantom: spinlock::Mutex<PhantomData<O>>,
 }
 
-impl<T, B, Min, Max> ParamBindingGetClamp<T, B, Min, Max>
+impl<T, B, Min, Max> GetClamp<T, B, Min, Max>
 where
     T: Send + Copy + PartialOrd,
     B: ParamBindingGet<T>,
     Min: ParamBindingGet<T>,
     Max: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetClamp`
+    /// Construct a new `GetClamp`
     ///
     /// # Arguments
     ///
@@ -96,7 +96,7 @@ where
     }
 }
 
-impl<T, B, Min, Max> ParamBindingGet<T> for ParamBindingGetClamp<T, B, Min, Max>
+impl<T, B, Min, Max> ParamBindingGet<T> for GetClamp<T, B, Min, Max>
 where
     T: PartialOrd,
     B: ParamBindingGet<T>,
@@ -111,13 +111,13 @@ where
     }
 }
 
-impl<T, B, Min> ParamBindingGetClampAbove<T, B, Min>
+impl<T, B, Min> GetClampAbove<T, B, Min>
 where
     T: Send + Copy + PartialOrd,
     B: ParamBindingGet<T>,
     Min: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetClampAbove`
+    /// Construct a new `GetClampAbove`
     ///
     /// # Arguments
     ///
@@ -132,7 +132,7 @@ where
     }
 }
 
-impl<T, B, Min> ParamBindingGet<T> for ParamBindingGetClampAbove<T, B, Min>
+impl<T, B, Min> ParamBindingGet<T> for GetClampAbove<T, B, Min>
 where
     T: PartialOrd,
     B: ParamBindingGet<T>,
@@ -149,13 +149,13 @@ where
     }
 }
 
-impl<T, B, Max> ParamBindingGetClampBelow<T, B, Max>
+impl<T, B, Max> GetClampBelow<T, B, Max>
 where
     T: Send + Copy + PartialOrd,
     B: ParamBindingGet<T>,
     Max: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetClampBelow`
+    /// Construct a new `GetClampBelow`
     ///
     /// # Arguments
     ///
@@ -170,7 +170,7 @@ where
     }
 }
 
-impl<T, B, Max> ParamBindingGet<T> for ParamBindingGetClampBelow<T, B, Max>
+impl<T, B, Max> ParamBindingGet<T> for GetClampBelow<T, B, Max>
 where
     T: PartialOrd,
     B: ParamBindingGet<T>,
@@ -187,13 +187,13 @@ where
     }
 }
 
-impl<T, Min, Max> ParamBindingGetRand<T, Min, Max>
+impl<T, Min, Max> GetRand<T, Min, Max>
 where
     T: Send,
     Min: ParamBindingGet<T>,
     Max: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetRand`
+    /// Construct a new `GetRand`
     ///
     /// # Arguments
     ///
@@ -211,7 +211,7 @@ where
     }
 }
 
-impl<T, Min, Max> ParamBindingGet<T> for ParamBindingGetRand<T, Min, Max>
+impl<T, Min, Max> ParamBindingGet<T> for GetRand<T, Min, Max>
 where
     T: rand::distributions::uniform::SampleUniform + PartialOrd,
     Min: ParamBindingGet<T>,
@@ -228,13 +228,13 @@ where
     }
 }
 
-impl<T, L, R> ParamBindingGetSum<T, L, R>
+impl<T, L, R> GetSum<T, L, R>
 where
     T: Send,
     L: ParamBindingGet<T>,
     R: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetSum`
+    /// Construct a new `GetSum`
     ///
     /// # Arguments
     ///
@@ -249,7 +249,7 @@ where
     }
 }
 
-impl<T, L, R> ParamBindingGet<T> for ParamBindingGetSum<T, L, R>
+impl<T, L, R> ParamBindingGet<T> for GetSum<T, L, R>
 where
     T: std::ops::Add + num::Num,
     L: ParamBindingGet<T>,
@@ -260,13 +260,13 @@ where
     }
 }
 
-impl<T, L, R> ParamBindingGetMul<T, L, R>
+impl<T, L, R> GetMul<T, L, R>
 where
     T: Send,
     L: ParamBindingGet<T>,
     R: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetMul`
+    /// Construct a new `GetMul`
     ///
     /// # Arguments
     ///
@@ -281,7 +281,7 @@ where
     }
 }
 
-impl<T, L, R> ParamBindingGet<T> for ParamBindingGetMul<T, L, R>
+impl<T, L, R> ParamBindingGet<T> for GetMul<T, L, R>
 where
     T: std::ops::Mul + num::Num,
     L: ParamBindingGet<T>,
@@ -292,13 +292,13 @@ where
     }
 }
 
-impl<T, N, D> ParamBindingGetDiv<T, N, D>
+impl<T, N, D> GetDiv<T, N, D>
 where
     T: Send,
     N: ParamBindingGet<T>,
     D: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetDiv`
+    /// Construct a new `GetDiv`
     ///
     /// # Arguments
     ///
@@ -313,7 +313,7 @@ where
     }
 }
 
-impl<T, N, D> ParamBindingGet<T> for ParamBindingGetDiv<T, N, D>
+impl<T, N, D> ParamBindingGet<T> for GetDiv<T, N, D>
 where
     T: std::ops::Div + num::Num + num::Zero + Default,
     N: ParamBindingGet<T>,
@@ -329,12 +329,12 @@ where
     }
 }
 
-impl<T, B> ParamBindingGetNegate<T, B>
+impl<T, B> GetNegate<T, B>
 where
     T: Send,
     B: ParamBindingGet<T>,
 {
-    /// Construct a new `ParamBindingGetNegate`
+    /// Construct a new `GetNegate`
     ///
     /// # Arguments
     ///
@@ -347,7 +347,7 @@ where
     }
 }
 
-impl<T, B> ParamBindingGet<T> for ParamBindingGetNegate<T, B>
+impl<T, B> ParamBindingGet<T> for GetNegate<T, B>
 where
     T: num::Signed,
     B: ParamBindingGet<T>,
@@ -357,13 +357,13 @@ where
     }
 }
 
-impl<I, O, B> ParamBindingGetCast<I, O, B>
+impl<I, O, B> GetCast<I, O, B>
 where
     I: Send,
     O: Send,
     B: ParamBindingGet<I>,
 {
-    /// Construct a new `ParamBindingGetCast`
+    /// Construct a new `GetCast`
     ///
     /// # Arguments
     ///
@@ -377,11 +377,11 @@ where
     ///
     /// ```
     /// use sched::binding::ParamBindingGet;
-    /// use sched::binding::ops::ParamBindingGetCast;
+    /// use sched::binding::ops::GetCast;
     /// use std::sync::Arc;
     ///
     /// let f = Arc::new(23f32);
-    /// let c : Arc<ParamBindingGetCast<f32, u8, _>> = Arc::new(ParamBindingGetCast::new(f.clone()));
+    /// let c : Arc<GetCast<f32, u8, _>> = Arc::new(GetCast::new(f.clone()));
     /// assert_eq!(23f32, f.get());
     /// assert_eq!(23u8, c.get());
     /// ```
@@ -394,7 +394,7 @@ where
     }
 }
 
-impl<I, O, B> ParamBindingGet<O> for ParamBindingGetCast<I, O, B>
+impl<I, O, B> ParamBindingGet<O> for GetCast<I, O, B>
 where
     I: num::NumCast,
     O: num::NumCast + Default,

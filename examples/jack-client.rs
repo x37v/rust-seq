@@ -153,20 +153,12 @@ fn main() {
 
         let volume = SpinlockParamBinding::new_p(1.0f32);
         let volume_rand = SpinlockParamBinding::new_p(0f32);
-        let volume_rand_offset = Arc::new(ParamBindingGetRand::new(
-            Arc::new(0f32),
-            volume_rand.clone(),
-        ));
+        let volume_rand_offset = Arc::new(GetRand::new(Arc::new(0f32), volume_rand.clone()));
 
-        let velocity = Arc::new(ParamBindingGetSum::new(volume.clone(), volume_rand_offset));
-        let velocity = Arc::new(ParamBindingGetMul::new(velocity.clone(), midi_maxf.clone()));
-        let velocity: Arc<ParamBindingGetCast<f32, u8, _>> =
-            Arc::new(ParamBindingGetCast::new(velocity));
-        let velocity = Arc::new(ParamBindingGetClamp::new(
-            velocity,
-            midi_min.clone(),
-            midi_max.clone(),
-        ));
+        let velocity = Arc::new(GetSum::new(volume.clone(), volume_rand_offset));
+        let velocity = Arc::new(GetMul::new(velocity.clone(), midi_maxf.clone()));
+        let velocity: Arc<GetCast<f32, u8, _>> = Arc::new(GetCast::new(velocity));
+        let velocity = Arc::new(GetClamp::new(velocity, midi_min.clone(), midi_max.clone()));
 
         let steps = Arc::new(ObservableBinding::new(AtomicUsize::new(16)));
         let note = Arc::new(AtomicUsize::new(page + 37));
