@@ -10,6 +10,9 @@ use std::sync::Arc;
 use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
 
+pub mod func;
+pub mod root_clock;
+
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ChildCount {
     None,
@@ -69,23 +72,6 @@ pub type ChildList = LList<ANodeP>;
 pub type AIndexNodeP = Arc<spinlock::Mutex<dyn GraphIndexExec>>;
 pub type AIndexChildP = Box<LNode<AIndexNodeP>>;
 pub type IndexChildList = LList<AIndexNodeP>;
-
-pub type Micro = f32;
-pub struct RootClock {
-    tick: usize,
-    tick_sub: f32,
-    period_micros: BindingGetP<Micro>,
-    children: ChildList,
-}
-
-pub struct FuncWrapper<F> {
-    func: Box<F>,
-    children_max: ChildCount,
-}
-
-pub struct IndexFuncWrapper<F> {
-    func: Box<F>,
-}
 
 impl GraphNode for GraphNodeWrapper {
     fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
@@ -281,99 +267,6 @@ impl<'a> ChildExec for NChildren<'a> {
     }
     fn has_children(&self) -> bool {
         self.children.count() > 0
-    }
-}
-
-impl RootClock {
-    pub fn new(period_micros: BindingGetP<Micro>) -> Self {
-        Self {
-            tick: 0,
-            tick_sub: 0f32,
-            period_micros,
-            children: LList::new(),
-        }
-    }
-    pub fn child_append(&mut self, child: AChildP) {
-        self.children.push_back(child);
-    }
-}
-
-impl SchedCall for RootClock {
-    fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
-        let period_micros = self.period_micros.get();
-        if self.children.count() > 0 {
-            let mut ccontext = ChildContext::new(context, 0, self.tick, period_micros);
-            let mut tmp = LList::new();
-            std::mem::swap(&mut self.children, &mut tmp);
-
-            for c in tmp.into_iter() {
-                if c.lock().exec(&mut ccontext) {
-                    self.children.push_back(c);
-                }
-            }
-        }
-
-        let ctp = context.context_tick_period_micros();
-        if period_micros <= 0f32 || ctp <= 0f32 {
-            TimeResched::ContextRelative(1)
-        } else {
-            let next = self.tick_sub + (period_micros / ctp);
-            self.tick_sub = next.fract();
-            self.tick += 1;
-
-            //XXX what if next is less than 1?
-            assert!(next >= 1f32, "tick less than sample size not supported");
-            TimeResched::ContextRelative(std::cmp::max(1, next.floor() as usize))
-        }
-    }
-}
-
-impl<F> FuncWrapper<F>
-where
-    F: Fn(&mut dyn SchedContext, &mut dyn ChildExec) -> bool + Send,
-{
-    pub fn new_boxed(children_max: ChildCount, func: F) -> Box<Self> {
-        Box::new(Self {
-            func: Box::new(func),
-            children_max,
-        })
-    }
-}
-
-impl<F> GraphExec for FuncWrapper<F>
-where
-    F: Fn(&mut dyn SchedContext, &mut dyn ChildExec) -> bool + Send,
-{
-    fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool {
-        (self.func)(context, children)
-    }
-
-    fn children_max(&self) -> ChildCount {
-        self.children_max
-    }
-}
-
-impl<F> IndexFuncWrapper<F>
-where
-    F: Fn(usize, &mut dyn SchedContext) + Send,
-{
-    pub fn new(func: F) -> Self {
-        Self {
-            func: Box::new(func),
-        }
-    }
-
-    pub fn new_p(func: F) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self::new(func)))
-    }
-}
-
-impl<F> GraphIndexExec for IndexFuncWrapper<F>
-where
-    F: Fn(usize, &mut dyn SchedContext) + Send,
-{
-    fn exec_index(&mut self, index: usize, context: &mut dyn SchedContext) {
-        (self.func)(index, context);
     }
 }
 
