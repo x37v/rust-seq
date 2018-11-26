@@ -16,6 +16,7 @@ pub mod func;
 pub mod gate;
 pub mod index_latch;
 pub mod index_report;
+pub mod midi;
 pub mod node_wrapper;
 pub mod probability_gate;
 pub mod root_clock;
