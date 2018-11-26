@@ -14,6 +14,7 @@ use sched::binding::observable::{new_observer_node, Observable, ObservableBindin
 use sched::context::SchedContext;
 use sched::graph::clock_ratio::ClockRatio;
 use sched::graph::func::{FuncWrapper, IndexFuncWrapper};
+use sched::graph::gate::Gate;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::probability_gate::ProbabilityGate;
 use sched::graph::root_clock::RootClock;
@@ -202,17 +203,7 @@ fn main() {
             },
         ));
 
-        let step_gatec = step_gate.clone();
-        let gate = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
-            ChildCount::Inf,
-            move |context: &mut dyn SchedContext, children: &mut dyn ChildExec| {
-                if step_gatec.get() {
-                    children.exec_all(context);
-                }
-                children.has_children()
-            },
-        ));
-
+        let gate = GraphNodeWrapper::new_p(Gate::new_p(step_gate.clone()));
         let step_seq =
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
