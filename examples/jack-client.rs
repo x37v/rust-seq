@@ -9,18 +9,16 @@ use sched::binding::ops::*;
 use sched::binding::spinlock::SpinlockParamBinding;
 use sched::binding::{BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingSet};
 
-use sched::context::SchedContext;
-
 use sched::graph::clock_ratio::ClockRatio;
-use sched::graph::func::FuncWrapper;
 use sched::graph::gate::Gate;
 use sched::graph::index_latch::IndexLatch;
 use sched::graph::index_report::IndexReporter;
+use sched::graph::midi::MidiNote;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::probability_gate::ProbabilityGate;
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
-use sched::graph::{ChildCount, ChildExec, GraphNode};
+use sched::graph::GraphNode;
 
 use sched::midi::{MidiTrigger, MidiValue};
 
@@ -171,7 +169,7 @@ fn main() {
         ));
 
         let steps = Arc::new(ObservableBinding::new(AtomicUsize::new(16)));
-        let note = Arc::new(AtomicUsize::new(page + 36));
+        let note = Arc::new((page + 36) as u8);
 
         //build up gates
         let gates: Vec<Arc<ObservableBinding<bool, _>>> = vec![false; 64]
@@ -188,23 +186,13 @@ fn main() {
             .map(|g| Arc::new(BindingLatch::new(g.clone(), step_gate.clone())) as BindingLatchP)
             .collect();
 
-        let mtrig = midi_trig.clone();
-        let trig = GraphNodeWrapper::new_p(FuncWrapper::new_boxed(
-            ChildCount::None,
-            move |context: &mut dyn SchedContext, _childen: &mut dyn ChildExec| {
-                let mtrig = mtrig.lock();
-                let vel = velocity.get();
-                mtrig.note_with_dur(
-                    TimeSched::Relative(0),
-                    TimeResched::Relative(1),
-                    context.as_schedule_trigger_mut(),
-                    9,
-                    note.get() as u8,
-                    vel,
-                    127,
-                );
-                true
-            },
+        let trig = GraphNodeWrapper::new_p(MidiNote::new_p(
+            midi_trig.clone(),
+            Arc::new(9u8),
+            note.clone(),
+            Arc::new(TimeResched::Relative(1)),
+            velocity.clone(),
+            Arc::new(127u8),
         ));
 
         let gate = GraphNodeWrapper::new_p(Gate::new_p(step_gate.clone()));
