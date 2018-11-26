@@ -3,7 +3,6 @@ extern crate euclidian_rythms;
 use binding::BindingGetP;
 use context::SchedContext;
 use graph::{ChildCount, ChildExec, GraphExec};
-use util::Clamp;
 
 pub struct Euclid {
     step_ticks: BindingGetP<usize>,
@@ -49,8 +48,8 @@ impl GraphExec for Euclid {
         let step_ticks = self.step_ticks.get();
 
         if step_ticks > 0 && context.context_tick() % step_ticks == 0 {
-            let steps = self.steps.get().clamp(0, 64);
-            let pulses = self.pulses.get().clamp(0, 64);
+            let steps = num::clamp(self.steps.get(), 0, 64);
+            let pulses = num::clamp(self.pulses.get(), 0, 64);
             if steps > 0 && pulses > 0 {
                 self.update_if(steps, pulses);
 
