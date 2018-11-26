@@ -14,7 +14,7 @@ use sched::binding::{
 use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::context::SchedContext;
 use sched::graph::clock_ratio::ClockRatio;
-use sched::graph::func::{FuncWrapper, IndexFuncWrapper};
+use sched::graph::func::FuncWrapper;
 use sched::graph::gate::Gate;
 use sched::graph::index_latch::IndexLatch;
 use sched::graph::index_report::IndexReporter;
