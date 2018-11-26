@@ -201,6 +201,7 @@ fn main() {
                     9,
                     note.get() as u8,
                     vel,
+                    127,
                 );
                 true
             },

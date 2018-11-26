@@ -212,11 +212,12 @@ impl MidiTrigger {
         schedule: &mut dyn ScheduleTrigger,
         chan: u8,
         num: u8,
-        vel: u8,
+        on_vel: u8,
+        off_vel: u8,
     ) {
         let off_time = schedule.add_time(&on_time, &dur);
-        self.note(on_time, schedule, chan, true, num, vel);
-        self.note(off_time, schedule, chan, false, num, vel);
+        self.note(on_time, schedule, chan, true, num, on_vel);
+        self.note(off_time, schedule, chan, false, num, off_vel);
     }
 
     pub fn cont_ctrl(
