@@ -13,6 +13,7 @@ pub mod spinlock;
 pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
 pub type BindingGetP<T> = Arc<dyn ParamBindingGet<T>>;
 pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
+pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
 
 pub trait ParamBindingGet<T>: Send + Sync {
     fn get(&self) -> T;
@@ -22,7 +23,7 @@ pub trait ParamBindingSet<T>: Send + Sync {
     fn set(&self, value: T);
 }
 
-pub trait ParamBindingLatch {
+pub trait ParamBindingLatch: Send + Sync {
     fn store(&self);
 }
 

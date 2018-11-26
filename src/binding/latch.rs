@@ -5,8 +5,8 @@ pub struct BindingLatch<T> {
     set: BindingSetP<T>,
 }
 
-pub struct AggregateBindingLatch {
-    latches: Vec<Arc<dyn ParamBindingLatch>>,
+pub struct AggregateBindingLatch<'a> {
+    latches: Vec<BindingLatchP<'a>>,
 }
 
 impl<T> BindingLatch<T> {
@@ -15,8 +15,8 @@ impl<T> BindingLatch<T> {
     }
 }
 
-impl AggregateBindingLatch {
-    pub fn new(latches: Vec<Arc<dyn ParamBindingLatch>>) -> Self {
+impl<'a> AggregateBindingLatch<'a> {
+    pub fn new(latches: Vec<BindingLatchP<'a>>) -> Self {
         Self { latches }
     }
 }
@@ -27,7 +27,7 @@ impl<T> ParamBindingLatch for BindingLatch<T> {
     }
 }
 
-impl ParamBindingLatch for AggregateBindingLatch {
+impl<'a> ParamBindingLatch for AggregateBindingLatch<'a> {
     fn store(&self) {
         for l in self.latches.iter() {
             l.store();

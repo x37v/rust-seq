@@ -14,6 +14,7 @@ pub mod clock_ratio;
 pub mod euclidean_gate;
 pub mod func;
 pub mod gate;
+pub mod index_latch;
 pub mod index_report;
 pub mod node_wrapper;
 pub mod probability_gate;

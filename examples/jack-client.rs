@@ -3,11 +3,12 @@ extern crate rosc;
 extern crate sched;
 
 use sched::binding::bpm;
+use sched::binding::latch::BindingLatch;
 use sched::binding::ops::*;
 use sched::binding::set::BindingSet;
+use sched::binding::spinlock::SpinlockParamBinding;
 use sched::binding::{
-    latch::BindingLatch, spinlock::SpinlockParamBinding, BindingP, ParamBinding, ParamBindingGet,
-    ParamBindingLatch, ParamBindingSet,
+    BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
 };
 
 use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
@@ -15,6 +16,7 @@ use sched::context::SchedContext;
 use sched::graph::clock_ratio::ClockRatio;
 use sched::graph::func::{FuncWrapper, IndexFuncWrapper};
 use sched::graph::gate::Gate;
+use sched::graph::index_latch::IndexLatch;
 use sched::graph::index_report::IndexReporter;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::probability_gate::ProbabilityGate;
@@ -181,9 +183,9 @@ fn main() {
         }
 
         let step_gate = Arc::new(AtomicBool::new(false));
-        let latches: Vec<BindingLatch<bool>> = gates
+        let latches: Vec<BindingLatchP> = gates
             .iter()
-            .map(|g| BindingLatch::new(g.clone(), step_gate.clone()))
+            .map(|g| Arc::new(BindingLatch::new(g.clone(), step_gate.clone())) as BindingLatchP)
             .collect();
 
         let mtrig = midi_trig.clone();
@@ -209,12 +211,10 @@ fn main() {
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
         let index_binding = Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
-        let setup = IndexFuncWrapper::new_p(move |index: usize, context: &mut dyn SchedContext| {
-            if index < latches.len() {
-                latches[index].store();
-            }
-        });
-        step_seq.lock().index_child_append(LNode::new_boxed(setup));
+        let index_latch = IndexLatch::new_p(latches);
+        step_seq
+            .lock()
+            .index_child_append(LNode::new_boxed(index_latch));
 
         let index_report = IndexReporter::new_p(index_binding.clone());
         step_seq
