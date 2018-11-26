@@ -12,12 +12,7 @@ pub mod trigger;
 pub mod util;
 
 pub mod binding;
-
-pub mod clock_ratio;
-pub mod euclid;
 pub mod midi;
-pub mod probability_gate;
-pub mod step_seq;
 
 //XXX move to its own crate?
 pub mod quneo_display;

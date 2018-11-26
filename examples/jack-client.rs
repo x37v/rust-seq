@@ -11,18 +11,17 @@ use sched::binding::{
 };
 
 use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
-use sched::clock_ratio::ClockRatio;
 use sched::context::SchedContext;
 #[allow(unused_imports)]
-use sched::euclid::Euclid;
-use sched::graph::{
-    ChildCount, ChildExec, FuncWrapper, GraphNode, GraphNodeWrapper, IndexFuncWrapper,
-    NChildGraphNodeWrapper, RootClock,
-};
+use sched::graph::clock_ratio::ClockRatio;
+use sched::graph::func::{FuncWrapper, IndexFuncWrapper};
+use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
+use sched::graph::probability_gate::ProbabilityGate;
+use sched::graph::root_clock::RootClock;
+use sched::graph::step_seq::StepSeq;
+use sched::graph::{ChildCount, ChildExec, GraphNode};
 use sched::midi::{MidiTrigger, MidiValue};
-use sched::probability_gate::ProbabilityGate;
 use sched::spinlock;
-use sched::step_seq::StepSeq;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize};
