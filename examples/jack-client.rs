@@ -15,6 +15,7 @@ use sched::context::SchedContext;
 use sched::graph::clock_ratio::ClockRatio;
 use sched::graph::func::{FuncWrapper, IndexFuncWrapper};
 use sched::graph::gate::Gate;
+use sched::graph::index_report::IndexReporter;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::probability_gate::ProbabilityGate;
 use sched::graph::root_clock::RootClock;
@@ -208,15 +209,17 @@ fn main() {
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
         let index_binding = Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
-        let index_bindingc = index_binding.clone();
         let setup = IndexFuncWrapper::new_p(move |index: usize, context: &mut dyn SchedContext| {
-            let t = TimeSched::ContextAbsolute(context.context_tick());
-            context.schedule_value(t, &BindingSet::USize(index, index_bindingc.clone()));
             if index < latches.len() {
                 latches[index].store();
             }
         });
         step_seq.lock().index_child_append(LNode::new_boxed(setup));
+
+        let index_report = IndexReporter::new_p(index_binding.clone());
+        step_seq
+            .lock()
+            .index_child_append(LNode::new_boxed(index_report));
 
         let prob = GraphNodeWrapper::new_p(ProbabilityGate::new_p(probability.clone()));
         prob.lock().child_append(LNode::new_boxed(trig));
