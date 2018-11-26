@@ -1,10 +1,16 @@
 use super::*;
 
+/// A graph node that executes its children only when its binding evaluates to true.
 pub struct Gate {
     binding: BindingGetP<bool>,
 }
 
 impl Gate {
+    /// Construct a new `Box<Gate>`
+    ///
+    /// # Arguments
+    ///
+    /// * `binding` - the binding which determines if the gate is open or closed
     pub fn new_p(binding: BindingGetP<bool>) -> Box<Self> {
         Box::new(Self { binding })
     }
