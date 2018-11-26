@@ -145,7 +145,7 @@ fn main() {
     let len_select_shift = Arc::new(AtomicBool::new(false));
 
     let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
-    let midi_min = Arc::new(0u8);
+    let midi_notev_min = Arc::new(1u8);
     let midi_max = Arc::new(127u8);
     let midi_maxf = Arc::new(127f32);
 
@@ -154,15 +154,22 @@ fn main() {
 
         let volume = SpinlockParamBinding::new_p(1.0f32);
         let volume_rand = SpinlockParamBinding::new_p(0f32);
-        let volume_rand_offset = Arc::new(GetUniformRand::new(Arc::new(0f32), volume_rand.clone()));
+        let volume_rand_offset = Arc::new(GetUniformRand::new(
+            Arc::new(GetNegate::new(volume_rand.clone())),
+            volume_rand.clone(),
+        ));
 
         let velocity = Arc::new(GetSum::new(volume.clone(), volume_rand_offset));
         let velocity = Arc::new(GetMul::new(velocity.clone(), midi_maxf.clone()));
         let velocity: Arc<GetCast<f32, u8, _>> = Arc::new(GetCast::new(velocity));
-        let velocity = Arc::new(GetClamp::new(velocity, midi_min.clone(), midi_max.clone()));
+        let velocity = Arc::new(GetClamp::new(
+            velocity,
+            midi_notev_min.clone(),
+            midi_max.clone(),
+        ));
 
         let steps = Arc::new(ObservableBinding::new(AtomicUsize::new(16)));
-        let note = Arc::new(AtomicUsize::new(page + 37));
+        let note = Arc::new(AtomicUsize::new(page + 36));
 
         //build up gates
         let gates: Vec<Arc<ObservableBinding<bool, _>>> = vec![false; 64]
