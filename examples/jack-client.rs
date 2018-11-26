@@ -5,11 +5,8 @@ extern crate sched;
 use sched::binding::bpm;
 use sched::binding::latch::BindingLatch;
 use sched::binding::ops::*;
-use sched::binding::set::BindingSet;
 use sched::binding::spinlock::SpinlockParamBinding;
-use sched::binding::{
-    BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
-};
+use sched::binding::{BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingSet};
 
 use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::context::SchedContext;
