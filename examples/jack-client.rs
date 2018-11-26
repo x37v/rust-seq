@@ -4,12 +4,13 @@ extern crate sched;
 
 use sched::binding::bpm;
 use sched::binding::latch::BindingLatch;
+use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::binding::ops::*;
 use sched::binding::spinlock::SpinlockParamBinding;
 use sched::binding::{BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingSet};
 
-use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::context::SchedContext;
+
 use sched::graph::clock_ratio::ClockRatio;
 use sched::graph::func::FuncWrapper;
 use sched::graph::gate::Gate;
@@ -20,7 +21,9 @@ use sched::graph::probability_gate::ProbabilityGate;
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
 use sched::graph::{ChildCount, ChildExec, GraphNode};
+
 use sched::midi::{MidiTrigger, MidiValue};
+
 use sched::spinlock;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 
