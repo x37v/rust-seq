@@ -12,7 +12,6 @@ use sched::binding::{
 
 use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::context::SchedContext;
-#[allow(unused_imports)]
 use sched::graph::clock_ratio::ClockRatio;
 use sched::graph::func::{FuncWrapper, IndexFuncWrapper};
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
