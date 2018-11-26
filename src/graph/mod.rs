@@ -13,6 +13,7 @@ use xnor_llist::Node as LNode;
 pub mod clock_ratio;
 pub mod euclidean_gate;
 pub mod func;
+pub mod gate;
 pub mod node_wrapper;
 pub mod probability_gate;
 pub mod root_clock;
