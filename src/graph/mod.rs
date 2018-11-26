@@ -11,14 +11,8 @@ use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
 
 pub mod func;
+pub mod node_wrapper;
 pub mod root_clock;
-
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub enum ChildCount {
-    None,
-    Some(usize),
-    Inf,
-}
 
 pub trait GraphExec: Send {
     fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool;
@@ -46,20 +40,17 @@ pub trait GraphNode {
     fn child_append(&mut self, child: AChildP) -> bool;
 }
 
-pub struct GraphNodeWrapper {
-    exec: Box<GraphExec>,
-    children: ChildList,
-}
-
-pub struct NChildGraphNodeWrapper {
-    exec: Box<GraphExec>,
-    children: ChildList,
-    index_children: IndexChildList,
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum ChildCount {
+    None,
+    Some(usize),
+    Inf,
 }
 
 struct Children<'a> {
     children: &'a mut ChildList,
 }
+
 struct NChildren<'a> {
     children: &'a mut ChildList,
     index_children: &'a mut IndexChildList,
@@ -72,67 +63,6 @@ pub type ChildList = LList<ANodeP>;
 pub type AIndexNodeP = Arc<spinlock::Mutex<dyn GraphIndexExec>>;
 pub type AIndexChildP = Box<LNode<AIndexNodeP>>;
 pub type IndexChildList = LList<AIndexNodeP>;
-
-impl GraphNode for GraphNodeWrapper {
-    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
-        let mut children = Children::new(&mut self.children);
-        self.exec.exec(context, &mut children)
-    }
-    fn child_append(&mut self, child: AChildP) -> bool {
-        if match self.exec.children_max() {
-            ChildCount::None => false,
-            ChildCount::Some(v) => self.children.count() < v,
-            ChildCount::Inf => true,
-        } {
-            self.children.push_back(child);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl GraphNodeWrapper {
-    pub fn new_p(exec: Box<GraphExec>) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self {
-            exec,
-            children: LList::new(),
-        }))
-    }
-}
-
-impl NChildGraphNodeWrapper {
-    pub fn new_p(exec: Box<GraphExec>) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self {
-            exec,
-            children: LList::new(),
-            index_children: LList::new(),
-        }))
-    }
-
-    pub fn index_child_append(&mut self, child: AIndexChildP) {
-        self.index_children.push_back(child);
-    }
-}
-
-impl GraphNode for NChildGraphNodeWrapper {
-    fn exec(&mut self, context: &mut dyn SchedContext) -> bool {
-        let mut children = NChildren::new(&mut self.children, &mut self.index_children);
-        self.exec.exec(context, &mut children)
-    }
-    fn child_append(&mut self, child: AChildP) -> bool {
-        //only allow 1 child max
-        if match self.exec.children_max() {
-            ChildCount::None => false,
-            ChildCount::Some(_) | ChildCount::Inf => self.children.count() == 0,
-        } {
-            self.children.push_back(child);
-            true
-        } else {
-            false
-        }
-    }
-}
 
 impl PartialOrd for ChildCount {
     fn partial_cmp(&self, other: &ChildCount) -> Option<Ordering> {
@@ -200,9 +130,11 @@ impl<'a> ChildExec for Children<'a> {
         }
         self.count()
     }
+
     fn count(&self) -> ChildCount {
         ChildCount::Some(self.children.count())
     }
+
     fn has_children(&self) -> bool {
         self.children.count() > 0
     }
@@ -258,6 +190,7 @@ impl<'a> ChildExec for NChildren<'a> {
     fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
         self.exec(context, 0)
     }
+
     fn count(&self) -> ChildCount {
         if self.has_children() {
             ChildCount::Inf
@@ -265,6 +198,7 @@ impl<'a> ChildExec for NChildren<'a> {
             ChildCount::None
         }
     }
+
     fn has_children(&self) -> bool {
         self.children.count() > 0
     }
@@ -272,6 +206,7 @@ impl<'a> ChildExec for NChildren<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::node_wrapper::GraphNodeWrapper;
     use super::*;
     use base::{LList, SrcSink};
     use context::{RootContext, SchedContext};
