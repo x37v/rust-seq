@@ -3,6 +3,7 @@ extern crate rosc;
 extern crate sched;
 
 use sched::binding::bpm;
+use sched::binding::generators::*;
 use sched::binding::latch::BindingLatch;
 use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::binding::ops::*;
