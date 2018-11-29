@@ -19,7 +19,6 @@ pub mod index_report;
 pub mod midi;
 pub mod node_wrapper;
 pub mod one_hot;
-pub mod probability_gate;
 pub mod root_clock;
 pub mod step_seq;
 
