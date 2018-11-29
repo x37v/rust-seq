@@ -59,6 +59,16 @@ pub struct GetDiv<T, N, D> {
     _phantom: PhantomData<fn() -> T>,
 }
 
+/// Get the remainder from dividing (aka modulus) from two numeric bindings.
+///
+///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
+/// so you probably still want to protect against it.
+pub struct GetRem<T, L, R> {
+    left: Arc<L>,
+    right: Arc<R>,
+    _phantom: PhantomData<fn() -> T>,
+}
+
 /// Negate a signed numeric binding.
 pub struct GetNegate<T, B> {
     binding: Arc<B>,
@@ -343,6 +353,43 @@ where
             Default::default()
         } else {
             self.num.get().div(d)
+        }
+    }
+}
+
+impl<T, L, R> GetRem<T, L, R>
+where
+    T: Send,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
+{
+    /// Construct a new `GetRem`
+    ///
+    /// # Arguments
+    ///
+    /// * `left` - the binding for left value of the division
+    /// * `right` - the binding for the right value of the division
+    pub fn new(left: Arc<L>, right: Arc<R>) -> Self {
+        Self {
+            left,
+            right,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T, L, R> ParamBindingGet<T> for GetRem<T, L, R>
+where
+    T: std::ops::Rem + num::Num + num::Zero + Default,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        let right = self.right.get();
+        if right.is_zero() {
+            Default::default()
+        } else {
+            self.left.get().rem(right)
         }
     }
 }
