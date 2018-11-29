@@ -8,21 +8,21 @@ pub struct GetClamp<T, B, Min, Max> {
     binding: Arc<B>,
     min: Arc<Min>,
     max: Arc<Max>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Clamp a numeric above a min value, inclusive.
 pub struct GetClampAbove<T, B, Min> {
     binding: Arc<B>,
     min: Arc<Min>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Clamp a numeric below a max value, inclusive.
 pub struct GetClampBelow<T, B, Max> {
     binding: Arc<B>,
     max: Arc<Max>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Get an uniform random numeric value [min, max(.
@@ -32,21 +32,21 @@ pub struct GetClampBelow<T, B, Max> {
 pub struct GetUniformRand<T, Min, Max> {
     min: Arc<Min>,
     max: Arc<Max>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Sum two numeric bindings.
 pub struct GetSum<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Multiply two numeric bindings.
 pub struct GetMul<T, L, R> {
     left: Arc<L>,
     right: Arc<R>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Divide two numeric bindings.
@@ -56,13 +56,13 @@ pub struct GetMul<T, L, R> {
 pub struct GetDiv<T, N, D> {
     num: Arc<N>,
     den: Arc<D>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Negate a signed numeric binding.
 pub struct GetNegate<T, B> {
     binding: Arc<B>,
-    _phantom: spinlock::Mutex<PhantomData<T>>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 /// Cast one numeric binding to another.
@@ -70,8 +70,8 @@ pub struct GetNegate<T, B> {
 /// *Note*: if the cast fails, this returns `Default::default()` of the destination value.
 pub struct GetCast<I, O, B> {
     binding: Arc<B>,
-    _iphantom: spinlock::Mutex<PhantomData<I>>,
-    _ophantom: spinlock::Mutex<PhantomData<O>>,
+    _iphantom: PhantomData<fn() -> I>,
+    _ophantom: PhantomData<fn() -> O>,
 }
 
 impl<T, B, Min, Max> GetClamp<T, B, Min, Max>
