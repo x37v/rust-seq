@@ -4,6 +4,7 @@ use std::sync::Arc;
 pub mod atomic;
 pub mod bpm;
 pub mod cache;
+pub mod generators;
 pub mod latch;
 pub mod observable;
 pub mod ops;
