@@ -15,7 +15,6 @@ use sched::graph::index_latch::IndexLatch;
 use sched::graph::index_report::IndexReporter;
 use sched::graph::midi::MidiNote;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
-use sched::graph::probability_gate::ProbabilityGate;
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
 use sched::graph::GraphNode;
@@ -210,7 +209,9 @@ fn main() {
             .lock()
             .index_child_append(LNode::new_boxed(index_report));
 
-        let prob = GraphNodeWrapper::new_p(ProbabilityGate::new_p(probability.clone()));
+        let uniform = Arc::new(GetUniformRand::new(Arc::new(0f32), Arc::new(1f32)));
+        let cmp = Arc::new(GetCmp::new(CmpOp::Greater, probability.clone(), uniform));
+        let prob = GraphNodeWrapper::new_p(Gate::new_p(cmp.clone()));
         prob.lock().child_append(LNode::new_boxed(trig));
 
         gate.lock().child_append(LNode::new_boxed(prob));
