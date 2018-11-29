@@ -74,6 +74,22 @@ pub struct GetCast<I, O, B> {
     _ophantom: PhantomData<fn() -> O>,
 }
 
+pub enum CmpOp {
+    Equal,
+    Greater,
+    GreaterOrEqual,
+    Less,
+    LessOrEqual,
+}
+
+/// Compare two numeric bindings.
+pub struct GetCmp<T, L, R> {
+    cmp: CmpOp,
+    left: Arc<L>,
+    right: Arc<R>,
+    _phantom: PhantomData<fn() -> T>,
+}
+
 impl<T, B, Min, Max> GetClamp<T, B, Min, Max>
 where
     T: Send + Copy + PartialOrd,
@@ -407,6 +423,48 @@ where
             v
         } else {
             Default::default()
+        }
+    }
+}
+
+impl<T, L, R> GetCmp<T, L, R>
+where
+    T: Send,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
+{
+    /// Construct a new `GetCmp`
+    ///
+    /// # Arguments
+    ///
+    /// * `cmp` - the comparison to execute
+    /// * `left` - the binding for left value of the comparison
+    /// * `right` - the binding for the right value of the comparison
+    pub fn new(cmp: CmpOp, left: Arc<L>, right: Arc<R>) -> Self {
+        Self {
+            cmp,
+            left,
+            right,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T, L, R> ParamBindingGet<bool> for GetCmp<T, L, R>
+where
+    T: PartialOrd + PartialEq,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
+{
+    fn get(&self) -> bool {
+        let left = self.left.get();
+        let right = self.right.get();
+        match self.cmp {
+            CmpOp::Equal => left.eq(&right),
+            CmpOp::Greater => left.gt(&right),
+            CmpOp::GreaterOrEqual => left.ge(&right),
+            CmpOp::Less => left.lt(&right),
+            CmpOp::LessOrEqual => left.le(&right),
         }
     }
 }
