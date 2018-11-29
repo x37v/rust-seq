@@ -61,10 +61,6 @@ where
 
 impl GetOneShot {
     /// Construct a new `GetOneShot`
-    ///
-    /// # Arguments
-    ///
-    /// * `binding` - the boolean get/set binding
     pub fn new() -> Self {
         Self {
             binding: Arc::new(AtomicBool::new(false)),
