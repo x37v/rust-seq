@@ -7,10 +7,10 @@ pub use xnor_llist::Node as LNode;
 use binding::set::BindingSet;
 use context::SchedContext;
 use executor::Executor;
+use ptr::*;
 use std;
 use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
-use std::sync::Arc;
 use std::thread;
 use trigger::{Trigger, TriggerId};
 
@@ -56,15 +56,15 @@ pub trait TimedNodeData {
 }
 
 pub trait InsertTimeSorted<T> {
-    fn insert_time_sorted(&mut self, node: Box<LNode<T>>);
+    fn insert_time_sorted(&mut self, node: UniqPtr<LNode<T>>);
 }
 
 //an object to be put into a schedule and called later
-pub type SchedFn = Box<dyn SchedCall>;
-pub type TimedTrigNode = Box<LNode<TimedTrig>>;
-pub type SchedFnNode = Box<LNode<TimedFn>>;
-pub type BindingSetNode = Box<LNode<BindingSet>>;
-pub type TriggerNode = Box<LNode<Arc<spinlock::Mutex<dyn Trigger>>>>;
+pub type SchedFn = UniqPtr<dyn SchedCall>;
+pub type TimedTrigNode = UniqPtr<LNode<TimedTrig>>;
+pub type SchedFnNode = UniqPtr<LNode<TimedFn>>;
+pub type BindingSetNode = UniqPtr<LNode<BindingSet>>;
+pub type TriggerNode = UniqPtr<LNode<SShrPtr<dyn Trigger>>>;
 
 //implement sched_call for any Fn that with the correct sig
 impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
@@ -85,7 +85,7 @@ impl<T> InsertTimeSorted<T> for LList<T>
 where
     T: TimedNodeData,
 {
-    fn insert_time_sorted(&mut self, node: Box<LNode<T>>) {
+    fn insert_time_sorted(&mut self, node: UniqPtr<LNode<T>>) {
         self.insert(node, |n, o| n.time() <= o.time());
     }
 }
@@ -161,7 +161,7 @@ pub struct SrcSink {
     node_cache: Receiver<SchedFnNode>,
     trig_cache: Receiver<TimedTrigNode>,
     value_set_cache: Receiver<BindingSetNode>,
-    dispose_schedule_sender: SyncSender<Box<dyn Send>>,
+    dispose_schedule_sender: SyncSender<UniqPtr<dyn Send>>,
     updater: Option<SrcSinkUpdater>,
 }
 
@@ -169,11 +169,11 @@ pub struct SrcSinkUpdater {
     node_cache_updater: SyncSender<SchedFnNode>,
     trig_cache_updater: SyncSender<TimedTrigNode>,
     value_set_cache_updater: SyncSender<BindingSetNode>,
-    dispose_schedule_receiver: Receiver<Box<dyn Send>>,
+    dispose_schedule_receiver: Receiver<UniqPtr<dyn Send>>,
 }
 
 pub struct Scheduler {
-    time: Arc<AtomicUsize>,
+    time: ShrPtr<AtomicUsize>,
     executor: Option<Executor>,
     schedule_sender: SyncSender<SchedFnNode>,
     updater: Option<SrcSinkUpdater>,
@@ -185,7 +185,7 @@ impl SrcSinkUpdater {
         node_cache_updater: SyncSender<SchedFnNode>,
         trig_cache_updater: SyncSender<TimedTrigNode>,
         value_set_cache_updater: SyncSender<BindingSetNode>,
-        dispose_schedule_receiver: Receiver<Box<dyn Send>>,
+        dispose_schedule_receiver: Receiver<UniqPtr<dyn Send>>,
     ) -> Self {
         Self {
             node_cache_updater,
@@ -259,7 +259,7 @@ impl SrcSink {
         self.value_set_cache.try_recv().ok()
     }
 
-    pub fn dispose(&mut self, item: Box<Send>) {
+    pub fn dispose(&mut self, item: UniqPtr<Send>) {
         let _ = self.dispose_schedule_sender.send(item);
     }
 }
@@ -273,7 +273,7 @@ impl Default for SrcSink {
 impl Scheduler {
     pub fn new() -> Self {
         let (schedule_sender, schedule_receiver) = sync_channel(1024);
-        let time = Arc::new(AtomicUsize::new(0));
+        let time = ShrPtr::new(AtomicUsize::new(0));
         let mut src_sink = SrcSink::new();
         let updater = src_sink.updater();
         Scheduler {
@@ -349,7 +349,7 @@ mod tests {
         assert!(e.is_some());
         s.schedule(
             TimeSched::Absolute(0),
-            Box::new(move |context: &mut dyn SchedContext| {
+            UniqPtr::new(move |context: &mut dyn SchedContext| {
                 println!(
                     "Closure in schedule {}, {}",
                     context.base_tick(),
@@ -359,7 +359,7 @@ mod tests {
                 context.schedule(
                     TimeSched::Relative(12),
                     //XXX shouldn't actually allocate this
-                    Box::new(move |context: &mut dyn SchedContext| {
+                    UniqPtr::new(move |context: &mut dyn SchedContext| {
                         println!("inner dog {}, scheduled at {}", context.base_tick(), at);
                         context.schedule_trigger(TimeSched::Relative(0), trig);
                         TimeResched::None

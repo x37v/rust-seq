@@ -1,5 +1,5 @@
 use midi::MidiValue;
-use std::sync::Arc;
+use ptr::ShrPtr;
 
 pub mod atomic;
 pub mod bpm;
@@ -11,10 +11,10 @@ pub mod ops;
 pub mod set;
 pub mod spinlock;
 
-pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
-pub type BindingGetP<T> = Arc<dyn ParamBindingGet<T>>;
-pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
-pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
+pub type BindingP<T> = ShrPtr<dyn ParamBinding<T>>;
+pub type BindingGetP<T> = ShrPtr<dyn ParamBindingGet<T>>;
+pub type BindingSetP<T> = ShrPtr<dyn ParamBindingSet<T>>;
+pub type BindingLatchP<'a> = ShrPtr<dyn ParamBindingLatch + 'a>;
 
 pub trait ParamBindingGet<T>: Send + Sync {
     fn get(&self) -> T;

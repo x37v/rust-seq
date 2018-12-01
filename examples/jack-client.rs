@@ -1,5 +1,7 @@
 extern crate jack;
 extern crate rosc;
+
+#[macro_use]
 extern crate sched;
 
 use sched::binding::bpm;
@@ -9,6 +11,8 @@ use sched::binding::observable::{new_observer_node, Observable, ObservableBindin
 use sched::binding::ops::*;
 use sched::binding::spinlock::SpinlockParamBinding;
 use sched::binding::{BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingSet};
+
+use sched::ptr::{SShrPtr, ShrPtr};
 
 use sched::graph::clock_ratio::ClockRatio;
 use sched::graph::gate::Gate;
@@ -27,34 +31,35 @@ use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::sync_channel;
-use std::sync::Arc;
 
 use std::io;
 
 use sched::quneo_display::DisplayType as QDisplayType;
 use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
+use std::sync::Arc;
+
 struct PageData {
-    index: Arc<ObservableBinding<usize, AtomicUsize>>,
-    length: Arc<ObservableBinding<usize, AtomicUsize>>,
-    gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
-    clock_mul: Arc<dyn ParamBinding<u8>>,
-    clock_div: Arc<dyn ParamBinding<u8>>,
-    probability: Arc<dyn ParamBinding<f32>>,
-    volume: Arc<dyn ParamBinding<f32>>,
-    volume_rand: Arc<dyn ParamBinding<f32>>,
+    index: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
+    length: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
+    gates: Vec<ShrPtr<ObservableBinding<bool, AtomicBool>>>,
+    clock_mul: ShrPtr<dyn ParamBinding<u8>>,
+    clock_div: ShrPtr<dyn ParamBinding<u8>>,
+    probability: ShrPtr<dyn ParamBinding<f32>>,
+    volume: ShrPtr<dyn ParamBinding<f32>>,
+    volume_rand: ShrPtr<dyn ParamBinding<f32>>,
 }
 
 impl PageData {
     pub fn new(
-        index: Arc<ObservableBinding<usize, AtomicUsize>>,
-        length: Arc<ObservableBinding<usize, AtomicUsize>>,
-        gates: Vec<Arc<ObservableBinding<bool, AtomicBool>>>,
-        clock_mul: Arc<dyn ParamBinding<u8>>,
-        clock_div: Arc<dyn ParamBinding<u8>>,
-        probability: Arc<dyn ParamBinding<f32>>,
-        volume: Arc<dyn ParamBinding<f32>>,
-        volume_rand: Arc<dyn ParamBinding<f32>>,
+        index: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
+        length: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
+        gates: Vec<ShrPtr<ObservableBinding<bool, AtomicBool>>>,
+        clock_mul: ShrPtr<dyn ParamBinding<u8>>,
+        clock_div: ShrPtr<dyn ParamBinding<u8>>,
+        probability: ShrPtr<dyn ParamBinding<f32>>,
+        volume: ShrPtr<dyn ParamBinding<f32>>,
+        volume_rand: ShrPtr<dyn ParamBinding<f32>>,
     ) -> Self {
         Self {
             index,
@@ -71,8 +76,8 @@ impl PageData {
 
 fn main() {
     let (notify_sender, notify_receiver) = sync_channel(16);
-    let jack_connections: Arc<ObservableBinding<usize, _>> =
-        Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
+    let jack_connections: ShrPtr<ObservableBinding<usize, _>> =
+        new_shrptr!(ObservableBinding::new(AtomicUsize::new(0)));
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
 
@@ -88,13 +93,13 @@ fn main() {
     sched.spawn_helper_threads();
 
     let (msender, mreceiver) = sync_channel(1024);
-    let midi_trig = Arc::new(spinlock::Mutex::new(MidiTrigger::new(msender)));
+    let midi_trig = new_sshrptr!(MidiTrigger::new(msender));
 
-    let bpm_binding = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 960)));
-    let _bpm = Arc::new(bpm::ClockBPMBinding(bpm_binding.clone()));
-    let _ppq = Arc::new(bpm::ClockPPQBinding(bpm_binding.clone()));
-    let micros = Arc::new(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
-    let mut clock = Box::new(RootClock::new(micros.clone()));
+    let bpm_binding = new_sshrptr!(bpm::ClockData::new(120.0, 960));
+    let _bpm = new_shrptr!(bpm::ClockBPMBinding(bpm_binding.clone()));
+    let _ppq = new_shrptr!(bpm::ClockPPQBinding(bpm_binding.clone()));
+    let micros = new_shrptr!(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
+    let mut clock = new_uniqptr!(RootClock::new(micros.clone()));
 
     let _pulses = SpinlockParamBinding::new_p(2);
     let step_ticks = SpinlockParamBinding::new_p(960 / 4);
@@ -138,68 +143,68 @@ fn main() {
     });
     */
 
-    let current_page = Arc::new(AtomicUsize::new(0));
-    let page_select_shift = Arc::new(AtomicBool::new(false));
-    let mul_select_shift = Arc::new(AtomicBool::new(false));
-    let div_select_shift = Arc::new(AtomicBool::new(false));
-    let len_select_shift = Arc::new(AtomicBool::new(false));
+    let current_page = new_shrptr!(AtomicUsize::new(0));
+    let page_select_shift = new_shrptr!(AtomicBool::new(false));
+    let mul_select_shift = new_shrptr!(AtomicBool::new(false));
+    let div_select_shift = new_shrptr!(AtomicBool::new(false));
+    let len_select_shift = new_shrptr!(AtomicBool::new(false));
 
-    let mut page_data: Vec<Arc<spinlock::Mutex<PageData>>> = Vec::new();
-    let midi_notev_min = Arc::new(1u8);
-    let midi_max = Arc::new(127u8);
-    let midi_maxf = Arc::new(127f32);
+    let mut page_data: Vec<SShrPtr<PageData>> = Vec::new();
+    let midi_notev_min = new_shrptr!(1u8);
+    let midi_max = new_shrptr!(127u8);
+    let midi_maxf = new_shrptr!(127f32);
 
     for page in 0..64 {
         let probability = SpinlockParamBinding::new_p(1f32);
 
         let volume = SpinlockParamBinding::new_p(1.0f32);
         let volume_rand = SpinlockParamBinding::new_p(0f32);
-        let volume_rand_offset = Arc::new(GetUniformRand::new(
-            Arc::new(GetNegate::new(volume_rand.clone())),
+        let volume_rand_offset = new_shrptr!(GetUniformRand::new(
+            new_shrptr!(GetNegate::new(volume_rand.clone())),
             volume_rand.clone(),
         ));
 
-        let velocity = Arc::new(GetSum::new(volume.clone(), volume_rand_offset));
-        let velocity = Arc::new(GetMul::new(velocity.clone(), midi_maxf.clone()));
-        let velocity: Arc<GetCast<f32, u8, _>> = Arc::new(GetCast::new(velocity));
-        let velocity = Arc::new(GetClamp::new(
+        let velocity = new_shrptr!(GetSum::new(volume.clone(), volume_rand_offset));
+        let velocity = new_shrptr!(GetMul::new(velocity.clone(), midi_maxf.clone()));
+        let velocity: ShrPtr<GetCast<f32, u8, _>> = new_shrptr!(GetCast::new(velocity));
+        let velocity = new_shrptr!(GetClamp::new(
             velocity,
             midi_notev_min.clone(),
             midi_max.clone(),
         ));
 
-        let steps = Arc::new(ObservableBinding::new(AtomicUsize::new(16)));
-        let note = Arc::new((page + 36) as u8);
+        let steps = new_shrptr!(ObservableBinding::new(AtomicUsize::new(16)));
+        let note = new_shrptr!((page + 36) as u8);
 
         //build up gates
-        let gates: Vec<Arc<ObservableBinding<bool, _>>> = vec![false; 64]
+        let gates: Vec<ShrPtr<ObservableBinding<bool, _>>> = vec![false; 64]
             .iter()
-            .map(|v| Arc::new(ObservableBinding::new(AtomicBool::new(*v))))
+            .map(|v| new_shrptr!(ObservableBinding::new(AtomicBool::new(*v))))
             .collect();
         for g in gates.iter() {
             g.add_observer(new_observer_node(notify_sender.clone()));
         }
 
-        let step_gate = Arc::new(AtomicBool::new(false));
+        let step_gate = new_shrptr!(AtomicBool::new(false));
         let latches: Vec<BindingLatchP> = gates
             .iter()
-            .map(|g| Arc::new(BindingLatch::new(g.clone(), step_gate.clone())) as BindingLatchP)
+            .map(|g| new_shrptr!(BindingLatch::new(g.clone(), step_gate.clone())) as BindingLatchP)
             .collect();
 
         let trig = GraphNodeWrapper::new_p(MidiNote::new_p(
             midi_trig.clone(),
-            Arc::new(9u8),
+            new_shrptr!(9u8),
             note.clone(),
-            Arc::new(TimeResched::Relative(1)),
+            new_shrptr!(TimeResched::Relative(1)),
             velocity.clone(),
-            Arc::new(127u8),
+            new_shrptr!(127u8),
         ));
 
         let gate = GraphNodeWrapper::new_p(Gate::new_p(step_gate.clone()));
         let step_seq =
             NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
 
-        let index_binding = Arc::new(ObservableBinding::new(AtomicUsize::new(0)));
+        let index_binding = new_shrptr!(ObservableBinding::new(AtomicUsize::new(0)));
         let index_latch = IndexLatch::new_p(latches);
         step_seq
             .lock()
@@ -210,8 +215,8 @@ fn main() {
             .lock()
             .index_child_append(LNode::new_boxed(index_report));
 
-        let uniform = Arc::new(GetUniformRand::new(Arc::new(0f32), Arc::new(1f32)));
-        let cmp = Arc::new(GetCmp::new(CmpOp::Greater, probability.clone(), uniform));
+        let uniform = new_shrptr!(GetUniformRand::new(new_shrptr!(0f32), new_shrptr!(1f32)));
+        let cmp = new_shrptr!(GetCmp::new(CmpOp::Greater, probability.clone(), uniform));
         let prob = GraphNodeWrapper::new_p(Gate::new_p(cmp.clone()));
         prob.lock().child_append(LNode::new_boxed(trig));
 
@@ -222,7 +227,7 @@ fn main() {
         let mul = SpinlockParamBinding::new_p(1);
         let div = SpinlockParamBinding::new_p(1);
 
-        page_data.push(Arc::new(spinlock::Mutex::new(PageData::new(
+        page_data.push(new_sshrptr!(PageData::new(
             index_binding.clone(),
             steps.clone(),
             gates.iter().cloned().collect(),
@@ -231,7 +236,7 @@ fn main() {
             probability.clone(),
             volume.clone(),
             volume_rand.clone(),
-        ))));
+        )));
 
         index_binding.add_observer(new_observer_node(notify_sender.clone()));
 
@@ -243,7 +248,7 @@ fn main() {
     sched.schedule(TimeSched::Relative(0), clock);
 
     let cpage = current_page.clone();
-    let draw_data: Vec<Arc<spinlock::Mutex<PageData>>> = page_data.iter().cloned().collect();
+    let draw_data: Vec<SShrPtr<PageData>> = page_data.iter().cloned().collect();
     jack_connections.add_observer(new_observer_node(notify_sender));
     let force_id = jack_connections.id();
 
@@ -259,10 +264,10 @@ fn main() {
         display.update(QDisplayType::Pad, index, value);
     };
 
-    let drawer = Box::new(QuNeoDrawer::new(
+    let drawer = new_uniqptr!(QuNeoDrawer::new(
         midi_trig.clone(),
         TimeResched::Relative(441),
-        Box::new(move |display: &mut QuNeoDisplay| {
+        new_uniqptr!(move |display: &mut QuNeoDisplay| {
             //TODO make sure the notification is actually something we care about
             let force = notify_receiver.try_iter().any(|x| x == force_id);
             let page = cpage.get();
