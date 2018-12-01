@@ -7,6 +7,7 @@ pub extern crate xnor_llist;
 
 mod base;
 pub mod context;
+pub mod executor;
 pub mod graph;
 pub mod trigger;
 pub mod util;
