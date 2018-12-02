@@ -289,10 +289,10 @@ fn main() {
         display.update(QDisplayType::Pad, index, value);
     };
 
-    let drawer = new_uniqptr!(QuNeoDrawer::new(
+    let drawer = QuNeoDrawer::new(
         midi_trig.clone(),
         TimeResched::Relative(441),
-        new_uniqptr!(move |display: &mut QuNeoDisplay| {
+        (move |display: &mut QuNeoDisplay| {
             //TODO make sure the notification is actually something we care about
             let force = notify_receiver.try_iter().any(|x| x == force_id);
             let page = cpage.get();
@@ -336,8 +336,10 @@ fn main() {
                     display.force_draw();
                 }
             }
-        }),
-    ));
+        })
+        .into_unique(),
+    )
+    .into_unique();
 
     sched.schedule(TimeSched::Relative(0), drawer);
 
