@@ -219,9 +219,9 @@ mod tests {
     use super::*;
     use binding::bpm::Clock;
     use binding::{spinlock::SpinlockParamBinding, ParamBindingSet};
+    use ptr::ShrPtr;
     use std::sync::atomic::AtomicIsize;
     use std::sync::mpsc::sync_channel;
-    use std::sync::ShrPtr;
 
     use std::thread;
 

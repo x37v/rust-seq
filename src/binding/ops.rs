@@ -391,10 +391,10 @@ where
     /// ```
     /// use sched::binding::ParamBindingGet;
     /// use sched::binding::ops::GetCast;
-    /// use std::sync::ShrPtr;
+    /// use sched::ptr::ShrPtr;
     ///
-    /// let f = new_shrptr!(23f32);
-    /// let c : ShrPtr<GetCast<f32, u8, _>> = new_shrptr!(GetCast::new(f.clone()));
+    /// let f: ShrPtr<f32> = 23f32.into();
+    /// let c : ShrPtr<GetCast<f32, u8, _>> = GetCast::new(f.clone()).into();
     /// assert_eq!(23f32, f.get());
     /// assert_eq!(23u8, c.get());
     /// ```

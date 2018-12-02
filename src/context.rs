@@ -259,8 +259,8 @@ mod tests {
         let mut trig_list = LList::new();
 
         let mut c = RootContext::new(0, 0, &mut list, &mut trig_list, &mut src_sink);
-        let fbinding = SpinlockParamBinding::new_p(0f32);
-        let ibinding = SpinlockParamBinding::new_p(0);
+        let fbinding = new_shrptr!(SpinlockParamBinding::new(0f32));
+        let ibinding = new_shrptr!(SpinlockParamBinding::new(0));
         let trig = TriggerId::new();
         c.schedule_valued_trigger(
             TimeSched::Relative(0),

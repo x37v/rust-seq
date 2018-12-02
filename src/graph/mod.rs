@@ -247,8 +247,8 @@ mod tests {
 
     #[test]
     fn works() {
-        let x = GraphNodeWrapper::new_p(new_uniqptr!(X {}));
-        let y = GraphNodeWrapper::new_p(new_uniqptr!(Y {}));
+        let x = new_sshrptr!(GraphNodeWrapper::new(new_uniqptr!(X {})));
+        let y = new_sshrptr!(GraphNodeWrapper::new(new_uniqptr!(Y {})));
 
         let mut l: LList<SShrPtr<dyn GraphNode>> = LList::new();
         l.push_back(LNode::new_boxed(x.clone()));
