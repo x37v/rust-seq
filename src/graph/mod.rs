@@ -304,7 +304,7 @@ mod tests {
 
         let clock_period = new_shrptr!(SpinlockParamBinding::new(1_000_000f32));
         let mut clock = new_uniqptr!(RootClock::new(clock_period.clone()));
-        let tick_store = GraphNodeWrapper::new_p(TickStore::default());
+        let tick_store = new_sshrptr!(GraphNodeWrapper::new(TickStore::default()));
 
         assert!(tick_store.lock().tick().is_none());
         clock.child_append(LNode::new_boxed(tick_store.clone()));
