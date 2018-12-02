@@ -3,6 +3,8 @@ extern crate euclidian_rythms;
 use binding::BindingGetP;
 use context::SchedContext;
 use graph::{ChildCount, ChildExec, GraphExec};
+use macros;
+use ptr::UniqPtr;
 
 pub struct Euclid {
     step_ticks: BindingGetP<usize>,
@@ -14,19 +16,19 @@ pub struct Euclid {
 }
 
 impl Euclid {
-    pub fn new_p(
+    pub fn new(
         step_ticks: BindingGetP<usize>,
         steps: BindingGetP<u8>,
         pulses: BindingGetP<u8>,
-    ) -> Box<Self> {
-        Box::new(Self {
+    ) -> Self {
+        Self {
             step_ticks,
             steps,
             pulses,
             steps_last: None,
             pulses_last: None,
             pattern: [false; 64],
-        })
+        }
     }
 
     fn update_if(&mut self, steps: u8, pulses: u8) {

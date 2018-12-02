@@ -8,8 +8,8 @@ pub struct StepSeq {
 }
 
 impl StepSeq {
-    pub fn new_p(step_ticks: BindingGetP<usize>, steps: BindingGetP<usize>) -> Box<Self> {
-        Box::new(Self { step_ticks, steps })
+    pub fn new(step_ticks: BindingGetP<usize>, steps: BindingGetP<usize>) -> Self {
+        Self { step_ticks, steps }
     }
 }
 

@@ -1,6 +1,6 @@
 use context::SchedContext;
 use midi::{MidiTrigger, MidiValue};
-use std::sync::Arc;
+use ptr::{SShrPtr, UniqPtr};
 use SchedCall;
 use TimeResched;
 use TimeSched;
@@ -35,8 +35,8 @@ pub enum DisplayType {
 
 pub struct QuNeoDrawer<F> {
     display: QuNeoDisplay,
-    func: Box<F>,
-    midi_trigger: Arc<spinlock::Mutex<MidiTrigger>>,
+    func: UniqPtr<F>,
+    midi_trigger: SShrPtr<MidiTrigger>,
     period: TimeResched,
 }
 
@@ -49,11 +49,7 @@ impl<F> QuNeoDrawer<F>
 where
     F: Fn(&mut QuNeoDisplay) + Send,
 {
-    pub fn new(
-        midi_trigger: Arc<spinlock::Mutex<MidiTrigger>>,
-        period: TimeResched,
-        func: Box<F>,
-    ) -> Self {
+    pub fn new(midi_trigger: SShrPtr<MidiTrigger>, period: TimeResched, func: UniqPtr<F>) -> Self {
         Self {
             display: QuNeoDisplay::new(),
             func,

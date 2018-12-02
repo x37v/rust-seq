@@ -1,4 +1,6 @@
 use super::*;
+use macros;
+use ptr::UniqPtr;
 
 /// A graph node that executes one child based on the bound index it is given.
 pub struct OneHot {
@@ -6,13 +8,13 @@ pub struct OneHot {
 }
 
 impl OneHot {
-    /// Construct a new `Box<OneHot>`
+    /// Construct a new `OneHot`
     ///
     /// # Arguments
     ///
     /// * `binding` - the binding which determines if the child to execute
-    pub fn new_p(binding: BindingGetP<usize>) -> Box<Self> {
-        Box::new(Self { binding })
+    pub fn new(binding: BindingGetP<usize>) -> Self {
+        Self { binding }
     }
 }
 

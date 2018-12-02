@@ -1,40 +1,40 @@
 use binding::ParamBindingGet;
+use ptr::ShrPtr;
 use std::marker::PhantomData;
-use std::sync::Arc;
 
 /// Clamp a numeric binding between [min, max], inclusive.
 pub struct GetClamp<T, B, Min, Max> {
-    binding: Arc<B>,
-    min: Arc<Min>,
-    max: Arc<Max>,
+    binding: ShrPtr<B>,
+    min: ShrPtr<Min>,
+    max: ShrPtr<Max>,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Clamp a numeric above a min value, inclusive.
 pub struct GetClampAbove<T, B, Min> {
-    binding: Arc<B>,
-    min: Arc<Min>,
+    binding: ShrPtr<B>,
+    min: ShrPtr<Min>,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Clamp a numeric below a max value, inclusive.
 pub struct GetClampBelow<T, B, Max> {
-    binding: Arc<B>,
-    max: Arc<Max>,
+    binding: ShrPtr<B>,
+    max: ShrPtr<Max>,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Sum two numeric bindings.
 pub struct GetSum<T, L, R> {
-    left: Arc<L>,
-    right: Arc<R>,
+    left: ShrPtr<L>,
+    right: ShrPtr<R>,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Multiply two numeric bindings.
 pub struct GetMul<T, L, R> {
-    left: Arc<L>,
-    right: Arc<R>,
+    left: ShrPtr<L>,
+    right: ShrPtr<R>,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -43,8 +43,8 @@ pub struct GetMul<T, L, R> {
 ///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
 /// so you probably still want to protect against it.
 pub struct GetDiv<T, N, D> {
-    num: Arc<N>,
-    den: Arc<D>,
+    num: ShrPtr<N>,
+    den: ShrPtr<D>,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -53,14 +53,14 @@ pub struct GetDiv<T, N, D> {
 ///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
 /// so you probably still want to protect against it.
 pub struct GetRem<T, L, R> {
-    left: Arc<L>,
-    right: Arc<R>,
+    left: ShrPtr<L>,
+    right: ShrPtr<R>,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Negate a signed numeric binding.
 pub struct GetNegate<T, B> {
-    binding: Arc<B>,
+    binding: ShrPtr<B>,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -68,7 +68,7 @@ pub struct GetNegate<T, B> {
 ///
 /// *Note*: if the cast fails, this returns `Default::default()` of the destination value.
 pub struct GetCast<I, O, B> {
-    binding: Arc<B>,
+    binding: ShrPtr<B>,
     _iphantom: PhantomData<fn() -> I>,
     _ophantom: PhantomData<fn() -> O>,
 }
@@ -84,8 +84,8 @@ pub enum CmpOp {
 /// Compare two numeric bindings.
 pub struct GetCmp<T, L, R> {
     cmp: CmpOp,
-    left: Arc<L>,
-    right: Arc<R>,
+    left: ShrPtr<L>,
+    right: ShrPtr<R>,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -103,7 +103,7 @@ where
     /// * `binding` - the binding value to clamp
     /// * `min` - the binding for the minimum value
     /// * `max` - the binding for the maximum value
-    pub fn new(binding: Arc<B>, min: Arc<Min>, max: Arc<Max>) -> Self {
+    pub fn new(binding: ShrPtr<B>, min: ShrPtr<Min>, max: ShrPtr<Max>) -> Self {
         Self {
             binding,
             min,
@@ -140,7 +140,7 @@ where
     ///
     /// * `binding` - the binding value to clamp
     /// * `min` - the binding for the minimum value
-    pub fn new(binding: Arc<B>, min: Arc<Min>) -> Self {
+    pub fn new(binding: ShrPtr<B>, min: ShrPtr<Min>) -> Self {
         Self {
             binding,
             min,
@@ -178,7 +178,7 @@ where
     ///
     /// * `binding` - the binding value to clamp
     /// * `max` - the binding for the maximum value
-    pub fn new(binding: Arc<B>, max: Arc<Max>) -> Self {
+    pub fn new(binding: ShrPtr<B>, max: ShrPtr<Max>) -> Self {
         Self {
             binding,
             max,
@@ -216,7 +216,7 @@ where
     ///
     /// * `left` - the binding for left value of the sum
     /// * `right` - the binding for the right value of the sum
-    pub fn new(left: Arc<L>, right: Arc<R>) -> Self {
+    pub fn new(left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
         Self {
             left,
             right,
@@ -248,7 +248,7 @@ where
     ///
     /// * `left` - the binding for left value of the multiplication
     /// * `right` - the binding for the right value of the multiplication
-    pub fn new(left: Arc<L>, right: Arc<R>) -> Self {
+    pub fn new(left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
         Self {
             left,
             right,
@@ -280,7 +280,7 @@ where
     ///
     /// * `num` - the binding for numerator value of the division
     /// * `den` - the binding for denominator value of the division
-    pub fn new(num: Arc<N>, den: Arc<D>) -> Self {
+    pub fn new(num: ShrPtr<N>, den: ShrPtr<D>) -> Self {
         Self {
             num,
             den,
@@ -317,7 +317,7 @@ where
     ///
     /// * `left` - the binding for left value of the division
     /// * `right` - the binding for the right value of the division
-    pub fn new(left: Arc<L>, right: Arc<R>) -> Self {
+    pub fn new(left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
         Self {
             left,
             right,
@@ -352,7 +352,7 @@ where
     /// # Arguments
     ///
     /// * `binding` - the binding to negate
-    pub fn new(binding: Arc<B>) -> Self {
+    pub fn new(binding: ShrPtr<B>) -> Self {
         Self {
             binding,
             _phantom: Default::default(),
@@ -391,14 +391,14 @@ where
     /// ```
     /// use sched::binding::ParamBindingGet;
     /// use sched::binding::ops::GetCast;
-    /// use std::sync::Arc;
+    /// use std::sync::ShrPtr;
     ///
-    /// let f = Arc::new(23f32);
-    /// let c : Arc<GetCast<f32, u8, _>> = Arc::new(GetCast::new(f.clone()));
+    /// let f = new_shrptr!(23f32);
+    /// let c : ShrPtr<GetCast<f32, u8, _>> = new_shrptr!(GetCast::new(f.clone()));
     /// assert_eq!(23f32, f.get());
     /// assert_eq!(23u8, c.get());
     /// ```
-    pub fn new(binding: Arc<B>) -> Self {
+    pub fn new(binding: ShrPtr<B>) -> Self {
         Self {
             binding,
             _iphantom: Default::default(),
@@ -435,7 +435,7 @@ where
     /// * `cmp` - the comparison to execute
     /// * `left` - the binding for left value of the comparison
     /// * `right` - the binding for the right value of the comparison
-    pub fn new(cmp: CmpOp, left: Arc<L>, right: Arc<R>) -> Self {
+    pub fn new(cmp: CmpOp, left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
         Self {
             cmp,
             left,

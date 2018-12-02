@@ -2,14 +2,15 @@ use super::*;
 use base::TimeSched;
 use binding::set::BindingSet;
 use binding::BindingSetP;
+use ptr::SShrPtr;
 
 pub struct IndexReporter {
     binding: BindingSetP<usize>,
 }
 
 impl IndexReporter {
-    pub fn new_p(binding: BindingSetP<usize>) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self { binding }))
+    pub fn new(binding: BindingSetP<usize>) -> Self {
+        Self { binding }
     }
 }
 

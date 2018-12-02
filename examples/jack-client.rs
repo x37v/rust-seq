@@ -37,8 +37,6 @@ use std::io;
 use sched::quneo_display::DisplayType as QDisplayType;
 use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
-use std::sync::Arc;
-
 struct PageData {
     index: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
     length: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
@@ -101,9 +99,9 @@ fn main() {
     let micros = new_shrptr!(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
     let mut clock = new_uniqptr!(RootClock::new(micros.clone()));
 
-    let _pulses = SpinlockParamBinding::new_p(2);
-    let step_ticks = SpinlockParamBinding::new_p(960 / 4);
-    let _step_index = SpinlockParamBinding::new_p(0usize);
+    let _pulses = new_shrptr!(SpinlockParamBinding::new(2));
+    let step_ticks = new_shrptr!(SpinlockParamBinding::new(960 / 4));
+    let _step_index = new_shrptr!(SpinlockParamBinding::new(0usize));
 
     /*
     let addr_s = "127.0.0.1:10001";

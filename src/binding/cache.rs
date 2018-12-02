@@ -1,10 +1,10 @@
 use super::spinlock::SpinlockParamBinding;
 use super::*;
 use failure::Fail;
+use ptr::UniqPtr;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
-use std::sync::Arc;
 
 #[derive(Debug, Fail)]
 #[fail(display = "entry exists but type is wrong: {}", key)]
@@ -12,7 +12,7 @@ pub struct GetError {
     key: String,
 }
 
-pub type BindingMap = HashMap<String, Box<Any>>;
+pub type BindingMap = HashMap<String, UniqPtr<Any>>;
 
 pub struct BindingCache(pub BindingMap);
 
@@ -25,21 +25,21 @@ impl BindingCache {
         &mut self,
         key: String,
         default: U,
-    ) -> Result<Arc<dyn ParamBinding<U>>, GetError>
+    ) -> Result<ShrPtr<dyn ParamBinding<U>>, GetError>
     where
         T: Default + ParamBinding<U> + 'static,
     {
         if let Some(v) = self.0.get_mut(&key) {
-            if let Some(b) = v.downcast_mut::<Arc<T>>() {
+            if let Some(b) = v.downcast_mut::<ShrPtr<T>>() {
                 Ok(b.clone())
             } else {
                 Err(GetError { key: key })
             }
         } else {
-            let v: Arc<T> = Arc::new(Default::default());
+            let v: ShrPtr<T> = new_shrptr!(Default::default());
             v.set(default);
 
-            let b: Box<Arc<T>> = Box::new(v.clone());
+            let b: UniqPtr<ShrPtr<T>> = new_uniqptr!(v.clone());
             self.0.insert(key, b);
             Ok(v)
         }
@@ -49,7 +49,7 @@ impl BindingCache {
         &mut self,
         key: String,
         default: usize,
-    ) -> Result<Arc<dyn ParamBinding<usize>>, GetError> {
+    ) -> Result<ShrPtr<dyn ParamBinding<usize>>, GetError> {
         self.get_item::<AtomicUsize, usize>(key, default)
     }
 
@@ -57,7 +57,7 @@ impl BindingCache {
         &mut self,
         key: String,
         default: isize,
-    ) -> Result<Arc<dyn ParamBinding<isize>>, GetError> {
+    ) -> Result<ShrPtr<dyn ParamBinding<isize>>, GetError> {
         self.get_item::<AtomicIsize, isize>(key, default)
     }
 
@@ -65,7 +65,7 @@ impl BindingCache {
         &mut self,
         key: String,
         default: bool,
-    ) -> Result<Arc<dyn ParamBinding<bool>>, GetError> {
+    ) -> Result<ShrPtr<dyn ParamBinding<bool>>, GetError> {
         self.get_item::<AtomicBool, bool>(key, default)
     }
 
@@ -73,7 +73,7 @@ impl BindingCache {
         &mut self,
         key: String,
         default: T,
-    ) -> Result<Arc<dyn ParamBinding<T>>, GetError>
+    ) -> Result<ShrPtr<dyn ParamBinding<T>>, GetError>
     where
         T: Send + Copy + Default + 'static,
     {
@@ -106,7 +106,7 @@ mod tests {
         assert_eq!(53f32, xr.get());
         assert_eq!(53f32, yr.get());
 
-        c.0.insert("foo".to_string(), Box::new(3));
+        c.0.insert("foo".to_string(), new_uniqptr!(3));
         assert!(c.get_spinlock::<f32>("foo".to_string(), 23f32).is_err());
 
         let y = c.get_spinlock::<f32>("soda".to_string(), 12f32);
@@ -134,7 +134,7 @@ mod tests {
             "bpm".to_string(),
             ::binding::bpm::ClockData::new(110f32, 990),
         );
-    
+
         assert!(f.is_ok());
         assert!(b.is_ok());
         let f = f.unwrap();
@@ -142,14 +142,14 @@ mod tests {
         assert_eq!(43f32, f.get());
         assert_eq!(110f32, b.get().bpm());
         assert_eq!(990, b.get().ppq());
-    
+
         let b2 = c.get::<ClockData>("bpm".to_string(), ClockData::new(1f32, 10));
         assert!(b2.is_ok());
         let b2 = b2.unwrap();
-    
-        let bpm = Arc::new(ClockBPMBinding(b2.clone()));
-        let ppq = Arc::new(ClockPPQBinding(b2.clone()));
-        let micros = Arc::new(ClockPeriodMicroBinding(b2.clone()));
+
+        let bpm = new_shrptr!(ClockBPMBinding(b2.clone()));
+        let ppq = new_shrptr!(ClockPPQBinding(b2.clone()));
+        let micros = new_shrptr!(ClockPeriodMicroBinding(b2.clone()));
     }
     */
 }

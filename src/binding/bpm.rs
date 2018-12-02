@@ -1,6 +1,6 @@
 use super::*;
 extern crate spinlock;
-use std::sync::Arc;
+use ptr::SShrPtr;
 
 pub trait Clock {
     fn bpm(&self) -> f32;
@@ -20,9 +20,9 @@ pub struct ClockData {
     ppq: usize,
 }
 
-pub struct ClockPeriodMicroBinding(pub Arc<spinlock::Mutex<Clock>>);
-pub struct ClockBPMBinding(pub Arc<spinlock::Mutex<Clock>>);
-pub struct ClockPPQBinding(pub Arc<spinlock::Mutex<Clock>>);
+pub struct ClockPeriodMicroBinding(pub SShrPtr<Clock>);
+pub struct ClockBPMBinding(pub SShrPtr<Clock>);
+pub struct ClockPPQBinding(pub SShrPtr<Clock>);
 
 impl ClockData {
     pub fn period_micro(bpm: f32, ppq: usize) -> f32 {
@@ -140,11 +140,11 @@ mod tests {
 
     #[test]
     fn bpm_binding_test() {
-        let b = Arc::new(spinlock::Mutex::new(bpm::ClockData::new(120.0, 96)));
+        let b = new_sshrptr!(bpm::ClockData::new(120.0, 96));
 
-        let bpm = Arc::new(bpm::ClockBPMBinding(b.clone()));
-        let ppq = Arc::new(bpm::ClockPPQBinding(b.clone()));
-        let micros = Arc::new(bpm::ClockPeriodMicroBinding(b.clone()));
+        let bpm = new_shrptr!(bpm::ClockBPMBinding(b.clone()));
+        let ppq = new_shrptr!(bpm::ClockPPQBinding(b.clone()));
+        let micros = new_shrptr!(bpm::ClockPeriodMicroBinding(b.clone()));
         let micros2 = micros.clone();
 
         let c = b.clone();

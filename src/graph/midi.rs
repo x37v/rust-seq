@@ -1,11 +1,12 @@
 use super::*;
 use binding::BindingGetP;
 use midi::MidiTrigger;
+use ptr::SShrPtr;
 use TimeSched;
 
 /// A graph leaf node that triggers a midi note.
 pub struct MidiNote {
-    trigger: Arc<spinlock::Mutex<MidiTrigger>>,
+    trigger: SShrPtr<MidiTrigger>,
     chan: BindingGetP<u8>,
     note: BindingGetP<u8>,
     dur: BindingGetP<TimeResched>,
@@ -14,7 +15,7 @@ pub struct MidiNote {
 }
 
 impl MidiNote {
-    /// Construct a new `Box<MidiNote>`
+    /// Construct a new `MidiNote`
     ///
     /// # Arguments
     ///
@@ -24,22 +25,22 @@ impl MidiNote {
     /// * `dur` - the binding for the note duration
     /// * `on_vel` - the binding for the note on velocity
     /// * `off_vel` - the binding for the note off velocity
-    pub fn new_p(
-        trigger: Arc<spinlock::Mutex<MidiTrigger>>,
+    pub fn new(
+        trigger: SShrPtr<MidiTrigger>,
         chan: BindingGetP<u8>,
         note: BindingGetP<u8>,
         dur: BindingGetP<TimeResched>,
         on_vel: BindingGetP<u8>,
         off_vel: BindingGetP<u8>,
-    ) -> Box<Self> {
-        Box::new(Self {
+    ) -> Self {
+        Self {
             trigger,
             chan,
             note,
             dur,
             on_vel,
             off_vel,
-        })
+        }
     }
 }
 

@@ -1,21 +1,22 @@
 use binding::{ParamBindingGet, ParamBindingSet};
+use ptr::ShrPtr;
 use rand::prelude::*;
 use std::marker::PhantomData;
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::atomic::AtomicBool;
 
 /// Get an uniform random numeric value [min, max(.
 ///
 /// This generates a new random value that is greater than or equal to `min` and less than `max`
 /// every time you call `.get()` on it.
 pub struct GetUniformRand<T, Min, Max> {
-    min: Arc<Min>,
-    max: Arc<Max>,
+    min: ShrPtr<Min>,
+    max: ShrPtr<Max>,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Get a One Shot, if set to true, is only bool for one read until it is set true again
 pub struct GetOneShot {
-    binding: Arc<AtomicBool>,
+    binding: ShrPtr<AtomicBool>,
 }
 
 impl<T, Min, Max> GetUniformRand<T, Min, Max>
@@ -33,7 +34,7 @@ where
     ///
     /// # Notes
     /// The max is **exclusive** so you will never get that value in the output.
-    pub fn new(min: Arc<Min>, max: Arc<Max>) -> Self {
+    pub fn new(min: ShrPtr<Min>, max: ShrPtr<Max>) -> Self {
         Self {
             min,
             max,
@@ -63,7 +64,7 @@ impl GetOneShot {
     /// Construct a new `GetOneShot`
     pub fn new() -> Self {
         Self {
-            binding: Arc::new(AtomicBool::new(false)),
+            binding: new_shrptr!(AtomicBool::new(false)),
         }
     }
 }

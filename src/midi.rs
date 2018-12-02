@@ -1,7 +1,7 @@
 use base::{TimeResched, TimeSched};
 use binding::{set::BindingSet, spinlock::SpinlockParamBinding, ParamBindingGet};
+use ptr::ShrPtr;
 use std::sync::mpsc::SyncSender;
-use std::sync::Arc;
 use trigger::{ScheduleTrigger, Trigger, TriggerId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -180,7 +180,7 @@ impl MidiValueAt {
 
 pub struct MidiTrigger {
     trigger_index: TriggerId,
-    value: Arc<SpinlockParamBinding<MidiValue>>,
+    value: ShrPtr<SpinlockParamBinding<MidiValue>>,
     sender: SyncSender<MidiValueAt>,
 }
 
@@ -188,7 +188,7 @@ impl MidiTrigger {
     pub fn new(sender: SyncSender<MidiValueAt>) -> Self {
         Self {
             trigger_index: TriggerId::new(),
-            value: Arc::new(SpinlockParamBinding::new(MidiValue::None)),
+            value: new_shrptr!(SpinlockParamBinding::new(MidiValue::None)),
             sender,
         }
     }

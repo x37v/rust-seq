@@ -1,13 +1,14 @@
 use super::*;
 use binding::BindingLatchP;
+use ptr::SShrPtr;
 
 pub struct IndexLatch<'a> {
     latches: Vec<BindingLatchP<'a>>,
 }
 
 impl<'a> IndexLatch<'a> {
-    pub fn new_p(latches: Vec<BindingLatchP<'a>>) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self { latches }))
+    pub fn new(latches: Vec<BindingLatchP<'a>>) -> Self {
+        Self { latches }
     }
 }
 

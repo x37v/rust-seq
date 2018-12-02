@@ -5,6 +5,8 @@ extern crate rand;
 pub extern crate spinlock;
 pub extern crate xnor_llist;
 
+pub mod macros;
+
 mod base;
 pub mod context;
 pub mod executor;

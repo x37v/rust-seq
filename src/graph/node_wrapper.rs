@@ -1,12 +1,13 @@
 use super::*;
+use ptr::{SShrPtr, UniqPtr};
 
 pub struct GraphNodeWrapper {
-    exec: Box<GraphExec>,
+    exec: UniqPtr<GraphExec>,
     children: ChildList,
 }
 
 pub struct NChildGraphNodeWrapper {
-    exec: Box<GraphExec>,
+    exec: UniqPtr<GraphExec>,
     children: ChildList,
     index_children: IndexChildList,
 }
@@ -31,21 +32,21 @@ impl GraphNode for GraphNodeWrapper {
 }
 
 impl GraphNodeWrapper {
-    pub fn new_p(exec: Box<GraphExec>) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self {
+    pub fn new(exec: UniqPtr<GraphExec>) -> Self {
+        Self {
             exec,
             children: LList::new(),
-        }))
+        }
     }
 }
 
 impl NChildGraphNodeWrapper {
-    pub fn new_p(exec: Box<GraphExec>) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self {
+    pub fn new(exec: UniqPtr<GraphExec>) -> Self {
+        Self {
             exec,
             children: LList::new(),
             index_children: LList::new(),
-        }))
+        }
     }
 
     pub fn index_child_append(&mut self, child: AIndexChildP) {

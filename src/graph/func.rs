@@ -1,21 +1,23 @@
 use super::*;
 
+use ptr::{SShrPtr, UniqPtr};
+
 pub struct FuncWrapper<F> {
-    func: Box<F>,
+    func: UniqPtr<F>,
     children_max: ChildCount,
 }
 
 pub struct IndexFuncWrapper<F> {
-    func: Box<F>,
+    func: UniqPtr<F>,
 }
 
 impl<F> FuncWrapper<F>
 where
     F: Fn(&mut dyn SchedContext, &mut dyn ChildExec) -> bool + Send,
 {
-    pub fn new_boxed(children_max: ChildCount, func: F) -> Box<Self> {
-        Box::new(Self {
-            func: Box::new(func),
+    pub fn new_boxed(children_max: ChildCount, func: F) -> UniqPtr<Self> {
+        new_uniqptr!(Self {
+            func: new_uniqptr!(func),
             children_max,
         })
     }
@@ -40,12 +42,8 @@ where
 {
     pub fn new(func: F) -> Self {
         Self {
-            func: Box::new(func),
+            func: new_uniqptr!(func),
         }
-    }
-
-    pub fn new_p(func: F) -> Arc<spinlock::Mutex<Self>> {
-        Arc::new(spinlock::Mutex::new(Self::new(func)))
     }
 }
 

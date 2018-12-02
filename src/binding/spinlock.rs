@@ -1,9 +1,9 @@
 extern crate spinlock;
 use super::*;
+use ptr::ShrPtr;
 use std::cell::Cell;
-use std::sync::Arc;
 
-pub type SpinlockParamBindingP<T> = Arc<SpinlockParamBinding<T>>;
+pub type SpinlockParamBindingP<T> = ShrPtr<SpinlockParamBinding<T>>;
 
 /// Wrap any `Copy` type in a `spinlock::Mutex` so it can be shared across threads.
 ///
@@ -19,9 +19,6 @@ impl<T: Copy> SpinlockParamBinding<T> {
         SpinlockParamBinding {
             lock: spinlock::Mutex::new(Cell::new(value)),
         }
-    }
-    pub fn new_p(value: T) -> Arc<Self> {
-        Arc::new(Self::new(value))
     }
 }
 

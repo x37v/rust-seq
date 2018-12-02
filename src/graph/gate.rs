@@ -1,4 +1,6 @@
 use super::*;
+use macros;
+use ptr::UniqPtr;
 
 /// A graph node that executes its children only when its binding evaluates to true.
 pub struct Gate {
@@ -6,13 +8,13 @@ pub struct Gate {
 }
 
 impl Gate {
-    /// Construct a new `Box<Gate>`
+    /// Construct a new `Gate`
     ///
     /// # Arguments
     ///
     /// * `binding` - the binding which determines if the gate is open or closed
-    pub fn new_p(binding: BindingGetP<bool>) -> Box<Self> {
-        Box::new(Self { binding })
+    pub fn new(binding: BindingGetP<bool>) -> Self {
+        Self { binding }
     }
 }
 

@@ -1,25 +1,25 @@
 use super::*;
 use binding::ParamBindingLatch;
 use context::RootContext;
+use ptr::{SShrPtr, ShrPtr};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
 use trigger::Trigger;
 
 pub struct Executor {
     list: LList<TimedFn>,
-    triggers: LList<Arc<spinlock::Mutex<dyn Trigger>>>,
+    triggers: LList<SShrPtr<dyn Trigger>>,
     trigger_list: LList<TimedTrig>,
     time_last: usize,
     ticks_per_second_last: usize,
-    time: Arc<AtomicUsize>,
+    time: ShrPtr<AtomicUsize>,
     schedule_receiver: Receiver<SchedFnNode>,
     src_sink: SrcSink,
 }
 
 impl Executor {
     pub fn new(
-        time: Arc<AtomicUsize>,
+        time: ShrPtr<AtomicUsize>,
         schedule_receiver: Receiver<SchedFnNode>,
         src_sink: SrcSink,
     ) -> Self {

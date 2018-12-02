@@ -4,9 +4,9 @@ extern crate xnor_llist;
 use base::{SchedCall, TimeResched};
 use binding::BindingGetP;
 use context::{ChildContext, SchedContext};
+use ptr::{SShrPtr, UniqPtr};
 use std;
 use std::cmp::{Ordering, PartialOrd};
-use std::sync::Arc;
 use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
 
@@ -64,12 +64,12 @@ struct NChildren<'a> {
     index_children: &'a mut IndexChildList,
 }
 
-pub type ANodeP = Arc<spinlock::Mutex<dyn GraphNode>>;
-pub type AChildP = Box<LNode<ANodeP>>;
+pub type ANodeP = SShrPtr<dyn GraphNode>;
+pub type AChildP = UniqPtr<LNode<ANodeP>>;
 pub type ChildList = LList<ANodeP>;
 
-pub type AIndexNodeP = Arc<spinlock::Mutex<dyn GraphIndexExec>>;
-pub type AIndexChildP = Box<LNode<AIndexNodeP>>;
+pub type AIndexNodeP = SShrPtr<dyn GraphIndexExec>;
+pub type AIndexChildP = UniqPtr<LNode<AIndexNodeP>>;
 pub type IndexChildList = LList<AIndexNodeP>;
 
 impl PartialOrd for ChildCount {
@@ -247,12 +247,10 @@ mod tests {
 
     #[test]
     fn works() {
-        type M<T> = spinlock::Mutex<T>;
+        let x = GraphNodeWrapper::new_p(new_uniqptr!(X {}));
+        let y = GraphNodeWrapper::new_p(new_uniqptr!(Y {}));
 
-        let x = GraphNodeWrapper::new_p(Box::new(X {}));
-        let y = GraphNodeWrapper::new_p(Box::new(Y {}));
-
-        let mut l: LList<std::sync::Arc<M<dyn GraphNode>>> = LList::new();
+        let mut l: LList<SShrPtr<dyn GraphNode>> = LList::new();
         l.push_back(LNode::new_boxed(x.clone()));
         x.lock().child_append(LNode::new_boxed(y.clone()));
 
@@ -304,7 +302,7 @@ mod tests {
 
         let e = s.executor();
 
-        let clock_period = Arc::new(SpinlockParamBinding::new(1_000_000f32));
+        let clock_period = new_shrptr!(SpinlockParamBinding::new(1_000_000f32));
         let mut clock = Box::new(RootClock::new(clock_period.clone()));
         let tick_store = GraphNodeWrapper::new_p(TickStore::default());
 

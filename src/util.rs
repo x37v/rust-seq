@@ -1,6 +1,6 @@
 use base::TimeSched;
+use ptr::ShrPtr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 pub fn add_clamped(u: usize, i: isize) -> usize {
     if i > 0 {
@@ -10,7 +10,7 @@ pub fn add_clamped(u: usize, i: isize) -> usize {
     }
 }
 
-pub fn add_atomic_time(current: &Arc<AtomicUsize>, time: &TimeSched) -> usize {
+pub fn add_atomic_time(current: &ShrPtr<AtomicUsize>, time: &TimeSched) -> usize {
     add_time(current.load(Ordering::SeqCst), time)
 }
 

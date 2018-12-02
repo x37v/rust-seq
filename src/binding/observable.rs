@@ -1,14 +1,15 @@
 use base::{LList, LNode};
 use binding::ParamBindingGet;
 use binding::ParamBindingSet;
+use ptr::UniqPtr;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
-pub type ObserverNode = Box<LNode<SyncSender<ObservableId>>>;
+pub type ObserverNode = UniqPtr<LNode<SyncSender<ObservableId>>>;
 pub type ObserverList = LList<SyncSender<ObservableId>>;
 
 pub trait Observable {
@@ -32,7 +33,7 @@ pub struct ObservableData {
 
 pub struct ObservableBinding<B, T> {
     binding: T,
-    _phantom: PhantomData<AtomicPtr<Box<B>>>, //XXX used atomic so we can share across threads, could have been mutex..
+    _phantom: PhantomData<fn() -> B>,
     observer_data: ObservableData,
 }
 
@@ -220,7 +221,7 @@ mod tests {
     use binding::{spinlock::SpinlockParamBinding, ParamBindingSet};
     use std::sync::atomic::AtomicIsize;
     use std::sync::mpsc::sync_channel;
-    use std::sync::Arc;
+    use std::sync::ShrPtr;
 
     use std::thread;
 
@@ -351,8 +352,8 @@ mod tests {
     fn observe_arc() {
         let (s1, r1) = sync_channel(16);
 
-        let u: Arc<ObservableBinding<usize, _>> =
-            Arc::new(ObservableBinding::new(AtomicUsize::new(2)));
+        let u: ShrPtr<ObservableBinding<usize, _>> =
+            new_shrptr!(ObservableBinding::new(AtomicUsize::new(2)));
         let id = u.id();
         assert!(r1.try_recv().is_err());
 
@@ -376,15 +377,15 @@ mod tests {
     #[test]
     fn bpm() {
         let (s1, r1) = sync_channel(16);
-        let b = Arc::new(spinlock::Mutex::new(bpm::ObservableClockData::new(
+        let b = new_sshrptr!(bpm::ObservableClockData::new(
             ::binding::bpm::ClockData::new(120.0, 96),
-        )));
+        ));
         let id = b.lock().id();
         assert!(r1.try_recv().is_err());
 
-        let bpm = Arc::new(::binding::bpm::ClockBPMBinding(b.clone()));
-        let ppq = Arc::new(::binding::bpm::ClockPPQBinding(b.clone()));
-        let micros = Arc::new(::binding::bpm::ClockPeriodMicroBinding(b.clone()));
+        let bpm = new_shrptr!(::binding::bpm::ClockBPMBinding(b.clone()));
+        let ppq = new_shrptr!(::binding::bpm::ClockPPQBinding(b.clone()));
+        let micros = new_shrptr!(::binding::bpm::ClockPeriodMicroBinding(b.clone()));
         let micros2 = micros.clone();
 
         let c = b.clone();
