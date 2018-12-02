@@ -1,5 +1,5 @@
 use super::*;
-use ptr::{SShrPtr, UniqPtr};
+use ptr::UniqPtr;
 
 pub struct GraphNodeWrapper {
     exec: UniqPtr<GraphExec>,

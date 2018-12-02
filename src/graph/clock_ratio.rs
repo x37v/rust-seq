@@ -1,8 +1,6 @@
 use binding::BindingGetP;
 use context::{ChildContext, SchedContext};
 use graph::{ChildCount, ChildExec, GraphExec};
-use macros;
-use ptr::UniqPtr;
 
 pub struct ClockRatio {
     mul: BindingGetP<u8>,

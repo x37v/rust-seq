@@ -1,6 +1,5 @@
 use super::*;
 use binding::BindingLatchP;
-use ptr::SShrPtr;
 
 pub struct IndexLatch<'a> {
     latches: Vec<BindingLatchP<'a>>,

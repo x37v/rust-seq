@@ -3,8 +3,6 @@ extern crate euclidian_rythms;
 use binding::BindingGetP;
 use context::SchedContext;
 use graph::{ChildCount, ChildExec, GraphExec};
-use macros;
-use ptr::UniqPtr;
 
 pub struct Euclid {
     step_ticks: BindingGetP<usize>,

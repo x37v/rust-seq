@@ -2,7 +2,6 @@ use super::*;
 use base::TimeSched;
 use binding::set::BindingSet;
 use binding::BindingSetP;
-use ptr::SShrPtr;
 
 pub struct IndexReporter {
     binding: BindingSetP<usize>,

@@ -1,6 +1,4 @@
 use super::*;
-use macros;
-use ptr::UniqPtr;
 
 /// A graph node that executes its children only when its binding evaluates to true.
 pub struct Gate {

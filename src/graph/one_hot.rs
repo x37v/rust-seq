@@ -1,6 +1,4 @@
 use super::*;
-use macros;
-use ptr::UniqPtr;
 
 /// A graph node that executes one child based on the bound index it is given.
 pub struct OneHot {
