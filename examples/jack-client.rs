@@ -289,10 +289,10 @@ fn main() {
         display.update(QDisplayType::Pad, index, value);
     };
 
-    let drawer = Box::new(QuNeoDrawer::new(
+    let drawer = new_uniqptr!(QuNeoDrawer::new(
         midi_trig.clone(),
         TimeResched::Relative(441),
-        Box::new(move |display: &mut QuNeoDisplay| {
+        new_uniqptr!(move |display: &mut QuNeoDisplay| {
             //TODO make sure the notification is actually something we care about
             let force = notify_receiver.try_iter().any(|x| x == force_id);
             let page = cpage.get();
