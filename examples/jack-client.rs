@@ -1,6 +1,5 @@
 extern crate jack;
 extern crate rosc;
-
 #[macro_use]
 extern crate sched;
 
@@ -12,8 +11,6 @@ use sched::binding::ops::*;
 use sched::binding::spinlock::SpinlockParamBinding;
 use sched::binding::{BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingSet};
 
-use sched::ptr::{SShrPtr, ShrPtr};
-
 use sched::graph::clock_ratio::ClockRatio;
 use sched::graph::gate::Gate;
 use sched::graph::index_latch::IndexLatch;
@@ -23,10 +20,10 @@ use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
 use sched::graph::GraphNode;
+use sched::ptr::{SShrPtr, ShrPtr, UniqPtr};
 
 use sched::midi::{MidiTrigger, MidiValue};
 
-use sched::spinlock;
 use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize};
@@ -72,10 +69,31 @@ impl PageData {
     }
 }
 
+pub trait IntoPtrs {
+    fn into_unique(self) -> UniqPtr<Self>;
+    fn into_shared(self) -> ShrPtr<Self>;
+    fn into_sshared(self) -> SShrPtr<Self>;
+}
+
+impl<T> IntoPtrs for T
+where
+    T: Sized,
+{
+    fn into_unique(self) -> UniqPtr<Self> {
+        new_uniqptr!(self)
+    }
+    fn into_shared(self) -> ShrPtr<Self> {
+        new_shrptr!(self)
+    }
+    fn into_sshared(self) -> SShrPtr<Self> {
+        new_sshrptr!(self)
+    }
+}
+
 fn main() {
     let (notify_sender, notify_receiver) = sync_channel(16);
     let jack_connections: ShrPtr<ObservableBinding<usize, _>> =
-        new_shrptr!(ObservableBinding::new(AtomicUsize::new(0)));
+        ObservableBinding::new(AtomicUsize::new(0)).into_shared();
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
 
@@ -91,17 +109,17 @@ fn main() {
     sched.spawn_helper_threads();
 
     let (msender, mreceiver) = sync_channel(1024);
-    let midi_trig = new_sshrptr!(MidiTrigger::new(msender));
+    let midi_trig = MidiTrigger::new(msender).into_sshared();
 
-    let bpm_binding = new_sshrptr!(bpm::ClockData::new(120.0, 960));
-    let _bpm = new_shrptr!(bpm::ClockBPMBinding(bpm_binding.clone()));
-    let _ppq = new_shrptr!(bpm::ClockPPQBinding(bpm_binding.clone()));
-    let micros = new_shrptr!(bpm::ClockPeriodMicroBinding(bpm_binding.clone()));
-    let mut clock = new_uniqptr!(RootClock::new(micros.clone()));
+    let bpm_binding = bpm::ClockData::new(120.0, 960).into_sshared();
+    let _bpm = bpm::ClockBPMBinding(bpm_binding.clone()).into_shared();
+    let _ppq = bpm::ClockPPQBinding(bpm_binding.clone()).into_shared();
+    let micros = bpm::ClockPeriodMicroBinding(bpm_binding.clone()).into_shared();
+    let mut clock = RootClock::new(micros.clone()).into_unique();
 
-    let _pulses = new_shrptr!(SpinlockParamBinding::new(2));
-    let step_ticks = new_shrptr!(SpinlockParamBinding::new(960 / 4));
-    let _step_index = new_shrptr!(SpinlockParamBinding::new(0usize));
+    let _pulses = SpinlockParamBinding::new(2).into_shared();
+    let step_ticks = SpinlockParamBinding::new(960 / 4).into_shared();
+    let _step_index = SpinlockParamBinding::new(0usize).into_shared();
 
     /*
     let addr_s = "127.0.0.1:10001";
@@ -141,104 +159,113 @@ fn main() {
     });
     */
 
-    let current_page = new_shrptr!(AtomicUsize::new(0));
-    let page_select_shift = new_shrptr!(AtomicBool::new(false));
-    let mul_select_shift = new_shrptr!(AtomicBool::new(false));
-    let div_select_shift = new_shrptr!(AtomicBool::new(false));
-    let len_select_shift = new_shrptr!(AtomicBool::new(false));
+    let current_page = AtomicUsize::new(0).into_shared();
+    let page_select_shift = AtomicBool::new(false).into_shared();
+    let mul_select_shift = AtomicBool::new(false).into_shared();
+    let div_select_shift = AtomicBool::new(false).into_shared();
+    let len_select_shift = AtomicBool::new(false).into_shared();
 
     let mut page_data: Vec<SShrPtr<PageData>> = Vec::new();
-    let midi_notev_min = new_shrptr!(1u8);
-    let midi_max = new_shrptr!(127u8);
-    let midi_maxf = new_shrptr!(127f32);
+    let midi_notev_min = 1u8.into_shared();
+    let midi_max = 127u8.into_shared();
+    let midi_maxf = 127f32.into_shared();
 
     for page in 0..64 {
-        let probability = SpinlockParamBinding::new_p(1f32);
+        let probability = SpinlockParamBinding::new(1f32).into_shared();
 
-        let volume = SpinlockParamBinding::new_p(1.0f32);
-        let volume_rand = SpinlockParamBinding::new_p(0f32);
-        let volume_rand_offset = new_shrptr!(GetUniformRand::new(
-            new_shrptr!(GetNegate::new(volume_rand.clone())),
+        let volume = SpinlockParamBinding::new(1.0f32).into_shared();
+        let volume_rand = SpinlockParamBinding::new(0f32).into_shared();
+        let volume_rand_offset = GetUniformRand::new(
+            GetNegate::new(volume_rand.clone()).into_shared(),
             volume_rand.clone(),
-        ));
+        )
+        .into_shared();
 
-        let velocity = new_shrptr!(GetSum::new(volume.clone(), volume_rand_offset));
-        let velocity = new_shrptr!(GetMul::new(velocity.clone(), midi_maxf.clone()));
-        let velocity: ShrPtr<GetCast<f32, u8, _>> = new_shrptr!(GetCast::new(velocity));
-        let velocity = new_shrptr!(GetClamp::new(
-            velocity,
-            midi_notev_min.clone(),
-            midi_max.clone(),
-        ));
+        let velocity = GetSum::new(volume.clone(), volume_rand_offset).into_shared();
+        let velocity = GetMul::new(velocity.clone(), midi_maxf.clone()).into_shared();
+        let velocity: ShrPtr<GetCast<f32, u8, _>> = GetCast::new(velocity).into_shared();
+        let velocity =
+            GetClamp::new(velocity, midi_notev_min.clone(), midi_max.clone()).into_shared();
 
-        let steps = new_shrptr!(ObservableBinding::new(AtomicUsize::new(16)));
-        let note = new_shrptr!((page + 36) as u8);
+        let steps = ObservableBinding::new(AtomicUsize::new(16)).into_shared();
+        let note = ((page + 36) as u8).into_shared();
 
         //build up gates
         let gates: Vec<ShrPtr<ObservableBinding<bool, _>>> = vec![false; 64]
             .iter()
-            .map(|v| new_shrptr!(ObservableBinding::new(AtomicBool::new(*v))))
+            .map(|v| ObservableBinding::new(AtomicBool::new(*v)).into_shared())
             .collect();
         for g in gates.iter() {
             g.add_observer(new_observer_node(notify_sender.clone()));
         }
 
-        let step_gate = new_shrptr!(AtomicBool::new(false));
+        let step_gate = AtomicBool::new(false).into_shared();
         let latches: Vec<BindingLatchP> = gates
             .iter()
-            .map(|g| new_shrptr!(BindingLatch::new(g.clone(), step_gate.clone())) as BindingLatchP)
+            .map(|g| {
+                (BindingLatch::new(g.clone(), step_gate.clone())).into_shared() as BindingLatchP
+            })
             .collect();
 
-        let trig = GraphNodeWrapper::new_p(MidiNote::new_p(
-            midi_trig.clone(),
-            new_shrptr!(9u8),
-            note.clone(),
-            new_shrptr!(TimeResched::Relative(1)),
-            velocity.clone(),
-            new_shrptr!(127u8),
-        ));
+        let trig = GraphNodeWrapper::new(
+            MidiNote::new(
+                midi_trig.clone(),
+                9u8.into_shared(),
+                note.clone(),
+                TimeResched::Relative(1).into_shared(),
+                velocity.clone(),
+                127u8.into_shared(),
+            )
+            .into_unique(),
+        )
+        .into_sshared();
 
-        let gate = GraphNodeWrapper::new_p(Gate::new_p(step_gate.clone()));
-        let step_seq =
-            NChildGraphNodeWrapper::new_p(StepSeq::new_p(step_ticks.clone(), steps.clone()));
+        let gate = GraphNodeWrapper::new(Gate::new(step_gate.clone()).into_unique()).into_sshared();
+        let step_seq = NChildGraphNodeWrapper::new(
+            StepSeq::new(step_ticks.clone(), steps.clone()).into_unique(),
+        )
+        .into_sshared();
 
-        let index_binding = new_shrptr!(ObservableBinding::new(AtomicUsize::new(0)));
-        let index_latch = IndexLatch::new_p(latches);
+        let index_binding = ObservableBinding::new(AtomicUsize::new(0)).into_shared();
+        let index_latch = IndexLatch::new(latches).into_sshared();
         step_seq
             .lock()
             .index_child_append(LNode::new_boxed(index_latch));
 
-        let index_report = IndexReporter::new_p(index_binding.clone());
+        let index_report = IndexReporter::new(index_binding.clone()).into_sshared();
         step_seq
             .lock()
             .index_child_append(LNode::new_boxed(index_report));
 
-        let uniform = new_shrptr!(GetUniformRand::new(new_shrptr!(0f32), new_shrptr!(1f32)));
-        let cmp = new_shrptr!(GetCmp::new(CmpOp::Greater, probability.clone(), uniform));
-        let prob = GraphNodeWrapper::new_p(Gate::new_p(cmp.clone()));
+        let uniform = GetUniformRand::new(0f32.into_shared(), 1f32.into_shared()).into_shared();
+        let cmp = GetCmp::new(CmpOp::Greater, probability.clone(), uniform).into_shared();
+        let prob = GraphNodeWrapper::new(Gate::new(cmp.clone()).into_unique()).into_sshared();
         prob.lock().child_append(LNode::new_boxed(trig));
 
         gate.lock().child_append(LNode::new_boxed(prob));
 
         step_seq.lock().child_append(LNode::new_boxed(gate));
 
-        let mul = SpinlockParamBinding::new_p(1);
-        let div = SpinlockParamBinding::new_p(1);
+        let mul = SpinlockParamBinding::new(1).into_shared();
+        let div = SpinlockParamBinding::new(1).into_shared();
 
-        page_data.push(new_sshrptr!(PageData::new(
-            index_binding.clone(),
-            steps.clone(),
-            gates.iter().cloned().collect(),
-            mul.clone(),
-            div.clone(),
-            probability.clone(),
-            volume.clone(),
-            volume_rand.clone(),
-        )));
+        page_data.push(
+            PageData::new(
+                index_binding.clone(),
+                steps.clone(),
+                gates.iter().cloned().collect(),
+                mul.clone(),
+                div.clone(),
+                probability.clone(),
+                volume.clone(),
+                volume_rand.clone(),
+            )
+            .into_sshared(),
+        );
 
         index_binding.add_observer(new_observer_node(notify_sender.clone()));
 
-        let ratio = GraphNodeWrapper::new_p(ClockRatio::new_p(mul, div));
+        let ratio = GraphNodeWrapper::new(ClockRatio::new(mul, div).into_unique()).into_sshared();
         ratio.lock().child_append(LNode::new_boxed(step_seq));
         clock.child_append(LNode::new_boxed(ratio));
     }
@@ -262,10 +289,10 @@ fn main() {
         display.update(QDisplayType::Pad, index, value);
     };
 
-    let drawer = new_uniqptr!(QuNeoDrawer::new(
+    let drawer = Box::new(QuNeoDrawer::new(
         midi_trig.clone(),
         TimeResched::Relative(441),
-        new_uniqptr!(move |display: &mut QuNeoDisplay| {
+        Box::new(move |display: &mut QuNeoDisplay| {
             //TODO make sure the notification is actually something we care about
             let force = notify_receiver.try_iter().any(|x| x == force_id);
             let page = cpage.get();
