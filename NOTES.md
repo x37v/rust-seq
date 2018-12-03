@@ -4,3 +4,37 @@
 		* so an trigger in the graph would have to hold all the appropriate parameter bindings and store them
 		  when triggering [midi note, osc, etc etc]
   * maybe, to make things easy, CC and other parameters would be a different trigger index
+
+
+# serialize format? 
+
+bindings:
+    - id: <uuid>
+      alias: <optionalName>
+      type: <typename>
+      params: #for instance, a cast would have an input format, dest format, binding to cast
+        - name: value
+        - name: value
+        - name: value
+
+nodes: #both graph and non graph nodes??
+    - id: <uuid>
+      type: <typename>
+      alias: <optionalName>
+      params:
+        - name: value
+        - name: value
+        - name: value
+      children:
+        - <uuid>
+        - <uuid>
+      meta: #optional
+        - location: (x, y)
+
+triggers:
+    - id: <uuid>
+      type: <typename>
+      alias: <optionalName>
+      params: #aka bindings
+        - name: value
+        - name: value
