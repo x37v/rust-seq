@@ -33,7 +33,7 @@ impl BindingCache {
             if let Some(b) = v.downcast_mut::<ShrPtr<T>>() {
                 Ok(b.clone())
             } else {
-                Err(GetError { key: key })
+                Err(GetError { key })
             }
         } else {
             let v: ShrPtr<T> = new_shrptr!(Default::default());
@@ -78,6 +78,12 @@ impl BindingCache {
         T: Send + Copy + Default + 'static,
     {
         self.get_item::<SpinlockParamBinding<T>, T>(key, default)
+    }
+}
+
+impl Default for BindingCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -134,7 +140,7 @@ mod tests {
             "bpm".to_string(),
             ::binding::bpm::ClockData::new(110f32, 990),
         );
-
+    
         assert!(f.is_ok());
         assert!(b.is_ok());
         let f = f.unwrap();
@@ -142,11 +148,11 @@ mod tests {
         assert_eq!(43f32, f.get());
         assert_eq!(110f32, b.get().bpm());
         assert_eq!(990, b.get().ppq());
-
+    
         let b2 = c.get::<ClockData>("bpm".to_string(), ClockData::new(1f32, 10));
         assert!(b2.is_ok());
         let b2 = b2.unwrap();
-
+    
         let bpm = new_shrptr!(ClockBPMBinding(b2.clone()));
         let ppq = new_shrptr!(ClockPPQBinding(b2.clone()));
         let micros = new_shrptr!(ClockPeriodMicroBinding(b2.clone()));

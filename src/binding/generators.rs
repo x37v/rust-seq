@@ -69,6 +69,12 @@ impl GetOneShot {
     }
 }
 
+impl Default for GetOneShot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParamBindingGet<bool> for GetOneShot {
     fn get(&self) -> bool {
         if self.binding.get() {

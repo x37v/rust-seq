@@ -213,8 +213,7 @@ where
 {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
         (*self.func)(&mut self.display);
-        let mut it = self.display.draw_iter();
-        while let Some(d) = it.next() {
+        for d in self.display.draw_iter() {
             self.midi_trigger.lock().add(
                 context.as_schedule_trigger_mut(),
                 TimeSched::Relative(0),

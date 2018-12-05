@@ -28,3 +28,9 @@ impl TriggerId {
         }
     }
 }
+
+impl Default for TriggerId {
+    fn default() -> Self {
+        Self::new()
+    }
+}

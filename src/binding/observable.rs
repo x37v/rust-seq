@@ -70,6 +70,12 @@ impl Observer {
     }
 }
 
+impl Default for Observer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Iterator for Observer {
     type Item = ObservableId;
 
@@ -91,6 +97,12 @@ impl ObservableData {
         for c in l.iter() {
             let _ = c.try_send(self.id);
         }
+    }
+}
+
+impl Default for ObservableData {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
