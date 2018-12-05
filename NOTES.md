@@ -6,6 +6,12 @@
   * maybe, to make things easy, CC and other parameters would be a different trigger index
 
 
+* can we make a macro to reduce the boilerplate for children_max and remove if
+  has no children?
+* can the macro that specifies the serde parameters also register the serde
+  parameters to a factory for creating these objects?
+
+
 # serialize format? 
 
 bindings:
