@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Alex Norman <alex@x37v.info>"]
 
 [dependencies]
+sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
 xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop" }
 spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop" }
 euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git"}

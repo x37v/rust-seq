@@ -5,6 +5,9 @@ extern crate rand;
 pub extern crate spinlock;
 pub extern crate xnor_llist;
 
+#[macro_use]
+extern crate sched_macros;
+
 pub mod macros;
 
 mod base;

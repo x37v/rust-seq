@@ -5,6 +5,7 @@ use ptr::SShrPtr;
 use TimeSched;
 
 /// A graph leaf node that triggers a midi note.
+#[derive(GraphLeaf)]
 pub struct MidiNote {
     trigger: SShrPtr<MidiTrigger>,
     chan: BindingGetP<u8>,
@@ -44,8 +45,8 @@ impl MidiNote {
     }
 }
 
-impl GraphExec for MidiNote {
-    fn exec(&mut self, context: &mut dyn SchedContext, _children: &mut dyn ChildExec) -> bool {
+impl GraphLeafExec for MidiNote {
+    fn exec_leaf(&mut self, context: &mut dyn SchedContext) {
         let chan = self.chan.get();
         let note = self.note.get();
         let dur = self.dur.get();
@@ -60,10 +61,5 @@ impl GraphExec for MidiNote {
             on_vel,
             off_vel,
         );
-        true
-    }
-
-    fn children_max(&self) -> ChildCount {
-        ChildCount::None
     }
 }

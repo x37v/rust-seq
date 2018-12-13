@@ -27,6 +27,14 @@ pub trait GraphExec: Send {
     fn children_max(&self) -> ChildCount;
 }
 
+pub trait GraphLeafExec: Send {
+    fn exec_leaf(&mut self, context: &mut dyn SchedContext);
+}
+
+pub trait GraphNodeExec: Send {
+    fn exec_node(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec);
+}
+
 pub trait ChildExec {
     fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount;
     fn exec_range(
@@ -272,19 +280,19 @@ mod tests {
     struct TickStore {
         tick: Option<usize>,
     }
-
+    
     impl TickStore {
         fn tick(&self) -> Option<usize> {
             self.tick
         }
     }
-
+    
     impl Default for TickStore {
         fn default() -> Self {
             TickStore { tick: None }
         }
     }
-
+    
     impl GraphExec for TickStore {
         fn exec(&mut self, context: &mut dyn SchedContext, _children: &mut dyn ChildExec) -> bool {
             self.tick = Some(context.context_tick());
@@ -294,43 +302,43 @@ mod tests {
             ChildCount::Inf
         }
     }
-
+    
     #[test]
     fn scheduled() {
         let mut s = Scheduler::new();
         s.spawn_helper_threads();
-
+    
         let e = s.executor();
-
+    
         let clock_period = new_shrptr!(SpinlockParamBinding::new(1_000_000f32));
         let mut clock = new_uniqptr!(RootClock::new(clock_period.clone()));
         let tick_store = new_sshrptr!(GraphNodeWrapper::new(TickStore::default()));
-
+    
         assert!(tick_store.lock().tick().is_none());
         clock.child_append(LNode::new_boxed(tick_store.clone()));
         assert!(tick_store.lock().tick().is_none());
-
+    
         s.schedule(TimeSched::Relative(0), clock);
-
+    
         let child = thread::spawn(move || {
             let mut e = e.unwrap();
             e.run(44100, 44100); //just on the verge of next tick
             assert_eq!(Some(0), tick_store.lock().tick());
-
+    
             e.run(1, 44100); //next tick
             assert_eq!(Some(1), tick_store.lock().tick());
-
+    
             e.run(44098, 44100);
             assert_eq!(Some(1), tick_store.lock().tick());
-
+    
             e.run(1, 44100);
             assert_eq!(Some(1), tick_store.lock().tick());
-
+    
             clock_period.set(500_000f32); //2x as fast
-
+    
             e.run(2, 44100); //still waiting for next tick
             assert_eq!(Some(2), tick_store.lock().tick());
-
+    
             e.run(44100, 44100);
             assert_eq!(Some(4), tick_store.lock().tick());
         });

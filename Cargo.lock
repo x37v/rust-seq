@@ -310,8 +310,19 @@ dependencies = [
  "num 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rosc 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sched_macros 0.1.0 (git+https://github.com/x37v/sched_macros.git)",
  "spinlock 0.2.2 (git+https://github.com/x37v/rust-spinlock-mutex?branch=develop)",
  "xnor_llist 0.1.1 (git+https://github.com/x37v/rust-llist?branch=develop)",
+]
+
+[[package]]
+name = "sched_macros"
+version = "0.1.0"
+source = "git+https://github.com/x37v/sched_macros.git#56e957463014159a7b224ee63f6089d967590b4d"
+dependencies = [
+ "proc-macro2 0.4.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.15.22 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -430,6 +441,7 @@ source = "git+https://github.com/x37v/rust-llist?branch=develop#fd1b209eb7f23294
 "checksum rosc 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6d7e5a8e5fbf9be024e8b92d066ed9b2bebc45e076fc4f7847d60a8cb3c0cc14"
 "checksum rustc-demangle 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "bcfe5b13211b4d78e5c2cadfebd7769197d95c639c35a50057eb4c05de811395"
 "checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
+"checksum sched_macros 0.1.0 (git+https://github.com/x37v/sched_macros.git)" = "<none>"
 "checksum semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 "checksum semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 "checksum spinlock 0.2.2 (git+https://github.com/x37v/rust-spinlock-mutex?branch=develop)" = "<none>"
