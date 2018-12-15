@@ -53,7 +53,7 @@ impl GraphLeafExec for MidiNote {
         let on_vel = self.on_vel.get();
         let off_vel = self.off_vel.get();
         self.trigger.lock().note_with_dur(
-            TimeSched::Relative(0),
+            TimeSched::ContextRelative(0),
             dur,
             context.as_schedule_trigger_mut(),
             chan,

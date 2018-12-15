@@ -20,7 +20,7 @@ impl GraphExec for ClockRatio {
         if div > 0 && context.context_tick() % div == 0 {
             let mul = self.mul.get() as usize;
             let period_micros = (context.context_tick_period_micros() * div as f32) / mul as f32;
-            let offset = mul * (context.context_tick() / div);
+            let offset = (mul * context.context_tick()) / div;
             for i in 0..mul {
                 let tick = offset + i;
                 let mut ccontext = ChildContext::new(
