@@ -23,12 +23,8 @@ impl GraphExec for ClockRatio {
             let offset = (mul * context.context_tick()) / div;
             for i in 0..mul {
                 let tick = offset + i;
-                let mut ccontext = ChildContext::new(
-                    context,
-                    (i as f32 * period_micros) as isize,
-                    tick,
-                    period_micros,
-                );
+                let base = (i as f32 * period_micros) as isize;
+                let mut ccontext = ChildContext::new(context, base, tick, period_micros);
                 children.exec_all(&mut ccontext);
             }
         }
@@ -46,6 +42,7 @@ mod tests {
     use base::{LList, SrcSink, TimeResched};
     use context::RootContext;
     use graph::ChildExec;
+    use std::collections::VecDeque;
     use std::sync::Arc;
 
     pub struct CallRecord {
@@ -65,12 +62,14 @@ mod tests {
     }
 
     pub struct Recorder {
-        record: Vec<CallRecord>,
+        record: VecDeque<CallRecord>,
     }
 
     impl Recorder {
         pub fn new() -> Self {
-            Self { record: Vec::new() }
+            Self {
+                record: VecDeque::new(),
+            }
         }
     }
 
@@ -88,7 +87,7 @@ mod tests {
         }
 
         fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
-            self.record.push(CallRecord::new(context));
+            self.record.push_back(CallRecord::new(context));
             self.count()
         }
 
@@ -126,18 +125,18 @@ mod tests {
         ratio.exec(&mut c, &mut children);
         assert_eq!(1, children.record.len());
 
-        let mut record = children.record.pop().unwrap();
+        let mut record = children.record.pop_front().unwrap();
         assert_eq!(0, record.base_tick);
         assert_eq!(0, record.context_tick);
 
         ratio.exec(&mut c, &mut children);
         assert_eq!(1, children.record.len());
 
-        record = children.record.pop().unwrap();
+        record = children.record.pop_front().unwrap();
         assert_eq!(0, record.base_tick);
         assert_eq!(0, record.context_tick);
 
-        //change mul
+        //change mul, should be 2 calls per every input call
         mul = Arc::new(2u8);
         div = Arc::new(1u8);
 
@@ -145,11 +144,12 @@ mod tests {
         ratio.exec(&mut c, &mut children);
         assert_eq!(2, children.record.len());
 
-        record = children.record.pop().unwrap();
+        record = children.record.pop_front().unwrap();
         assert_eq!(0, record.base_tick);
         assert_eq!(0, record.context_tick);
 
-        record = children.record.pop().unwrap();
+        //since our parent context is a root context, we have no in-between samples at this point
+        record = children.record.pop_front().unwrap();
         assert_eq!(0, record.base_tick);
         assert_eq!(1, record.context_tick);
     }
