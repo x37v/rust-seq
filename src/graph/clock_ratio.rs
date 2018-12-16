@@ -19,11 +19,12 @@ impl GraphExec for ClockRatio {
 
         if div > 0 && context.context_tick() % div == 0 {
             let mul = self.mul.get() as usize;
+            let base_period_micros = context.base_tick_period_micros();
             let period_micros = (context.context_tick_period_micros() * div as f32) / mul as f32;
             let offset = (mul * context.context_tick()) / div;
             for i in 0..mul {
                 let tick = offset + i;
-                let base = (i as f32 * period_micros) as isize;
+                let base = ((i as f32 * period_micros) / base_period_micros) as isize;
                 let mut ccontext = ChildContext::new(context, base, tick, period_micros);
                 children.exec_all(&mut ccontext);
             }
@@ -101,20 +102,12 @@ mod tests {
     }
 
     #[test]
-    fn ratios() {
+    fn ratio_from_root() {
         let mut src_sink = SrcSink::new();
         let mut list = LList::new();
         let mut trig_list = LList::new();
 
-        let tick = 0usize;
-
-        let mut c = RootContext::new(
-            tick as usize,
-            44100,
-            &mut list,
-            &mut trig_list,
-            &mut src_sink,
-        );
+        let mut c = RootContext::new(0usize, 44100, &mut list, &mut trig_list, &mut src_sink);
 
         let mut children = Recorder::new();
 
@@ -136,9 +129,19 @@ mod tests {
         assert_eq!(0, record.base_tick);
         assert_eq!(0, record.context_tick);
 
+        //step forward, base tick is 1
+        c = RootContext::new(1usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(1, children.record.len());
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(1, record.base_tick);
+        assert_eq!(1, record.context_tick);
+
         //change mul, should be 2 calls per every input call
         mul = Arc::new(2u8);
         div = Arc::new(1u8);
+        c = RootContext::new(0usize, 44100, &mut list, &mut trig_list, &mut src_sink);
 
         ratio = ClockRatio::new(mul, div);
         ratio.exec(&mut c, &mut children);
@@ -152,5 +155,77 @@ mod tests {
         record = children.record.pop_front().unwrap();
         assert_eq!(0, record.base_tick);
         assert_eq!(1, record.context_tick);
+
+        c = RootContext::new(1usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(2, children.record.len());
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(1, record.base_tick);
+        assert_eq!(2, record.context_tick);
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(1, record.base_tick);
+        assert_eq!(3, record.context_tick);
+
+        //change div, should be 1 call every 2 input calls
+        mul = Arc::new(1u8);
+        div = Arc::new(2u8);
+        c = RootContext::new(0usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+
+        ratio = ClockRatio::new(mul, div);
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(1, children.record.len());
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(0, record.base_tick);
+        assert_eq!(0, record.context_tick);
+
+        c = RootContext::new(1usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(0, children.record.len());
+
+        c = RootContext::new(2usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(1, children.record.len());
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(2, record.base_tick);
+        assert_eq!(1, record.context_tick);
+
+        //mul and div, should be 2 calls every 2 inputs call
+        mul = Arc::new(2u8);
+        div = Arc::new(2u8);
+        c = RootContext::new(0usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+
+        ratio = ClockRatio::new(mul, div);
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(2, children.record.len());
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(0, record.base_tick);
+        assert_eq!(0, record.context_tick);
+
+        //we can compute in-between ticks
+        record = children.record.pop_front().unwrap();
+        assert_eq!(1, record.base_tick);
+        assert_eq!(1, record.context_tick);
+
+        c = RootContext::new(1usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(0, children.record.len());
+
+        c = RootContext::new(2usize, 44100, &mut list, &mut trig_list, &mut src_sink);
+        ratio.exec(&mut c, &mut children);
+        assert_eq!(2, children.record.len());
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(2, record.base_tick);
+        assert_eq!(2, record.context_tick);
+
+        record = children.record.pop_front().unwrap();
+        assert_eq!(3, record.base_tick);
+        assert_eq!(3, record.context_tick);
     }
 }
