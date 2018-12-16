@@ -15,7 +15,7 @@ use std::thread;
 use trigger::{Trigger, TriggerId};
 
 //XXX maybe context times should have an isize absolute offset?
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TimeSched {
     Absolute(usize),
     Relative(isize),
@@ -23,7 +23,7 @@ pub enum TimeSched {
     ContextRelative(isize), /* ContextRelative(isize, isize) */
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TimeResched {
     Relative(usize),
     ContextRelative(usize), /*ContextRelative(usize, isize) */
