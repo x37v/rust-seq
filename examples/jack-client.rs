@@ -188,7 +188,7 @@ fn main() {
             GetClamp::new(velocity, midi_notev_min.clone(), midi_max.clone()).into_shared();
 
         let steps = ObservableBinding::new(AtomicUsize::new(16)).into_shared();
-        let note = ((page + 36) as u8).into_shared();
+        let note = (page as u8).into_shared();
 
         //build up gates
         let gates: Vec<ShrPtr<ObservableBinding<bool, _>>> = vec![false; 64]
