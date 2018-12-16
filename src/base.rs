@@ -339,11 +339,12 @@ mod tests {
         let _x: Vec<TimedFn> = (0..20).map({ |_| TimedFn::default() }).collect();
     }
 
+    /*
     #[test]
     fn basic_test() {
         let mut s = Scheduler::new();
         s.spawn_helper_threads();
-
+    
         let e = s.executor();
         let trig = TriggerId::new();
         assert!(e.is_some());
@@ -368,13 +369,14 @@ mod tests {
                 TimeResched::Relative(3)
             }),
         );
-
+    
         let child = thread::spawn(move || {
             let mut e = e.unwrap();
             e.run(32, 44100);
             e.run(32, 44100);
         });
-
+    
         assert!(child.join().is_ok());
     }
+    */
 }
