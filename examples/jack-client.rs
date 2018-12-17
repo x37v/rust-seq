@@ -160,7 +160,6 @@ fn main() {
     */
 
     let current_page = AtomicUsize::new(0).into_shared();
-    let page_select_shift = AtomicBool::new(false).into_shared();
     let mul_select_shift = AtomicBool::new(false).into_shared();
     let div_select_shift = AtomicBool::new(false).into_shared();
     let len_select_shift = AtomicBool::new(false).into_shared();
@@ -170,7 +169,7 @@ fn main() {
     let midi_max = 127u8.into_shared();
     let midi_maxf = 127f32.into_shared();
 
-    for page in 0..64 {
+    for page in 0..32 {
         let probability = SpinlockParamBinding::new(1f32).into_shared();
 
         let volume = SpinlockParamBinding::new(1.0f32).into_shared();
@@ -191,7 +190,7 @@ fn main() {
         let note = (page as u8).into_shared();
 
         //build up gates
-        let gates: Vec<ShrPtr<ObservableBinding<bool, _>>> = vec![false; 64]
+        let gates: Vec<ShrPtr<ObservableBinding<bool, _>>> = vec![false; 32]
             .iter()
             .map(|v| ObservableBinding::new(AtomicBool::new(*v)).into_shared())
             .collect();
@@ -280,14 +279,14 @@ fn main() {
     let mul_select_shiftc = mul_select_shift.clone();
     let div_select_shiftc = div_select_shift.clone();
     let len_select_shiftc = len_select_shift.clone();
-    let page_select_shiftc = page_select_shift.clone();
 
-    let draw_one = |display: &mut QuNeoDisplay, index: usize, value: u8| {
-        for i in 0..64 {
-            display.update(QDisplayType::Pad, i, 0u8);
-        }
-        display.update(QDisplayType::Pad, index, value);
-    };
+    let draw_one =
+        |display: &mut QuNeoDisplay, index: usize, value: u8, start: usize, end: usize| {
+            for i in start..end {
+                display.update(QDisplayType::Pad, i, 0u8);
+            }
+            display.update(QDisplayType::Pad, index, value);
+        };
 
     let drawer = QuNeoDrawer::new(
         midi_trig.clone(),
@@ -296,45 +295,56 @@ fn main() {
             //TODO make sure the notification is actually something we care about
             let force = notify_receiver.try_iter().any(|x| x == force_id);
             let page = cpage.get();
-            if page_select_shiftc.get() {
-                draw_one(display, page, 127u8);
-            } else {
-                if page < draw_data.len() {
-                    let page = draw_data[page].lock();
-                    if len_select_shiftc.get() {
-                        draw_one(display, page.length.get() - 1, 64u8);
-                    } else if div_select_shiftc.get() {
-                        draw_one(display, page.clock_div.get() as usize - 1, 127u8);
-                    } else if mul_select_shiftc.get() {
-                        draw_one(display, page.clock_mul.get() as usize - 1, 127u8);
-                    } else {
-                        for i in 0..page.gates.len() {
-                            display.update(
-                                QDisplayType::Pad,
-                                i,
-                                if page.gates[i].get() { 127u8 } else { 0u8 },
-                            );
-                        }
-                        let index = page.index.get();
-                        if index < 64 {
-                            display.update(QDisplayType::Pad, index, 32);
-                        }
-                        display.update(QDisplayType::Slider, 4, (127f32 * page.volume.get()) as u8);
+            let pages = draw_data.len();
+            draw_one(display, page, 127u8, 0, pages);
+            if page < pages {
+                let offset = pages;
+                let page = draw_data[page].lock();
+                if len_select_shiftc.get() {
+                    draw_one(display, offset + page.length.get() - 1, 64u8, offset, 64);
+                } else if div_select_shiftc.get() {
+                    draw_one(
+                        display,
+                        offset + page.clock_div.get() as usize - 1,
+                        127u8,
+                        offset,
+                        64,
+                    );
+                } else if mul_select_shiftc.get() {
+                    draw_one(
+                        display,
+                        offset + page.clock_mul.get() as usize - 1,
+                        127u8,
+                        offset,
+                        64,
+                    );
+                } else {
+                    for i in 0..page.gates.len() {
                         display.update(
-                            QDisplayType::Slider,
-                            5,
-                            (127f32 * page.volume_rand.get()) as u8,
-                        );
-                        display.update(
-                            QDisplayType::Slider,
-                            7,
-                            (127f32 * page.probability.get()) as u8,
+                            QDisplayType::Pad,
+                            offset + i,
+                            if page.gates[i].get() { 127u8 } else { 0u8 },
                         );
                     }
+                    let index = page.index.get();
+                    if index < 64 {
+                        display.update(QDisplayType::Pad, offset + index, 32);
+                    }
+                    display.update(QDisplayType::Slider, 4, (127f32 * page.volume.get()) as u8);
+                    display.update(
+                        QDisplayType::Slider,
+                        5,
+                        (127f32 * page.volume_rand.get()) as u8,
+                    );
+                    display.update(
+                        QDisplayType::Slider,
+                        7,
+                        (127f32 * page.probability.get()) as u8,
+                    );
                 }
-                if force {
-                    display.force_draw();
-                }
+            }
+            if force {
+                display.force_draw();
             }
         })
         .into_unique(),
@@ -358,15 +368,19 @@ fn main() {
                     } => {
                         match chan {
                             15 => {
+                                let pages = page_data.len();
                                 let page = current_page.get();
-                                if page < page_data.len() {
+                                if page < pages {
                                     let page = page_data[page].lock();
-                                    let index = num as usize;
-                                    if index < page.gates.len() {
+                                    let mut index = num as usize;
+                                    if index < pages {
                                         if on {
-                                            if page_select_shift.get() {
-                                                current_page.set(index);
-                                            } else if len_select_shift.get() {
+                                            current_page.set(index);
+                                        }
+                                    } else if index - pages < page.gates.len() {
+                                        index -= pages;
+                                        if on {
+                                            if len_select_shift.get() {
                                                 page.length.set(index + 1);
                                             } else if div_select_shift.get() {
                                                 page.clock_div.set((index + 1) as u8);
@@ -379,7 +393,7 @@ fn main() {
                                         }
                                     } else {
                                         match index {
-                                            67 => page_select_shift.set(on),
+                                            //67 => page_select_shift.set(on),
                                             76 => mul_select_shift.set(on),
                                             77 => div_select_shift.set(on),
                                             79 => len_select_shift.set(on),
