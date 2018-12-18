@@ -112,7 +112,7 @@ fn main() {
     let midi_trig = MidiTrigger::new(msender).into_sshared();
 
     let bpm_binding = bpm::ClockData::new(120.0, 960).into_sshared();
-    let _bpm = bpm::ClockBPMBinding(bpm_binding.clone()).into_shared();
+    let bpm = bpm::ClockBPMBinding(bpm_binding.clone()).into_shared();
     let _ppq = bpm::ClockPPQBinding(bpm_binding.clone()).into_shared();
     let micros = bpm::ClockPeriodMicroBinding(bpm_binding.clone()).into_shared();
     let mut clock = RootClock::new(micros.clone()).into_unique();
@@ -353,6 +353,11 @@ fn main() {
 
     sched.schedule(TimeSched::Relative(0), drawer);
 
+    let update_bpm = move |offset: f32, vel: u8| {
+        let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f32) / 127f32);
+        bpm.set(c);
+    };
+
     let mut ex = sched.executor().unwrap();
     ex.add_trigger(LNode::new_boxed(midi_trig.clone()));
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
@@ -360,12 +365,7 @@ fn main() {
         for m in midi_in.iter(ps) {
             if let Some(val) = MidiValue::try_from(m.bytes) {
                 match val {
-                    MidiValue::Note {
-                        on,
-                        chan,
-                        num,
-                        vel: _,
-                    } => {
+                    MidiValue::Note { on, chan, num, vel } => {
                         match chan {
                             15 => {
                                 let pages = page_data.len();
@@ -393,10 +393,19 @@ fn main() {
                                         }
                                     } else {
                                         match index {
-                                            //67 => page_select_shift.set(on),
+                                            67 => len_select_shift.set(on),
                                             76 => mul_select_shift.set(on),
                                             77 => div_select_shift.set(on),
-                                            79 => len_select_shift.set(on),
+                                            78 => {
+                                                if on {
+                                                    update_bpm(1f32, vel);
+                                                }
+                                            }
+                                            79 => {
+                                                if on {
+                                                    update_bpm(-1f32, vel);
+                                                }
+                                            }
                                             _ => (),
                                         }
                                     }
