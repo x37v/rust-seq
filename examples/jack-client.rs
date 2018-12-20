@@ -265,9 +265,8 @@ fn main() {
         ))
         .into_sshared();
 
+        prob.lock().child_append(LNode::new_boxed(trig_report));
         gate.lock().child_append(LNode::new_boxed(prob));
-        gate.lock().child_append(LNode::new_boxed(trig_report));
-
         step_seq.lock().child_append(LNode::new_boxed(gate));
 
         let mul = SpinlockParamBinding::new(1).into_shared();
