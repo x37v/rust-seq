@@ -8,10 +8,13 @@ use sched::binding::generators::*;
 use sched::binding::latch::BindingLatch;
 use sched::binding::observable::{new_observer_node, Observable, ObservableBinding};
 use sched::binding::ops::*;
+use sched::binding::set::BindingSet;
 use sched::binding::spinlock::SpinlockParamBinding;
 use sched::binding::{BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingSet};
+use sched::context::SchedContext;
 
 use sched::graph::clock_ratio::ClockRatio;
+use sched::graph::func::FuncWrapper;
 use sched::graph::gate::Gate;
 use sched::graph::index_latch::IndexLatch;
 use sched::graph::index_report::IndexReporter;
@@ -19,7 +22,7 @@ use sched::graph::midi::MidiNote;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
-use sched::graph::GraphNode;
+use sched::graph::{ChildCount, ChildExec, GraphNode};
 use sched::ptr::{SShrPtr, ShrPtr, UniqPtr};
 
 use sched::midi::{MidiTrigger, MidiValue};
@@ -43,6 +46,8 @@ struct PageData {
     probability: ShrPtr<dyn ParamBinding<f32>>,
     volume: ShrPtr<dyn ParamBinding<f32>>,
     volume_rand: ShrPtr<dyn ParamBinding<f32>>,
+    triggered: ShrPtr<dyn ParamBinding<bool>>,
+    triggered_off: ShrPtr<SpinlockParamBinding<bool>>,
 }
 
 impl PageData {
@@ -55,6 +60,7 @@ impl PageData {
         probability: ShrPtr<dyn ParamBinding<f32>>,
         volume: ShrPtr<dyn ParamBinding<f32>>,
         volume_rand: ShrPtr<dyn ParamBinding<f32>>,
+        triggered: ShrPtr<dyn ParamBinding<bool>>,
     ) -> Self {
         Self {
             index,
@@ -65,6 +71,8 @@ impl PageData {
             probability,
             volume,
             volume_rand,
+            triggered,
+            triggered_off: SpinlockParamBinding::new(false).into_shared(),
         }
     }
 }
@@ -159,7 +167,9 @@ fn main() {
     });
     */
 
-    let current_page = AtomicUsize::new(0).into_shared();
+    let current_page = ObservableBinding::new(AtomicUsize::new(0)).into_shared();
+    current_page.add_observer(new_observer_node(notify_sender.clone()));
+
     let mul_select_shift = AtomicBool::new(false).into_shared();
     let div_select_shift = AtomicBool::new(false).into_shared();
     let len_select_shift = AtomicBool::new(false).into_shared();
@@ -170,6 +180,7 @@ fn main() {
     let midi_maxf = 127f32.into_shared();
 
     for page in 0..32 {
+        let triggered = SpinlockParamBinding::new(false).into_shared();
         let probability = SpinlockParamBinding::new(1f32).into_shared();
 
         let volume = SpinlockParamBinding::new(1.0f32).into_shared();
@@ -241,7 +252,21 @@ fn main() {
         let prob = GraphNodeWrapper::new(Gate::new(cmp.clone()).into_unique()).into_sshared();
         prob.lock().child_append(LNode::new_boxed(trig));
 
+        let triggeredc = triggered.clone();
+        let trig_report = GraphNodeWrapper::new(FuncWrapper::new_boxed(
+            ChildCount::None,
+            move |context: &mut dyn SchedContext, _children: &mut dyn ChildExec| {
+                context.schedule_value(
+                    TimeSched::ContextRelative(0),
+                    &BindingSet::Bool(true, triggeredc.clone()),
+                );
+                true
+            },
+        ))
+        .into_sshared();
+
         gate.lock().child_append(LNode::new_boxed(prob));
+        gate.lock().child_append(LNode::new_boxed(trig_report));
 
         step_seq.lock().child_append(LNode::new_boxed(gate));
 
@@ -258,6 +283,7 @@ fn main() {
                 probability.clone(),
                 volume.clone(),
                 volume_rand.clone(),
+                triggered.clone(),
             )
             .into_sshared(),
         );
@@ -275,6 +301,7 @@ fn main() {
     let draw_data: Vec<SShrPtr<PageData>> = page_data.iter().cloned().collect();
     jack_connections.add_observer(new_observer_node(notify_sender));
     let force_id = jack_connections.id();
+    let page_id = current_page.id();
 
     let mul_select_shiftc = mul_select_shift.clone();
     let div_select_shiftc = div_select_shift.clone();
@@ -291,12 +318,37 @@ fn main() {
     let drawer = QuNeoDrawer::new(
         midi_trig.clone(),
         TimeResched::Relative(441),
-        (move |display: &mut QuNeoDisplay| {
+        (move |display: &mut QuNeoDisplay, context: &mut dyn SchedContext| {
             //TODO make sure the notification is actually something we care about
-            let force = notify_receiver.try_iter().any(|x| x == force_id);
+            let force = notify_receiver
+                .try_iter()
+                .any(|x| x == force_id || x == page_id);
+
             let page = cpage.get();
+            //clear out the page drawing if we force
+            if force {
+                draw_one(display, page, 127u8, 0, 32);
+            }
+
             let pages = draw_data.len();
-            draw_one(display, page, 127u8, 0, pages);
+            for p in 0..pages {
+                if p != page {
+                    let data = draw_data[p].lock();
+                    if data.triggered.get() {
+                        data.triggered.set(false);
+                        display.update(QDisplayType::Pad, p, 64u8);
+                        context.schedule_value(
+                            TimeSched::Relative(4410),
+                            &BindingSet::Bool(true, data.triggered_off.clone()),
+                        );
+                    }
+                    if data.triggered_off.get() {
+                        data.triggered_off.set(false);
+                        display.update(QDisplayType::Pad, p, 0);
+                    }
+                }
+            }
+            display.update(QDisplayType::Pad, page, 127u8);
             if page < pages {
                 let offset = pages;
                 let page = draw_data[page].lock();

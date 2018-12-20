@@ -47,7 +47,7 @@ pub struct QuNeoDisplayIter<'a> {
 
 impl<F> QuNeoDrawer<F>
 where
-    F: Fn(&mut QuNeoDisplay) + Send,
+    F: Fn(&mut QuNeoDisplay, &mut dyn SchedContext) + Send,
 {
     pub fn new(midi_trigger: SShrPtr<MidiTrigger>, period: TimeResched, func: UniqPtr<F>) -> Self {
         Self {
@@ -209,10 +209,10 @@ impl Default for QuNeoDisplay {
 
 impl<F> SchedCall for QuNeoDrawer<F>
 where
-    F: Fn(&mut QuNeoDisplay) + Send,
+    F: Fn(&mut QuNeoDisplay, &mut dyn SchedContext) + Send,
 {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
-        (*self.func)(&mut self.display);
+        (*self.func)(&mut self.display, context);
         for d in self.display.draw_iter() {
             self.midi_trigger.lock().add(
                 context.as_schedule_trigger_mut(),
