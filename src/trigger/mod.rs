@@ -2,6 +2,8 @@ use binding::set::BindingSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use {TimeResched, TimeSched};
 
+pub mod gate;
+
 pub trait Trigger {
     fn trigger_index(&self) -> TriggerId;
     fn trigger_eval(&self, tick: usize, context: &mut dyn ScheduleTrigger);
