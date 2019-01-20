@@ -2,6 +2,7 @@
 name = "sched"
 version = "0.1.0"
 authors = ["Alex Norman <alex@x37v.info>"]
+edition = "2018"
 
 [dependencies]
 sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
