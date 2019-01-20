@@ -1,5 +1,4 @@
-extern crate spinlock;
-extern crate xnor_llist;
+use xnor_llist;
 
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
@@ -8,11 +7,11 @@ use crate::binding::set::BindingSet;
 use crate::context::SchedContext;
 use crate::executor::Executor;
 use crate::ptr::*;
+use crate::trigger::{Trigger, TriggerId};
 use std;
 use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::thread;
-use crate::trigger::{Trigger, TriggerId};
 
 //XXX maybe context times should have an isize absolute offset?
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -344,7 +343,7 @@ mod tests {
     fn basic_test() {
         let mut s = Scheduler::new();
         s.spawn_helper_threads();
-    
+
         let e = s.executor();
         let trig = TriggerId::new();
         assert!(e.is_some());
@@ -369,13 +368,13 @@ mod tests {
                 TimeResched::Relative(3)
             }),
         );
-    
+
         let child = thread::spawn(move || {
             let mut e = e.unwrap();
             e.run(32, 44100);
             e.run(32, 44100);
         });
-    
+
         assert!(child.join().is_ok());
     }
     */

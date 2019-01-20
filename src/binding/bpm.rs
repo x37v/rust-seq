@@ -1,5 +1,4 @@
 use super::*;
-extern crate spinlock;
 use crate::ptr::SShrPtr;
 
 pub trait Clock {

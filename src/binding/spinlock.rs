@@ -1,6 +1,6 @@
-extern crate spinlock;
 use super::*;
 use crate::ptr::ShrPtr;
+use ::spinlock::Mutex;
 use std::cell::Cell;
 
 pub type SpinlockParamBindingP<T> = ShrPtr<SpinlockParamBinding<T>>;
@@ -11,13 +11,13 @@ pub type SpinlockParamBindingP<T> = ShrPtr<SpinlockParamBinding<T>>;
 /// implementations exist, these are be better to use for `bool`, `usize` and `isize` wrapping.
 
 pub struct SpinlockParamBinding<T: Copy> {
-    lock: spinlock::Mutex<Cell<T>>,
+    lock: Mutex<Cell<T>>,
 }
 
 impl<T: Copy> SpinlockParamBinding<T> {
     pub fn new(value: T) -> Self {
         SpinlockParamBinding {
-            lock: spinlock::Mutex::new(Cell::new(value)),
+            lock: Mutex::new(Cell::new(value)),
         }
     }
 }

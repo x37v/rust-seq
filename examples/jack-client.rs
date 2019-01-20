@@ -1,5 +1,5 @@
-extern crate jack;
-extern crate rosc;
+use jack;
+
 #[macro_use]
 extern crate sched;
 
@@ -210,10 +210,10 @@ fn main() {
         }
 
         let step_gate = AtomicBool::new(false).into_shared();
-        let latches: Vec<BindingLatchP> = gates
+        let latches: Vec<BindingLatchP<'_>> = gates
             .iter()
             .map(|g| {
-                (BindingLatch::new(g.clone(), step_gate.clone())).into_shared() as BindingLatchP
+                (BindingLatch::new(g.clone(), step_gate.clone())).into_shared() as BindingLatchP<'_>
             })
             .collect();
 

@@ -1,8 +1,6 @@
 #![feature(nll)]
 
-extern crate failure;
-extern crate rand;
-pub extern crate spinlock;
+pub use ::spinlock;
 pub extern crate xnor_llist;
 
 #[macro_use]

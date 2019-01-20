@@ -1,5 +1,3 @@
-extern crate euclidian_rythms;
-
 use crate::binding::BindingGetP;
 use crate::context::SchedContext;
 use crate::graph::{ChildCount, ChildExec, GraphExec};
