@@ -1,6 +1,6 @@
 use super::*;
 extern crate spinlock;
-use ptr::SShrPtr;
+use crate::ptr::SShrPtr;
 
 pub trait Clock {
     fn bpm(&self) -> f32;

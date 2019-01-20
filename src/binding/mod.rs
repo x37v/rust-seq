@@ -1,5 +1,5 @@
-use midi::MidiValue;
-use ptr::ShrPtr;
+use crate::midi::MidiValue;
+use crate::ptr::ShrPtr;
 
 pub mod atomic;
 pub mod bpm;

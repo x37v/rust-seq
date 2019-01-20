@@ -1,8 +1,8 @@
-use binding::ParamBindingGet;
-use binding::ParamBindingSet;
-use ptr::{SShrPtr, ShrPtr};
+use crate::binding::ParamBindingGet;
+use crate::binding::ParamBindingSet;
+use crate::ptr::{SShrPtr, ShrPtr};
 use std::marker::PhantomData;
-use trigger::*;
+use crate::trigger::*;
 
 /// A trigger binds a value
 pub struct TriggerBind<T, In, Out> {

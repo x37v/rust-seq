@@ -14,7 +14,7 @@ pub enum BindingSet {
     USize(usize, BindingSetP<usize>),
     Bool(bool, BindingSetP<bool>),
     Midi(MidiValue, BindingSetP<MidiValue>),
-    TimeResched(::TimeResched, BindingSetP<::TimeResched>),
+    TimeResched(crate::TimeResched, BindingSetP<crate::TimeResched>),
 }
 
 impl ParamBindingLatch for BindingSet {

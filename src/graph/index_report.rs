@@ -1,7 +1,7 @@
 use super::*;
-use base::TimeSched;
-use binding::set::BindingSet;
-use binding::BindingSetP;
+use crate::base::TimeSched;
+use crate::binding::set::BindingSet;
+use crate::binding::BindingSetP;
 
 pub struct IndexReporter {
     binding: BindingSetP<usize>,

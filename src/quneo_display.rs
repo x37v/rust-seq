@@ -1,9 +1,9 @@
-use context::SchedContext;
-use midi::{MidiTrigger, MidiValue};
-use ptr::{SShrPtr, UniqPtr};
-use SchedCall;
-use TimeResched;
-use TimeSched;
+use crate::context::SchedContext;
+use crate::midi::{MidiTrigger, MidiValue};
+use crate::ptr::{SShrPtr, UniqPtr};
+use crate::SchedCall;
+use crate::TimeResched;
+use crate::TimeSched;
 
 //XXX move to its own crate
 

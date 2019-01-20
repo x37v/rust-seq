@@ -1,8 +1,8 @@
-use base::{TimeResched, TimeSched};
-use binding::{set::BindingSet, spinlock::SpinlockParamBinding, ParamBindingGet};
-use ptr::ShrPtr;
+use crate::base::{TimeResched, TimeSched};
+use crate::binding::{set::BindingSet, spinlock::SpinlockParamBinding, ParamBindingGet};
+use crate::ptr::ShrPtr;
 use std::sync::mpsc::SyncSender;
-use trigger::{ScheduleTrigger, Trigger, TriggerId};
+use crate::trigger::{ScheduleTrigger, Trigger, TriggerId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MidiValue {

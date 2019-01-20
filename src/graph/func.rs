@@ -1,5 +1,5 @@
 use super::*;
-use ptr::UniqPtr;
+use crate::ptr::UniqPtr;
 
 pub struct FuncWrapper<F> {
     func: UniqPtr<F>,

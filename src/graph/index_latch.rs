@@ -1,5 +1,5 @@
 use super::*;
-use binding::BindingLatchP;
+use crate::binding::BindingLatchP;
 
 pub struct IndexLatch<'a> {
     latches: Vec<BindingLatchP<'a>>,

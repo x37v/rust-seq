@@ -54,8 +54,8 @@ impl SchedCall for RootClock {
 
 mod tests {
     use super::*;
-    use base::{LList, SrcSink, TimeResched};
-    use context::RootContext;
+    use crate::base::{LList, SrcSink, TimeResched};
+    use crate::context::RootContext;
     use std::sync::Arc;
 
     #[test]

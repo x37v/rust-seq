@@ -4,15 +4,15 @@ extern crate xnor_llist;
 pub use xnor_llist::List as LList;
 pub use xnor_llist::Node as LNode;
 
-use binding::set::BindingSet;
-use context::SchedContext;
-use executor::Executor;
-use ptr::*;
+use crate::binding::set::BindingSet;
+use crate::context::SchedContext;
+use crate::executor::Executor;
+use crate::ptr::*;
 use std;
 use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::thread;
-use trigger::{Trigger, TriggerId};
+use crate::trigger::{Trigger, TriggerId};
 
 //XXX maybe context times should have an isize absolute offset?
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -323,7 +323,7 @@ impl Sched for Scheduler {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         let f = LNode::new_boxed(TimedFn {
             func: Some(func),
-            time: ::util::add_atomic_time(&self.time, &time),
+            time: crate::util::add_atomic_time(&self.time, &time),
         });
         self.schedule_sender.send(f).unwrap();
     }

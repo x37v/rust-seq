@@ -1,10 +1,10 @@
 use super::*;
-use binding::ParamBindingLatch;
-use context::RootContext;
-use ptr::{SShrPtr, ShrPtr};
+use crate::binding::ParamBindingLatch;
+use crate::context::RootContext;
+use crate::ptr::{SShrPtr, ShrPtr};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
-use trigger::Trigger;
+use crate::trigger::Trigger;
 
 pub struct Executor {
     list: LList<TimedFn>,

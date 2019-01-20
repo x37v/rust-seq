@@ -1,8 +1,8 @@
 extern crate euclidian_rythms;
 
-use binding::BindingGetP;
-use context::SchedContext;
-use graph::{ChildCount, ChildExec, GraphExec};
+use crate::binding::BindingGetP;
+use crate::context::SchedContext;
+use crate::graph::{ChildCount, ChildExec, GraphExec};
 
 pub struct Euclid {
     step_ticks: BindingGetP<usize>,

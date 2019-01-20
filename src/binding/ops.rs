@@ -1,5 +1,5 @@
-use binding::ParamBindingGet;
-use ptr::ShrPtr;
+use crate::binding::ParamBindingGet;
+use crate::ptr::ShrPtr;
 use std::marker::PhantomData;
 
 /// Clamp a numeric binding between [min, max], inclusive.

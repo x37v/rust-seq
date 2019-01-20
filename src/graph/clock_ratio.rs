@@ -1,6 +1,6 @@
-use binding::BindingGetP;
-use context::{ChildContext, SchedContext};
-use graph::{ChildCount, ChildExec, GraphExec};
+use crate::binding::BindingGetP;
+use crate::context::{ChildContext, SchedContext};
+use crate::graph::{ChildCount, ChildExec, GraphExec};
 
 pub struct ClockRatio {
     mul: BindingGetP<u8>,
@@ -40,9 +40,9 @@ impl GraphExec for ClockRatio {
 
 mod tests {
     use super::*;
-    use base::{LList, SrcSink, TimeResched};
-    use context::RootContext;
-    use graph::ChildExec;
+    use crate::base::{LList, SrcSink, TimeResched};
+    use crate::context::RootContext;
+    use crate::graph::ChildExec;
     use std::collections::VecDeque;
     use std::sync::Arc;
 

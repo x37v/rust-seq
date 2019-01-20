@@ -1,5 +1,5 @@
-use base::TimeSched;
-use ptr::ShrPtr;
+use crate::base::TimeSched;
+use crate::ptr::ShrPtr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn add_clamped(u: usize, i: isize) -> usize {

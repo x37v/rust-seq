@@ -1,6 +1,6 @@
-use binding::ParamBindingGet;
-use ptr::{SShrPtr, ShrPtr};
-use trigger::*;
+use crate::binding::ParamBindingGet;
+use crate::ptr::{SShrPtr, ShrPtr};
+use crate::trigger::*;
 
 /// A trigger that evaluates its children only when the associated gate value is true
 pub struct TriggerGate<T> {

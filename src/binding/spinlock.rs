@@ -1,6 +1,6 @@
 extern crate spinlock;
 use super::*;
-use ptr::ShrPtr;
+use crate::ptr::ShrPtr;
 use std::cell::Cell;
 
 pub type SpinlockParamBindingP<T> = ShrPtr<SpinlockParamBinding<T>>;

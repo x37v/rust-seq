@@ -1,10 +1,10 @@
 extern crate spinlock;
 extern crate xnor_llist;
 
-use base::{SchedCall, TimeResched};
-use binding::BindingGetP;
-use context::{ChildContext, SchedContext};
-use ptr::{SShrPtr, UniqPtr};
+use crate::base::{SchedCall, TimeResched};
+use crate::binding::BindingGetP;
+use crate::context::{ChildContext, SchedContext};
+use crate::ptr::{SShrPtr, UniqPtr};
 use std;
 use std::cmp::{Ordering, PartialOrd};
 use xnor_llist::List as LList;
@@ -224,8 +224,8 @@ impl<'a> ChildExec for NChildren<'a> {
 mod tests {
     use super::node_wrapper::GraphNodeWrapper;
     use super::*;
-    use base::{LList, SrcSink};
-    use context::{RootContext, SchedContext};
+    use crate::base::{LList, SrcSink};
+    use crate::context::{RootContext, SchedContext};
     use std;
 
     struct X {}

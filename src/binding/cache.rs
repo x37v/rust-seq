@@ -1,7 +1,7 @@
 use super::spinlock::SpinlockParamBinding;
 use super::*;
 use failure::Fail;
-use ptr::UniqPtr;
+use crate::ptr::UniqPtr;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
@@ -90,7 +90,7 @@ impl Default for BindingCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use binding::bpm::{
+    use crate::binding::bpm::{
         Clock, ClockBPMBinding, ClockData, ClockPPQBinding, ClockPeriodMicroBinding,
     };
 

@@ -24,4 +24,4 @@ pub mod midi;
 //XXX move to its own crate?
 pub mod quneo_display;
 
-pub use base::*;
+pub use crate::base::*;

@@ -1,7 +1,7 @@
-use base::{LList, LNode};
-use binding::ParamBindingGet;
-use binding::ParamBindingSet;
-use ptr::UniqPtr;
+use crate::base::{LList, LNode};
+use crate::binding::ParamBindingGet;
+use crate::binding::ParamBindingSet;
+use crate::ptr::UniqPtr;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -173,12 +173,12 @@ impl<B, T> Deref for ObservableBinding<B, T> {
 
 pub mod bpm {
     pub struct ObservableClockData {
-        clock_data: ::binding::bpm::ClockData,
+        clock_data: crate::binding::bpm::ClockData,
         observer_data: super::ObservableData,
     }
 
     impl ObservableClockData {
-        pub fn new(clock_data: ::binding::bpm::ClockData) -> Self {
+        pub fn new(clock_data: crate::binding::bpm::ClockData) -> Self {
             Self {
                 clock_data,
                 observer_data: super::ObservableData::new(),
@@ -199,7 +199,7 @@ pub mod bpm {
         }
     }
 
-    impl ::binding::bpm::Clock for ObservableClockData {
+    impl crate::binding::bpm::Clock for ObservableClockData {
         fn bpm(&self) -> f32 {
             self.clock_data.bpm()
         }
@@ -229,9 +229,9 @@ pub mod bpm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use binding::bpm::Clock;
-    use binding::{spinlock::SpinlockParamBinding, ParamBindingSet};
-    use ptr::ShrPtr;
+    use crate::binding::bpm::Clock;
+    use crate::binding::{spinlock::SpinlockParamBinding, ParamBindingSet};
+    use crate::ptr::ShrPtr;
     use std::sync::atomic::AtomicIsize;
     use std::sync::mpsc::sync_channel;
 
@@ -390,14 +390,14 @@ mod tests {
     fn bpm() {
         let (s1, r1) = sync_channel(16);
         let b = new_sshrptr!(bpm::ObservableClockData::new(
-            ::binding::bpm::ClockData::new(120.0, 96),
+            crate::binding::bpm::ClockData::new(120.0, 96),
         ));
         let id = b.lock().id();
         assert!(r1.try_recv().is_err());
 
-        let bpm = new_shrptr!(::binding::bpm::ClockBPMBinding(b.clone()));
-        let ppq = new_shrptr!(::binding::bpm::ClockPPQBinding(b.clone()));
-        let micros = new_shrptr!(::binding::bpm::ClockPeriodMicroBinding(b.clone()));
+        let bpm = new_shrptr!(crate::binding::bpm::ClockBPMBinding(b.clone()));
+        let ppq = new_shrptr!(crate::binding::bpm::ClockPPQBinding(b.clone()));
+        let micros = new_shrptr!(crate::binding::bpm::ClockPeriodMicroBinding(b.clone()));
         let micros2 = micros.clone();
 
         let c = b.clone();

@@ -1,10 +1,10 @@
-use base::{
+use crate::base::{
     InsertTimeSorted, LList, SchedFn, SrcSink, TimeResched, TimeSched, TimedFn, TimedNodeData,
     TimedTrig,
 };
-use binding::set::BindingSet;
-use trigger::{ScheduleTrigger, TriggerId};
-use util::add_clamped;
+use crate::binding::set::BindingSet;
+use crate::trigger::{ScheduleTrigger, TriggerId};
+use crate::util::add_clamped;
 
 pub trait SchedContext: ScheduleTrigger {
     fn base_tick(&self) -> usize;
@@ -249,9 +249,9 @@ impl<'a> ScheduleTrigger for ChildContext<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base::{LList, SrcSink, TimeSched};
-    use binding::spinlock::SpinlockParamBinding;
-    use context::RootContext;
+    use crate::base::{LList, SrcSink, TimeSched};
+    use crate::binding::spinlock::SpinlockParamBinding;
+    use crate::context::RootContext;
     #[test]
     fn works() {
         let mut src_sink = SrcSink::new();
