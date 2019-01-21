@@ -11,7 +11,8 @@ pub enum ChildCount {
 cfg_if! {
     if #[cfg(feature = "std")] {
 
-        use crate::base::{SchedCall, TimeResched};
+        use crate::base::SchedCall;
+        use crate::time::TimeResched;
         use crate::binding::BindingGetP;
         use crate::context::{ChildContext, SchedContext};
         use crate::ptr::{SShrPtr, UniqPtr};

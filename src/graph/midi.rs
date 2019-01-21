@@ -2,7 +2,7 @@ use super::*;
 use crate::binding::BindingGetP;
 use crate::midi::MidiTrigger;
 use crate::ptr::SShrPtr;
-use crate::TimeSched;
+use crate::time::TimeSched;
 
 /// A graph leaf node that triggers a midi note.
 #[derive(GraphLeaf)]

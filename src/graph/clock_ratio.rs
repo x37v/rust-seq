@@ -40,9 +40,10 @@ impl GraphExec for ClockRatio {
 
 mod tests {
     use super::*;
-    use crate::base::{LList, SrcSink, TimeResched};
+    use crate::base::{LList, SrcSink};
     use crate::context::RootContext;
     use crate::graph::ChildExec;
+    use crate::time::TimeResched;
     use std::collections::VecDeque;
     use std::sync::Arc;
 

@@ -1,4 +1,5 @@
 use super::*;
+use crate::time::TimeResched;
 
 pub type Micro = f32;
 pub struct RootClock {
@@ -54,8 +55,9 @@ impl SchedCall for RootClock {
 
 mod tests {
     use super::*;
-    use crate::base::{LList, SrcSink, TimeResched};
+    use crate::base::{LList, SrcSink};
     use crate::context::RootContext;
+    use crate::time::TimeResched;
     use std::sync::Arc;
 
     #[test]

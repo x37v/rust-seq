@@ -7,27 +7,12 @@ use crate::binding::set::BindingSet;
 use crate::context::SchedContext;
 use crate::executor::Executor;
 use crate::ptr::*;
+use crate::time::{TimeResched, TimeSched};
 use crate::trigger::{Trigger, TriggerId};
 use std;
 use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::thread;
-
-//XXX maybe context times should have an isize absolute offset?
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TimeSched {
-    Absolute(usize),
-    Relative(isize),
-    ContextAbsolute(usize), /* ContextAbsolute(usize, isize) */
-    ContextRelative(isize), /* ContextRelative(isize, isize) */
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TimeResched {
-    Relative(usize),
-    ContextRelative(usize), /*ContextRelative(usize, isize) */
-    None,
-}
 
 pub enum Value {
     Byte(u8),
