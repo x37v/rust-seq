@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate cfg_if;
 
+pub mod ptr;
 pub mod time;
 
 cfg_if! {
@@ -15,7 +16,6 @@ cfg_if! {
         pub mod context;
         pub mod executor;
         pub mod graph;
-        pub mod ptr;
         pub mod trigger;
         pub mod util;
 
