@@ -11,7 +11,6 @@ mod traits;
 pub use self::traits::*;
 
 pub mod clock_ratio;
-pub mod euclidean_gate;
 pub mod func;
 pub mod gate;
 pub mod index_latch;
@@ -21,6 +20,9 @@ pub mod node_wrapper;
 pub mod one_hot;
 pub mod root_clock;
 pub mod step_seq;
+
+#[cfg(feature = "euclidean")]
+pub mod euclidean_gate;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ChildCount {
