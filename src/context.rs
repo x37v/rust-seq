@@ -256,9 +256,10 @@ cfg_if! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::base::{LList, SrcSink, TimeSched};
+    use crate::base::{LList, SrcSink};
     use crate::binding::spinlock::SpinlockParamBinding;
     use crate::context::RootContext;
+    use crate::time::TimeSched;
     #[test]
     fn works() {
         let mut src_sink = SrcSink::new();

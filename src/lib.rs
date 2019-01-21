@@ -1,6 +1,10 @@
 #[macro_use]
 extern crate cfg_if;
 
+//this aren't actually usable outside of std
+#[macro_use]
+pub mod macros;
+
 pub mod binding;
 pub mod context;
 pub mod graph;
@@ -15,7 +19,6 @@ cfg_if! {
         #[macro_use]
         extern crate sched_macros;
 
-        pub mod macros;
 
         mod base;
         pub mod executor;
