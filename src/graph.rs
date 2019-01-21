@@ -7,6 +7,9 @@ use std::cmp::{Ordering, PartialOrd};
 use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
 
+mod traits;
+pub use self::traits::*;
+
 pub mod clock_ratio;
 pub mod euclidean_gate;
 pub mod func;
@@ -18,40 +21,6 @@ pub mod node_wrapper;
 pub mod one_hot;
 pub mod root_clock;
 pub mod step_seq;
-
-pub trait GraphExec: Send {
-    fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool;
-    fn children_max(&self) -> ChildCount;
-}
-
-pub trait GraphLeafExec: Send {
-    fn exec_leaf(&mut self, context: &mut dyn SchedContext);
-}
-
-pub trait GraphNodeExec: Send {
-    fn exec_node(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec);
-}
-
-pub trait ChildExec {
-    fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount;
-    fn exec_range(
-        &mut self,
-        context: &mut dyn SchedContext,
-        range: std::ops::Range<usize>,
-    ) -> ChildCount;
-    fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount;
-    fn count(&self) -> ChildCount;
-    fn has_children(&self) -> bool;
-}
-
-pub trait GraphIndexExec: Send {
-    fn exec_index(&mut self, index: usize, context: &mut dyn SchedContext);
-}
-
-pub trait GraphNode {
-    fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
-    fn child_append(&mut self, child: AChildP) -> bool;
-}
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ChildCount {
