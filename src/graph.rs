@@ -2,7 +2,6 @@ use crate::base::{SchedCall, TimeResched};
 use crate::binding::BindingGetP;
 use crate::context::{ChildContext, SchedContext};
 use crate::ptr::{SShrPtr, UniqPtr};
-use std;
 use std::cmp::{Ordering, PartialOrd};
 use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
