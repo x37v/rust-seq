@@ -258,7 +258,7 @@ impl SrcSink {
         self.value_set_cache.try_recv().ok()
     }
 
-    pub fn dispose(&mut self, item: UniqPtr<Send>) {
+    pub fn dispose(&mut self, item: UniqPtr<dyn Send>) {
         let _ = self.dispose_schedule_sender.send(item);
     }
 }

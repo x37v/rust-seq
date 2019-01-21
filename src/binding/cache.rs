@@ -12,7 +12,7 @@ pub struct GetError {
     key: String,
 }
 
-pub type BindingMap = HashMap<String, UniqPtr<Any>>;
+pub type BindingMap = HashMap<String, UniqPtr<dyn Any>>;
 
 pub struct BindingCache(pub BindingMap);
 

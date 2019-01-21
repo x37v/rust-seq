@@ -19,9 +19,9 @@ pub struct ClockData {
     ppq: usize,
 }
 
-pub struct ClockPeriodMicroBinding(pub SShrPtr<Clock>);
-pub struct ClockBPMBinding(pub SShrPtr<Clock>);
-pub struct ClockPPQBinding(pub SShrPtr<Clock>);
+pub struct ClockPeriodMicroBinding(pub SShrPtr<dyn Clock>);
+pub struct ClockBPMBinding(pub SShrPtr<dyn Clock>);
+pub struct ClockPPQBinding(pub SShrPtr<dyn Clock>);
 
 impl ClockData {
     pub fn period_micro(bpm: f32, ppq: usize) -> f32 {

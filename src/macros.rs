@@ -17,6 +17,6 @@ macro_rules! new_shrptr {
 #[macro_export]
 macro_rules! new_sshrptr {
     ( $x:expr ) => {
-        std::sync::Arc::new(spinlock::Mutex::new($x))
+        std::sync::Arc::new(::spinlock::Mutex::new($x))
     };
 }

@@ -1,7 +1,7 @@
 #![feature(nll)]
 
 pub use ::spinlock;
-pub extern crate xnor_llist;
+pub use xnor_llist;
 
 #[macro_use]
 extern crate sched_macros;

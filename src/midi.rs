@@ -79,7 +79,7 @@ pub struct MidiValueIterator<'a> {
 }
 
 impl MidiValue {
-    pub fn iter(&self) -> MidiValueIterator {
+    pub fn iter(&self) -> MidiValueIterator<'_> {
         MidiValueIterator {
             value: self,
             index: 0,

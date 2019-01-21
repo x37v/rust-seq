@@ -2,12 +2,12 @@ use super::*;
 use crate::ptr::UniqPtr;
 
 pub struct GraphNodeWrapper {
-    exec: UniqPtr<GraphExec>,
+    exec: UniqPtr<dyn GraphExec>,
     children: ChildList,
 }
 
 pub struct NChildGraphNodeWrapper {
-    exec: UniqPtr<GraphExec>,
+    exec: UniqPtr<dyn GraphExec>,
     children: ChildList,
     index_children: IndexChildList,
 }
@@ -32,7 +32,7 @@ impl GraphNode for GraphNodeWrapper {
 }
 
 impl GraphNodeWrapper {
-    pub fn new(exec: UniqPtr<GraphExec>) -> Self {
+    pub fn new(exec: UniqPtr<dyn GraphExec>) -> Self {
         Self {
             exec,
             children: LList::new(),
@@ -41,7 +41,7 @@ impl GraphNodeWrapper {
 }
 
 impl NChildGraphNodeWrapper {
-    pub fn new(exec: UniqPtr<GraphExec>) -> Self {
+    pub fn new(exec: UniqPtr<dyn GraphExec>) -> Self {
         Self {
             exec,
             children: LList::new(),
