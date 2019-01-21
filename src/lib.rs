@@ -1,5 +1,5 @@
 #![feature(nll)]
-#[cfg_attr(not(feature = "std"), feature(no_std))]
+
 #[macro_use]
 extern crate cfg_if;
 
