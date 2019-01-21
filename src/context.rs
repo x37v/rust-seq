@@ -1,3 +1,4 @@
+use crate::base::SchedFn;
 use crate::binding::set::BindingSet;
 use crate::time::{TimeResched, TimeSched};
 use crate::trigger::{ScheduleTrigger, TriggerId};
@@ -14,7 +15,7 @@ pub trait SchedContext: ScheduleTrigger {
 cfg_if! {
     if #[cfg(feature = "std")] {
         use crate::base::{
-            InsertTimeSorted, LList, SchedFn, SrcSink, TimedFn, TimedNodeData,
+            InsertTimeSorted, LList, SrcSink, TimedFn, TimedNodeData,
             TimedTrig,
         };
         use crate::util::add_clamped;

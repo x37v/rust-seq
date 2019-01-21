@@ -5,6 +5,7 @@ extern crate cfg_if;
 #[macro_use]
 pub mod macros;
 
+mod base;
 pub mod binding;
 pub mod context;
 pub mod graph;
@@ -12,6 +13,7 @@ pub mod midi;
 pub mod ptr;
 pub mod time;
 pub mod trigger;
+pub use crate::base::*;
 
 cfg_if! {
     if #[cfg(feature = "std")] {
@@ -20,7 +22,6 @@ cfg_if! {
         extern crate sched_macros;
 
 
-        mod base;
         pub mod executor;
         pub mod util;
 
@@ -28,6 +29,5 @@ cfg_if! {
         //XXX move to its own crate?
         pub mod quneo_display;
 
-        pub use crate::base::*;
     }
 }
