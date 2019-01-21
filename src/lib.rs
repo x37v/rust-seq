@@ -1,5 +1,3 @@
-#![feature(nll)]
-
 #[macro_use]
 extern crate cfg_if;
 
@@ -7,12 +5,8 @@ pub mod time;
 
 cfg_if! {
     if #[cfg(feature = "std")] {
-        extern crate failure;
-        extern crate spinlock;
-        extern crate xnor_llist;
-        extern crate rand;
 
-#[macro_use]
+        #[macro_use]
         extern crate sched_macros;
 
         pub mod macros;
