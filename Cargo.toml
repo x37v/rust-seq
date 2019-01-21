@@ -2,17 +2,32 @@
 name = "sched"
 version = "0.1.0"
 authors = ["Alex Norman <alex@x37v.info>"]
-edition = "2018"
+
+[features]
+euclidian = ["euclidian-rythms"]
+std = ["sched_macros", "xnor_llist", "spinlock", "rand", "num", "failure"]
+default = ["std", "euclidian"]
+no_std = ["libc"]
 
 [dependencies]
-sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
-xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop" }
-spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop" }
-euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git"}
-rand = "0.6.1"
-num = "0.2.0"
-failure = "0.1.3"
+sched_macros = { git = "https://github.com/x37v/sched_macros.git", optional = true }
+xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop", optional = true }
+spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop", optional = true }
+rand = { version = "0.6.1", optional = true }
+num = { version = "0.2.0", optional = true }
+failure = { version = "0.1.3", optional = true }
+euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git", optional = true}
+libc = { version = "0.2.47", optional = true }
+cfg-if = "0.1.6"
 
 [dev-dependencies]
 jack = { git = "https://github.com/RustAudio/rust-jack.git" }
 rosc = "~0.1"
+
+[[example]]
+name = "jack-client"
+required-features = ["std", "euclidian"]
+
+[[example]]
+name = "no_std"
+required-features = ["no_std"]
