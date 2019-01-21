@@ -4,7 +4,20 @@
 extern crate libc;
 extern crate sched;
 
+use sched::graph::GraphExec;
+use sched::graph::{ChildCount, ChildExec};
 use sched::time::TimeSched;
+
+struct S;
+
+impl GraphExec for S {
+    fn exec(&mut self, _context: &mut dyn SchedContext, _children: &mut dyn ChildExec) -> bool {
+        false
+    }
+    fn children_max(&self) -> ChildCount {
+        ChildCount::Inf
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn main(_argc: isize, _argv: *const *const u8) -> isize {

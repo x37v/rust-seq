@@ -3,13 +3,18 @@ use crate::ptr::ShrPtr;
 
 pub mod atomic;
 pub mod bpm;
-pub mod cache;
-pub mod generators;
 pub mod latch;
-pub mod observable;
-pub mod ops;
 pub mod set;
 pub mod spinlock;
+
+cfg_if! {
+    if #[cfg(feature = "std")] {
+        pub mod generators;
+        pub mod cache;
+        pub mod ops;
+        pub mod observable;
+    }
+}
 
 pub type BindingP<T> = ShrPtr<dyn ParamBinding<T>>;
 pub type BindingGetP<T> = ShrPtr<dyn ParamBindingGet<T>>;

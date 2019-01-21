@@ -1,6 +1,6 @@
 use crate::binding::set::BindingSet;
+use crate::time::{TimeResched, TimeSched};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::{TimeResched, TimeSched};
 
 pub mod bind;
 pub mod gate;

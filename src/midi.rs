@@ -1,7 +1,6 @@
-use crate::base::{TimeResched, TimeSched};
 use crate::binding::{set::BindingSet, spinlock::SpinlockParamBinding, ParamBindingGet};
 use crate::ptr::ShrPtr;
-use std::sync::mpsc::SyncSender;
+use crate::time::{TimeResched, TimeSched};
 use crate::trigger::{ScheduleTrigger, Trigger, TriggerId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -178,81 +177,86 @@ impl MidiValueAt {
     }
 }
 
-pub struct MidiTrigger {
-    trigger_index: TriggerId,
-    value: ShrPtr<SpinlockParamBinding<MidiValue>>,
-    sender: SyncSender<MidiValueAt>,
-}
-
-impl MidiTrigger {
-    pub fn new(sender: SyncSender<MidiValueAt>) -> Self {
-        Self {
-            trigger_index: TriggerId::new(),
-            value: new_shrptr!(SpinlockParamBinding::new(MidiValue::None)),
-            sender,
+cfg_if! {
+    if #[cfg(feature = "std")] {
+        use std::sync::mpsc::SyncSender;
+        pub struct MidiTrigger {
+            trigger_index: TriggerId,
+            value: ShrPtr<SpinlockParamBinding<MidiValue>>,
+            sender: SyncSender<MidiValueAt>,
         }
-    }
 
-    pub fn note(
-        &self,
-        time: TimeSched,
-        schedule: &mut dyn ScheduleTrigger,
-        chan: u8,
-        on: bool,
-        num: u8,
-        vel: u8,
-    ) {
-        self.add(schedule, time, MidiValue::Note { on, chan, num, vel });
-    }
+        impl MidiTrigger {
+            pub fn new(sender: SyncSender<MidiValueAt>) -> Self {
+                Self {
+                    trigger_index: TriggerId::new(),
+                    value: new_shrptr!(SpinlockParamBinding::new(MidiValue::None)),
+                    sender,
+                }
+            }
 
-    pub fn note_with_dur(
-        &self,
-        on_time: TimeSched,
-        dur: TimeResched,
-        schedule: &mut dyn ScheduleTrigger,
-        chan: u8,
-        num: u8,
-        on_vel: u8,
-        off_vel: u8,
-    ) {
-        let off_time = schedule.add_time(&on_time, &dur);
-        self.note(on_time, schedule, chan, true, num, on_vel);
-        self.note(off_time, schedule, chan, false, num, off_vel);
-    }
+            pub fn note(
+                &self,
+                time: TimeSched,
+                schedule: &mut dyn ScheduleTrigger,
+                chan: u8,
+                on: bool,
+                num: u8,
+                vel: u8,
+                ) {
+                self.add(schedule, time, MidiValue::Note { on, chan, num, vel });
+            }
 
-    pub fn cont_ctrl(
-        &self,
-        time: TimeSched,
-        schedule: &mut dyn ScheduleTrigger,
-        chan: u8,
-        num: u8,
-        val: u8,
-    ) {
-        self.add(schedule, time, MidiValue::ContCtrl { chan, num, val });
-    }
+            pub fn note_with_dur(
+                &self,
+                on_time: TimeSched,
+                dur: TimeResched,
+                schedule: &mut dyn ScheduleTrigger,
+                chan: u8,
+                num: u8,
+                on_vel: u8,
+                off_vel: u8,
+                ) {
+                let off_time = schedule.add_time(&on_time, &dur);
+                self.note(on_time, schedule, chan, true, num, on_vel);
+                self.note(off_time, schedule, chan, false, num, off_vel);
+            }
 
-    pub fn add(&self, schedule: &mut dyn ScheduleTrigger, time: TimeSched, value: MidiValue) {
-        schedule.schedule_valued_trigger(
-            time,
-            self.trigger_index,
-            &[BindingSet::Midi(value, self.value.clone())],
-        );
-    }
-}
+            pub fn cont_ctrl(
+                &self,
+                time: TimeSched,
+                schedule: &mut dyn ScheduleTrigger,
+                chan: u8,
+                num: u8,
+                val: u8,
+                ) {
+                self.add(schedule, time, MidiValue::ContCtrl { chan, num, val });
+            }
 
-impl Trigger for MidiTrigger {
-    fn trigger_index(&self) -> TriggerId {
-        self.trigger_index
-    }
+            pub fn add(&self, schedule: &mut dyn ScheduleTrigger, time: TimeSched, value: MidiValue) {
+                schedule.schedule_valued_trigger(
+                    time,
+                    self.trigger_index,
+                    &[BindingSet::Midi(value, self.value.clone())],
+                    );
+            }
+        }
 
-    fn trigger_eval(&self, tick: usize, _context: &mut dyn ScheduleTrigger) {
-        let msg = self.value.get();
-        match msg {
-            MidiValue::None => (),
-            _ => {
-                let v = MidiValueAt::new(tick, msg);
-                if let Err(e) = self.sender.try_send(v) {
-                    println!("midi send error: {:?}", e);
+        impl Trigger for MidiTrigger {
+            fn trigger_index(&self) -> TriggerId {
+                self.trigger_index
+            }
+
+            fn trigger_eval(&self, tick: usize, _context: &mut dyn ScheduleTrigger) {
+                let msg = self.value.get();
+                match msg {
+                    MidiValue::None => (),
+                    _ => {
+                        let v = MidiValueAt::new(tick, msg);
+                        if let Err(e) = self.sender.try_send(v) {
+                            println!("midi send error: {:?}", e);
+                        }
+                    }
                 }
             }
         }

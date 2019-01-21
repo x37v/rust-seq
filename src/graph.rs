@@ -1,27 +1,5 @@
-use crate::base::{SchedCall, TimeResched};
-use crate::binding::BindingGetP;
-use crate::context::{ChildContext, SchedContext};
-use crate::ptr::{SShrPtr, UniqPtr};
-use std::cmp::{Ordering, PartialOrd};
-use xnor_llist::List as LList;
-use xnor_llist::Node as LNode;
-
 mod traits;
 pub use self::traits::*;
-
-pub mod clock_ratio;
-pub mod func;
-pub mod gate;
-pub mod index_latch;
-pub mod index_report;
-pub mod midi;
-pub mod node_wrapper;
-pub mod one_hot;
-pub mod root_clock;
-pub mod step_seq;
-
-#[cfg(feature = "euclidean")]
-pub mod euclidean_gate;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ChildCount {
@@ -30,160 +8,188 @@ pub enum ChildCount {
     Inf,
 }
 
-struct Children<'a> {
-    children: &'a mut ChildList,
-}
+cfg_if! {
+    if #[cfg(feature = "std")] {
 
-struct NChildren<'a> {
-    children: &'a mut ChildList,
-    index_children: &'a mut IndexChildList,
-}
+        use crate::base::{SchedCall, TimeResched};
+        use crate::binding::BindingGetP;
+        use crate::context::{ChildContext, SchedContext};
+        use crate::ptr::{SShrPtr, UniqPtr};
+        use std::cmp::{Ordering, PartialOrd};
+        use xnor_llist::List as LList;
+        use xnor_llist::Node as LNode;
 
-pub type ANodeP = SShrPtr<dyn GraphNode>;
-pub type AChildP = UniqPtr<LNode<ANodeP>>;
-pub type ChildList = LList<ANodeP>;
+        pub mod clock_ratio;
+        pub mod func;
+        pub mod gate;
+        pub mod index_latch;
+        pub mod index_report;
+        pub mod midi;
+        pub mod node_wrapper;
+        pub mod one_hot;
+        pub mod root_clock;
+        pub mod step_seq;
 
-pub type AIndexNodeP = SShrPtr<dyn GraphIndexExec>;
-pub type AIndexChildP = UniqPtr<LNode<AIndexNodeP>>;
-pub type IndexChildList = LList<AIndexNodeP>;
+#[cfg(feature = "euclidean")]
+        pub mod euclidean_gate;
 
-impl PartialOrd for ChildCount {
-    fn partial_cmp(&self, other: &ChildCount) -> Option<Ordering> {
-        match self {
-            ChildCount::None => Some(match other {
-                ChildCount::None | ChildCount::Some(0) => Ordering::Equal,
-                _ => Ordering::Less,
-            }),
-            ChildCount::Inf => Some(match other {
-                ChildCount::Inf => Ordering::Equal,
-                _ => Ordering::Greater,
-            }),
-            ChildCount::Some(v) => match other {
-                ChildCount::Inf => Some(Ordering::Less),
-                ChildCount::None => Some(if v == &0usize {
-                    Ordering::Equal
-                } else {
-                    Ordering::Greater
-                }),
-                ChildCount::Some(ov) => v.partial_cmp(&ov),
-            },
+
+        struct Children<'a> {
+            children: &'a mut ChildList,
         }
-    }
-}
 
-impl<'a> Children<'a> {
-    fn new(children: &'a mut ChildList) -> Self {
-        Self { children }
-    }
-}
-
-impl<'a> ChildExec for Children<'a> {
-    fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
-        let tmp = self.children.split(|_| true); //XXX should be a better way
-        for (i, c) in (0..).zip(tmp.into_iter()) {
-            if i == index && !c.lock().exec(context) {
-                continue;
-            }
-            self.children.push_back(c);
+        struct NChildren<'a> {
+            children: &'a mut ChildList,
+            index_children: &'a mut IndexChildList,
         }
-        self.count()
-    }
 
-    fn exec_range(
-        &mut self,
-        context: &mut dyn SchedContext,
-        range: std::ops::Range<usize>,
-    ) -> ChildCount {
-        let tmp = self.children.split(|_| true); //XXX should be a better way
-        for (i, c) in (0..).zip(tmp.into_iter()) {
-            if i.ge(&range.start) && i.lt(&range.end) && !c.lock().exec(context) {
-                continue;
-            }
-            self.children.push_back(c);
-        }
-        self.count()
-    }
+        pub type ANodeP = SShrPtr<dyn GraphNode>;
+        pub type AChildP = UniqPtr<LNode<ANodeP>>;
+        pub type ChildList = LList<ANodeP>;
 
-    fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
-        let tmp = self.children.split(|_| true); //XXX should be a better way
-        for c in tmp.into_iter() {
-            if c.lock().exec(context) {
-                self.children.push_back(c);
-            }
-        }
-        self.count()
-    }
+        pub type AIndexNodeP = SShrPtr<dyn GraphIndexExec>;
+        pub type AIndexChildP = UniqPtr<LNode<AIndexNodeP>>;
+        pub type IndexChildList = LList<AIndexNodeP>;
 
-    fn count(&self) -> ChildCount {
-        ChildCount::Some(self.children.count())
-    }
-
-    fn has_children(&self) -> bool {
-        self.children.count() > 0
-    }
-}
-
-impl<'a> NChildren<'a> {
-    pub fn new(children: &'a mut ChildList, index_children: &'a mut IndexChildList) -> Self {
-        Self {
-            children,
-            index_children,
-        }
-    }
-
-    fn exec_index_callbacks(&mut self, index: usize, context: &mut dyn SchedContext) {
-        for c in self.index_children.iter() {
-            c.lock().exec_index(index, context);
-        }
-    }
-}
-
-impl<'a> ChildExec for NChildren<'a> {
-    fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
-        if let Some(c) = self.children.pop_front() {
-            self.exec_index_callbacks(index, context);
-            if c.lock().exec(context) {
-                self.children.push_front(c);
-            }
-        }
-        self.count()
-    }
-
-    fn exec_range(
-        &mut self,
-        context: &mut dyn SchedContext,
-        range: std::ops::Range<usize>,
-    ) -> ChildCount {
-        if let Some(c) = self.children.pop_front() {
-            let mut pop = true;
-            {
-                let mut l = c.lock();
-                for index in range {
-                    self.exec_index_callbacks(index, context);
-                    pop |= !l.exec(context);
+        impl PartialOrd for ChildCount {
+            fn partial_cmp(&self, other: &ChildCount) -> Option<Ordering> {
+                match self {
+                    ChildCount::None => Some(match other {
+                        ChildCount::None | ChildCount::Some(0) => Ordering::Equal,
+                        _ => Ordering::Less,
+                    }),
+                    ChildCount::Inf => Some(match other {
+                        ChildCount::Inf => Ordering::Equal,
+                        _ => Ordering::Greater,
+                    }),
+                    ChildCount::Some(v) => match other {
+                        ChildCount::Inf => Some(Ordering::Less),
+                        ChildCount::None => Some(if v == &0usize {
+                            Ordering::Equal
+                        } else {
+                            Ordering::Greater
+                        }),
+                        ChildCount::Some(ov) => v.partial_cmp(&ov),
+                    },
                 }
             }
-            if !pop {
-                self.children.push_front(c);
+        }
+
+        impl<'a> Children<'a> {
+            fn new(children: &'a mut ChildList) -> Self {
+                Self { children }
             }
         }
-        self.count()
-    }
 
-    fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
-        self.exec(context, 0)
-    }
+        impl<'a> ChildExec for Children<'a> {
+            fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
+                let tmp = self.children.split(|_| true); //XXX should be a better way
+                for (i, c) in (0..).zip(tmp.into_iter()) {
+                    if i == index && !c.lock().exec(context) {
+                        continue;
+                    }
+                    self.children.push_back(c);
+                }
+                self.count()
+            }
 
-    fn count(&self) -> ChildCount {
-        if self.has_children() {
-            ChildCount::Inf
-        } else {
-            ChildCount::None
+            fn exec_range(
+                &mut self,
+                context: &mut dyn SchedContext,
+                range: std::ops::Range<usize>,
+                ) -> ChildCount {
+                let tmp = self.children.split(|_| true); //XXX should be a better way
+                for (i, c) in (0..).zip(tmp.into_iter()) {
+                    if i.ge(&range.start) && i.lt(&range.end) && !c.lock().exec(context) {
+                        continue;
+                    }
+                    self.children.push_back(c);
+                }
+                self.count()
+            }
+
+            fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
+                let tmp = self.children.split(|_| true); //XXX should be a better way
+                for c in tmp.into_iter() {
+                    if c.lock().exec(context) {
+                        self.children.push_back(c);
+                    }
+                }
+                self.count()
+            }
+
+            fn count(&self) -> ChildCount {
+                ChildCount::Some(self.children.count())
+            }
+
+            fn has_children(&self) -> bool {
+                self.children.count() > 0
+            }
         }
-    }
 
-    fn has_children(&self) -> bool {
-        self.children.count() > 0
+        impl<'a> NChildren<'a> {
+            pub fn new(children: &'a mut ChildList, index_children: &'a mut IndexChildList) -> Self {
+                Self {
+                    children,
+                    index_children,
+                }
+            }
+
+            fn exec_index_callbacks(&mut self, index: usize, context: &mut dyn SchedContext) {
+                for c in self.index_children.iter() {
+                    c.lock().exec_index(index, context);
+                }
+            }
+        }
+
+        impl<'a> ChildExec for NChildren<'a> {
+            fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
+                if let Some(c) = self.children.pop_front() {
+                    self.exec_index_callbacks(index, context);
+                    if c.lock().exec(context) {
+                        self.children.push_front(c);
+                    }
+                }
+                self.count()
+            }
+
+            fn exec_range(
+                &mut self,
+                context: &mut dyn SchedContext,
+                range: std::ops::Range<usize>,
+                ) -> ChildCount {
+                if let Some(c) = self.children.pop_front() {
+                    let mut pop = true;
+                    {
+                        let mut l = c.lock();
+                        for index in range {
+                            self.exec_index_callbacks(index, context);
+                            pop |= !l.exec(context);
+                        }
+                    }
+                    if !pop {
+                        self.children.push_front(c);
+                    }
+                }
+                self.count()
+            }
+
+            fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
+                self.exec(context, 0)
+            }
+
+            fn count(&self) -> ChildCount {
+                if self.has_children() {
+                    ChildCount::Inf
+                } else {
+                    ChildCount::None
+                }
+            }
+
+            fn has_children(&self) -> bool {
+                self.children.count() > 0
+            }
+        }
     }
 }
 
