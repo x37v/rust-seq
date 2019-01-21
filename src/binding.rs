@@ -3,7 +3,6 @@ use crate::ptr::ShrPtr;
 
 pub mod atomic;
 pub mod bpm;
-pub mod latch;
 pub mod set;
 pub mod spinlock;
 
@@ -13,6 +12,7 @@ cfg_if! {
         pub mod cache;
         pub mod ops;
         pub mod observable;
+        pub mod latch;
     }
 }
 
