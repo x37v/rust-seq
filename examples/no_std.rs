@@ -4,6 +4,7 @@
 extern crate libc;
 extern crate sched;
 
+use sched::context::SchedContext;
 use sched::graph::GraphExec;
 use sched::graph::{ChildCount, ChildExec};
 use sched::time::TimeSched;

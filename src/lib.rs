@@ -1,3 +1,7 @@
+#![cfg_attr(feature = "no_std", feature(no_std))]
+#![cfg_attr(feature = "no_std", feature(alloc))]
+#![cfg_attr(feature = "no_std", feature(global_allocator))]
+
 #[macro_use]
 extern crate cfg_if;
 

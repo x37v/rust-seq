@@ -9,13 +9,15 @@ cfg_if! {
         /// A sync/send mutable shared ptr
         pub type SShrPtr<T> = std::sync::Arc<spinlock::Mutex<T>>;
     } else {
+        extern crate alloc;
+
         /// A unique ptr
-        pub type UniqPtr<T> = &'static T;
+        pub type UniqPtr<T> = alloc::boxed::Box<T>;
 
         /// A shared ptr
-        pub type ShrPtr<T> = &'static T;
+        pub type ShrPtr<T> = alloc::sync::Arc<T>;
 
         /// A sync/send mutable shared ptr
-        pub type SShrPtr<T> = &'static mut ::spinlock::Mutex<T>;
+        pub type SShrPtr<T> = alloc::sync::Arc<spinlock::Mutex<T>>;
     }
 }
