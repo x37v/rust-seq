@@ -3,6 +3,8 @@ use crate::time::{TimeResched, TimeSched};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub mod bind;
+
+#[cfg(feature = "std")]
 pub mod gate;
 
 pub trait Trigger {
