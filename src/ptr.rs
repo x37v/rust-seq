@@ -1,5 +1,5 @@
 cfg_if! {
-    if #[cfg(feature = "std")] {
+    if #[cfg(feature = "with_std")] {
         /// A unique ptr
         pub type UniqPtr<T> = Box<T>;
 

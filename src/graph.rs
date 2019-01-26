@@ -9,7 +9,7 @@ pub enum ChildCount {
 }
 
 cfg_if! {
-    if #[cfg(feature = "std")] {
+    if #[cfg(feature = "with_std")] {
 
         use crate::base::SchedCall;
         use crate::time::TimeResched;

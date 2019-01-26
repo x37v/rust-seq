@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub mod bind;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "with_std")]
 pub mod gate;
 
 pub trait Trigger {

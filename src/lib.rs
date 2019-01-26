@@ -1,6 +1,6 @@
-#![cfg_attr(feature = "no_std", feature(no_std))]
-#![cfg_attr(feature = "no_std", feature(alloc))]
-#![cfg_attr(feature = "no_std", feature(global_allocator))]
+#![cfg_attr(not(feature = "with_std"), no_std)]
+#![cfg_attr(feature = "with_alloc", feature(alloc))]
+#![cfg_attr(feature = "with_alloc", feature(global_allocator))]
 
 #[macro_use]
 extern crate cfg_if;
@@ -20,7 +20,7 @@ pub mod trigger;
 pub use crate::base::*;
 
 cfg_if! {
-    if #[cfg(feature = "std")] {
+    if #[cfg(feature = "with_std")] {
 
         #[macro_use]
         extern crate sched_macros;

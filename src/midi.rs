@@ -178,7 +178,7 @@ impl MidiValueAt {
 }
 
 cfg_if! {
-    if #[cfg(feature = "std")] {
+    if #[cfg(feature = "with_std")] {
         use std::sync::mpsc::SyncSender;
         pub struct MidiTrigger {
             trigger_index: TriggerId,

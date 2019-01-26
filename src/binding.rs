@@ -7,7 +7,7 @@ pub mod set;
 pub mod spinlock;
 
 cfg_if! {
-    if #[cfg(feature = "std")] {
+    if #[cfg(feature = "with_std")] {
         pub mod generators;
         pub mod cache;
         pub mod ops;

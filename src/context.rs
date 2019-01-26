@@ -13,7 +13,7 @@ pub trait SchedContext: ScheduleTrigger {
 }
 
 cfg_if! {
-    if #[cfg(feature = "std")] {
+    if #[cfg(feature = "with_std")] {
         use crate::base::{
             InsertTimeSorted, LList, SrcSink, TimedFn, TimedNodeData,
             TimedTrig,
