@@ -232,7 +232,7 @@ where
 
 impl<T, L, R> ParamBindingGet<T> for GetSum<T, L, R>
 where
-    T: std::ops::Add + num::Num,
+    T: core::ops::Add + num::Num,
     L: ParamBindingGet<T>,
     R: ParamBindingGet<T>,
 {
@@ -264,7 +264,7 @@ where
 
 impl<T, L, R> ParamBindingGet<T> for GetMul<T, L, R>
 where
-    T: std::ops::Mul + num::Num,
+    T: core::ops::Mul + num::Num,
     L: ParamBindingGet<T>,
     R: ParamBindingGet<T>,
 {
@@ -296,7 +296,7 @@ where
 
 impl<T, N, D> ParamBindingGet<T> for GetDiv<T, N, D>
 where
-    T: std::ops::Div + num::Num + num::Zero + Default,
+    T: core::ops::Div + num::Num + num::Zero + Default,
     N: ParamBindingGet<T>,
     D: ParamBindingGet<T>,
 {
@@ -333,7 +333,7 @@ where
 
 impl<T, L, R> ParamBindingGet<T> for GetRem<T, L, R>
 where
-    T: std::ops::Rem + num::Num + num::Zero + Default,
+    T: core::ops::Rem + num::Num + num::Zero + Default,
     L: ParamBindingGet<T>,
     R: ParamBindingGet<T>,
 {
@@ -469,6 +469,7 @@ where
     }
 }
 
+#[cfg(feature = "with_std")]
 mod tests {
     use super::*;
     use crate::binding::ParamBindingGet;
