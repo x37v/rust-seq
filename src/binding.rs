@@ -5,19 +5,18 @@ use core::ops::Deref;
 pub mod atomic;
 pub mod bpm;
 pub mod generators;
+pub mod latch;
 pub mod ops;
 pub mod set;
 pub mod spinlock;
 
-cfg_if! {
-    if #[cfg(feature = "with_std")] {
-        pub mod cache;
-        pub mod observable;
-        pub mod latch;
+#[cfg(feature = "with_std")]
+pub mod cache;
+#[cfg(feature = "with_std")]
+pub mod observable;
 
-        use std::sync::Arc;
-    }
-}
+#[cfg(feature = "with_alloc")]
+use std::sync::Arc;
 
 pub type BindingP<T> = ShrPtr<dyn ParamBinding<T>>;
 pub type BindingGetP<T> = ShrPtr<dyn ParamBindingGet<T>>;
@@ -71,7 +70,7 @@ where
     }
 }
 
-#[cfg(feature = "with_std")]
+#[cfg(feature = "with_alloc")]
 impl<T> ParamBindingGet<T> for Arc<T>
 where
     T: Send + Sync + ParamBindingGet<T>,
@@ -81,7 +80,7 @@ where
     }
 }
 
-#[cfg(feature = "with_std")]
+#[cfg(feature = "with_alloc")]
 impl<T> ParamBindingGet<T> for Arc<dyn ParamBindingGet<T>>
 where
     T: Send + Sync,
