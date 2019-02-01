@@ -2,9 +2,9 @@ use crate::base::{LList, LNode};
 use crate::binding::ParamBindingGet;
 use crate::binding::ParamBindingSet;
 use crate::ptr::UniqPtr;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use core::marker::PhantomData;
+use core::ops::Deref;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
