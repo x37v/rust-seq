@@ -1,22 +1,18 @@
-use crate::binding::BindingGetP;
+use crate::binding::ParamBindingGet;
 use crate::context::SchedContext;
 use crate::graph::{ChildCount, ChildExec, GraphExec};
 
-pub struct Euclid {
-    step_ticks: BindingGetP<usize>,
-    steps: BindingGetP<u8>,
-    pulses: BindingGetP<u8>,
+pub struct Euclid<StepTicks, Steps, Pulses> {
+    step_ticks: StepTicks,
+    steps: Steps,
+    pulses: Pulses,
     steps_last: Option<u8>,
     pulses_last: Option<u8>,
     pattern: [bool; 64],
 }
 
-impl Euclid {
-    pub fn new(
-        step_ticks: BindingGetP<usize>,
-        steps: BindingGetP<u8>,
-        pulses: BindingGetP<u8>,
-    ) -> Self {
+impl<StepTicks, Steps, Pulses> Euclid<StepTicks, Steps, Pulses> {
+    pub fn new(step_ticks: StepTicks, steps: Steps, pulses: Pulses) -> Self {
         Self {
             step_ticks,
             steps,
@@ -41,7 +37,12 @@ impl Euclid {
     }
 }
 
-impl GraphExec for Euclid {
+impl<StepTicks, Steps, Pulses> GraphExec for Euclid<StepTicks, Steps, Pulses>
+where
+    StepTicks: ParamBindingGet<usize>,
+    Steps: ParamBindingGet<u8>,
+    Pulses: ParamBindingGet<u8>,
+{
     fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool {
         let step_ticks = self.step_ticks.get();
 

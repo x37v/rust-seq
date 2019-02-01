@@ -14,7 +14,6 @@ cfg_if! {
 
         use crate::base::SchedCall;
         use crate::time::TimeResched;
-        use crate::binding::BindingGetP;
         use crate::context::{ChildContext, SchedContext};
         use crate::ptr::{SShrPtr, UniqPtr};
         use std::cmp::{Ordering, PartialOrd};
@@ -31,7 +30,7 @@ cfg_if! {
         pub mod root_clock;
         pub mod step_seq;
 
-#[cfg(feature = "euclidean")]
+#[cfg(feature = "with_euclidean")]
         pub mod euclidean_gate;
 
 
