@@ -5,13 +5,13 @@ authors = ["Alex Norman <alex@x37v.info>"]
 edition = "2018"
 
 [features]
-with_std = ["sched_macros", "xnor_llist", "failure", "with_alloc"]
+with_std = [ "xnor_llist", "failure", "with_alloc"]
 with_alloc = []
 with_euclidean = ["euclidian-rythms"]
 default = ["with_std", "with_euclidean"]
 
 [dependencies]
-sched_macros = { git = "https://github.com/x37v/sched_macros.git", optional = true }
+sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
 xnor_llist = { git = "https://github.com/x37v/rust-llist", branch = "develop", optional = true }
 spinlock = { git = "https://github.com/x37v/rust-spinlock-mutex", branch = "develop" }
 rand = { version = "0.6.1", default-features = true }
