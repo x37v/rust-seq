@@ -4,13 +4,13 @@ use core::ops::Deref;
 
 pub mod atomic;
 pub mod bpm;
+pub mod generators;
 pub mod ops;
 pub mod set;
 pub mod spinlock;
 
 cfg_if! {
     if #[cfg(feature = "with_std")] {
-        pub mod generators;
         pub mod cache;
         pub mod observable;
         pub mod latch;
