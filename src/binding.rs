@@ -18,12 +18,15 @@ pub mod observable;
 #[cfg(feature = "with_alloc")]
 use std::sync::Arc;
 
-pub type BindingP<T> = ShrPtr<dyn ParamBinding<T>>;
 #[cfg(feature = "with_alloc")]
 pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
 #[cfg(not(feature = "with_alloc"))]
 pub type BindingSetP<T> = &'static dyn ParamBindingSet<T>;
-pub type BindingLatchP<'a> = ShrPtr<dyn ParamBindingLatch + 'a>;
+
+#[cfg(feature = "with_alloc")]
+pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
+#[cfg(not(feature = "with_alloc"))]
+pub type BindingLatchP<'a> = &'static dyn ParamBindingLatch;
 
 pub trait ParamBindingGet<T>: Send + Sync {
     fn get(&self) -> T;
