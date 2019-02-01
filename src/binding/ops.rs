@@ -469,7 +469,7 @@ where
     }
 }
 
-#[cfg(feature = "with_std")]
+#[cfg(all(test, feature = "with_std"))]
 mod tests {
     use super::*;
     use crate::binding::ParamBindingGet;
