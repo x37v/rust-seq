@@ -1,17 +1,23 @@
 use super::*;
+use core::marker::PhantomData;
 
-pub struct BindingLatch<T> {
-    get: BindingGetP<T>,
-    set: BindingSetP<T>,
+pub struct BindingLatch<T, Get, Set> {
+    get: Get,
+    set: Set,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 pub struct AggregateBindingLatch<'a> {
     latches: Vec<BindingLatchP<'a>>,
 }
 
-impl<T> BindingLatch<T> {
-    pub fn new(get: BindingGetP<T>, set: BindingSetP<T>) -> Self {
-        Self { get, set }
+impl<T, Get, Set> BindingLatch<T, Get, Set> {
+    pub fn new(get: Get, set: Set) -> Self {
+        Self {
+            get,
+            set,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -21,7 +27,12 @@ impl<'a> AggregateBindingLatch<'a> {
     }
 }
 
-impl<T> ParamBindingLatch for BindingLatch<T> {
+impl<T, Get, Set> ParamBindingLatch for BindingLatch<T, Get, Set>
+where
+    T: Send + Copy,
+    Get: ParamBindingGet<T>,
+    Set: ParamBindingSet<T>,
+{
     fn store(&self) {
         self.set.set(self.get.get());
     }
