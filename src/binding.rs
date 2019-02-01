@@ -1,5 +1,4 @@
 use crate::midi::MidiValue;
-use crate::ptr::ShrPtr;
 use core::ops::Deref;
 
 pub mod atomic;
