@@ -1,6 +1,6 @@
 use crate::ptr::ShrPtr;
 use crate::time::TimeSched;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn add_clamped(u: usize, i: isize) -> usize {
     if i > 0 {

@@ -2,6 +2,7 @@ use crate::base::SchedFn;
 use crate::binding::set::BindingSet;
 use crate::time::{TimeResched, TimeSched};
 use crate::trigger::{ScheduleTrigger, TriggerId};
+use crate::util::add_clamped;
 
 pub trait SchedContext: ScheduleTrigger {
     fn base_tick(&self) -> usize;
@@ -12,13 +13,27 @@ pub trait SchedContext: ScheduleTrigger {
     fn as_schedule_trigger_mut(&mut self) -> &mut dyn ScheduleTrigger;
 }
 
+pub struct ChildContext<'a> {
+    parent: &'a mut dyn SchedContext,
+    parent_tick_offset: isize,
+    context_tick: usize,
+    context_tick_period_micros: f32,
+}
+
+fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick: isize) -> isize {
+    if dest_micros_per_tick <= 0f32 {
+        0isize
+    } else {
+        (src_tick as f32 * src_micros_per_tick / dest_micros_per_tick) as isize
+    }
+}
+
 cfg_if! {
     if #[cfg(feature = "with_std")] {
         use crate::base::{
             InsertTimeSorted, LList, SrcSink, TimedFn, TimedNodeData,
             TimedTrig,
         };
-        use crate::util::add_clamped;
 
 
         pub struct RootContext<'a> {
@@ -27,21 +42,6 @@ cfg_if! {
             list: &'a mut LList<TimedFn>,
             trig_list: &'a mut LList<TimedTrig>,
             src_sink: &'a mut SrcSink,
-        }
-
-        pub struct ChildContext<'a> {
-            parent: &'a mut dyn SchedContext,
-            parent_tick_offset: isize,
-            context_tick: usize,
-            context_tick_period_micros: f32,
-        }
-
-        fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick: isize) -> isize {
-            if dest_micros_per_tick <= 0f32 {
-                0isize
-            } else {
-                (src_tick as f32 * src_micros_per_tick / dest_micros_per_tick) as isize
-            }
         }
 
         impl<'a> RootContext<'a> {
@@ -164,93 +164,93 @@ cfg_if! {
                 }
             }
         }
+    }
+}
 
-        impl<'a> ChildContext<'a> {
-            pub fn new(
-                parent: &'a mut dyn SchedContext,
-                parent_tick_offset: isize,
-                context_tick: usize,
-                context_tick_period_micros: f32,
-                ) -> Self {
-                Self {
-                    parent,
-                    parent_tick_offset,
-                    context_tick,
-                    context_tick_period_micros,
-                }
+impl<'a> ChildContext<'a> {
+    pub fn new(
+        parent: &'a mut dyn SchedContext,
+        parent_tick_offset: isize,
+        context_tick: usize,
+        context_tick_period_micros: f32,
+    ) -> Self {
+        Self {
+            parent,
+            parent_tick_offset,
+            context_tick,
+            context_tick_period_micros,
+        }
+    }
+
+    pub fn translate_time(&self, time: &TimeSched) -> TimeSched {
+        match *time {
+            TimeSched::Absolute(t) => TimeSched::Absolute(t),
+            TimeSched::Relative(t) => TimeSched::Absolute(add_clamped(self.base_tick(), t)),
+            TimeSched::ContextAbsolute(t) => {
+                let offset = translate_tick(
+                    self.base_tick_period_micros(),
+                    self.context_tick_period_micros(),
+                    t as isize - self.context_tick() as isize,
+                );
+                TimeSched::Absolute(add_clamped(self.base_tick(), offset))
             }
-
-            pub fn translate_time(&self, time: &TimeSched) -> TimeSched {
-                match *time {
-                    TimeSched::Absolute(t) => TimeSched::Absolute(t),
-                    TimeSched::Relative(t) => TimeSched::Absolute(add_clamped(self.base_tick(), t)),
-                    TimeSched::ContextAbsolute(t) => {
-                        let offset = translate_tick(
-                            self.base_tick_period_micros(),
-                            self.context_tick_period_micros(),
-                            t as isize - self.context_tick() as isize,
-                            );
-                        TimeSched::Absolute(add_clamped(self.base_tick(), offset))
-                    }
-                    TimeSched::ContextRelative(t) => {
-                        //convert to base ticks, absolute from our base tick
-                        let offset = translate_tick(
-                            self.base_tick_period_micros(),
-                            self.context_tick_period_micros(),
-                            t,
-                            );
-                        TimeSched::Absolute(add_clamped(self.base_tick(), offset))
-                    }
-                }
+            TimeSched::ContextRelative(t) => {
+                //convert to base ticks, absolute from our base tick
+                let offset = translate_tick(
+                    self.base_tick_period_micros(),
+                    self.context_tick_period_micros(),
+                    t,
+                );
+                TimeSched::Absolute(add_clamped(self.base_tick(), offset))
             }
         }
+    }
+}
 
-        impl<'a> SchedContext for ChildContext<'a> {
-            fn base_tick(&self) -> usize {
-                add_clamped(self.parent.base_tick(), self.parent_tick_offset)
-            }
-            fn context_tick(&self) -> usize {
-                self.context_tick
-            }
-            fn base_tick_period_micros(&self) -> f32 {
-                self.parent.base_tick_period_micros()
-            }
-            fn context_tick_period_micros(&self) -> f32 {
-                self.context_tick_period_micros
-            }
-            fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-                let time = self.translate_time(&time);
-                self.parent.schedule(time, func);
-            }
+impl<'a> SchedContext for ChildContext<'a> {
+    fn base_tick(&self) -> usize {
+        add_clamped(self.parent.base_tick(), self.parent_tick_offset)
+    }
+    fn context_tick(&self) -> usize {
+        self.context_tick
+    }
+    fn base_tick_period_micros(&self) -> f32 {
+        self.parent.base_tick_period_micros()
+    }
+    fn context_tick_period_micros(&self) -> f32 {
+        self.context_tick_period_micros
+    }
+    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
+        let time = self.translate_time(&time);
+        self.parent.schedule(time, func);
+    }
 
-            fn as_schedule_trigger_mut(&mut self) -> &mut dyn ScheduleTrigger {
-                self
-            }
-        }
+    fn as_schedule_trigger_mut(&mut self) -> &mut dyn ScheduleTrigger {
+        self
+    }
+}
 
-        impl<'a> ScheduleTrigger for ChildContext<'a> {
-            fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId) {
-                self.parent
-                    .schedule_trigger(self.translate_time(&time), index);
-            }
-            fn schedule_valued_trigger(
-                &mut self,
-                time: TimeSched,
-                index: TriggerId,
-                values: &[BindingSet],
-                ) {
-                self.parent
-                    .schedule_valued_trigger(self.translate_time(&time), index, values);
-            }
-            fn schedule_value(&mut self, time: TimeSched, value: &BindingSet) {
-                self.parent
-                    .schedule_value(self.translate_time(&time), value);
-            }
+impl<'a> ScheduleTrigger for ChildContext<'a> {
+    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId) {
+        self.parent
+            .schedule_trigger(self.translate_time(&time), index);
+    }
+    fn schedule_valued_trigger(
+        &mut self,
+        time: TimeSched,
+        index: TriggerId,
+        values: &[BindingSet],
+    ) {
+        self.parent
+            .schedule_valued_trigger(self.translate_time(&time), index, values);
+    }
+    fn schedule_value(&mut self, time: TimeSched, value: &BindingSet) {
+        self.parent
+            .schedule_value(self.translate_time(&time), value);
+    }
 
-            fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched {
-                self.parent.add_time(&self.translate_time(&time), dur)
-            }
-        }
+    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched {
+        self.parent.add_time(&self.translate_time(&time), dur)
     }
 }
 

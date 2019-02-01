@@ -1,19 +1,27 @@
-use crate::binding::BindingGetP;
+use crate::binding::ParamBindingGet;
 use crate::context::{ChildContext, SchedContext};
 use crate::graph::{ChildCount, ChildExec, GraphExec};
 
-pub struct ClockRatio {
-    mul: BindingGetP<u8>,
-    div: BindingGetP<u8>,
+pub struct ClockRatio<Mul, Div> {
+    mul: Mul,
+    div: Div,
 }
 
-impl ClockRatio {
-    pub fn new(mul: BindingGetP<u8>, div: BindingGetP<u8>) -> Self {
+impl<Mul, Div> ClockRatio<Mul, Div>
+where
+    Mul: ParamBindingGet<u8>,
+    Div: ParamBindingGet<u8>,
+{
+    pub fn new(mul: Mul, div: Div) -> Self {
         Self { mul, div }
     }
 }
 
-impl GraphExec for ClockRatio {
+impl<Mul, Div> GraphExec for ClockRatio<Mul, Div>
+where
+    Mul: ParamBindingGet<u8>,
+    Div: ParamBindingGet<u8>,
+{
     fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool {
         let div = self.div.get() as usize;
 
@@ -38,6 +46,7 @@ impl GraphExec for ClockRatio {
     }
 }
 
+#[cfg(feature = "with_std")]
 mod tests {
     use super::*;
     use crate::base::{LList, SrcSink};

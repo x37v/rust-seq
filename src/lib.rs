@@ -19,6 +19,7 @@ pub mod midi;
 pub mod ptr;
 pub mod time;
 pub mod trigger;
+pub mod util;
 pub use crate::base::*;
 
 cfg_if! {
@@ -29,7 +30,6 @@ cfg_if! {
 
 
         pub mod executor;
-        pub mod util;
 
 
         //XXX move to its own crate?

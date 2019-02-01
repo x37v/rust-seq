@@ -1,3 +1,4 @@
+pub mod clock_ratio;
 mod traits;
 pub use self::traits::*;
 
@@ -20,7 +21,6 @@ cfg_if! {
         use xnor_llist::List as LList;
         use xnor_llist::Node as LNode;
 
-        pub mod clock_ratio;
         pub mod func;
         pub mod gate;
         pub mod index_latch;

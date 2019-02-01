@@ -16,6 +16,6 @@ impl IndexReporter {
 impl GraphIndexExec for IndexReporter {
     fn exec_index(&mut self, index: usize, context: &mut dyn SchedContext) {
         let t = TimeSched::ContextAbsolute(context.context_tick());
-        context.schedule_value(t, &BindingSet::USize(index, self.binding.clone()));
+        context.schedule_value(t, &BindingSet::USize(index, clone_shrptr!(self.binding)));
     }
 }
