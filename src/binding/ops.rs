@@ -1,40 +1,39 @@
 use crate::binding::ParamBindingGet;
-use crate::ptr::ShrPtr;
 use std::marker::PhantomData;
 
 /// Clamp a numeric binding between [min, max], inclusive.
 pub struct GetClamp<T, B, Min, Max> {
-    binding: ShrPtr<B>,
-    min: ShrPtr<Min>,
-    max: ShrPtr<Max>,
+    binding: B,
+    min: Min,
+    max: Max,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Clamp a numeric above a min value, inclusive.
 pub struct GetClampAbove<T, B, Min> {
-    binding: ShrPtr<B>,
-    min: ShrPtr<Min>,
+    binding: B,
+    min: Min,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Clamp a numeric below a max value, inclusive.
 pub struct GetClampBelow<T, B, Max> {
-    binding: ShrPtr<B>,
-    max: ShrPtr<Max>,
+    binding: B,
+    max: Max,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Sum two numeric bindings.
 pub struct GetSum<T, L, R> {
-    left: ShrPtr<L>,
-    right: ShrPtr<R>,
+    left: L,
+    right: R,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Multiply two numeric bindings.
 pub struct GetMul<T, L, R> {
-    left: ShrPtr<L>,
-    right: ShrPtr<R>,
+    left: L,
+    right: R,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -43,8 +42,8 @@ pub struct GetMul<T, L, R> {
 ///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
 /// so you probably still want to protect against it.
 pub struct GetDiv<T, N, D> {
-    num: ShrPtr<N>,
-    den: ShrPtr<D>,
+    num: N,
+    den: D,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -53,14 +52,14 @@ pub struct GetDiv<T, N, D> {
 ///*Note*: this does protected against divide by zero but just provides `Default::default()` for `T`
 /// so you probably still want to protect against it.
 pub struct GetRem<T, L, R> {
-    left: ShrPtr<L>,
-    right: ShrPtr<R>,
+    left: L,
+    right: R,
     _phantom: PhantomData<fn() -> T>,
 }
 
 /// Negate a signed numeric binding.
 pub struct GetNegate<T, B> {
-    binding: ShrPtr<B>,
+    binding: B,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -68,7 +67,7 @@ pub struct GetNegate<T, B> {
 ///
 /// *Note*: if the cast fails, this returns `Default::default()` of the destination value.
 pub struct GetCast<I, O, B> {
-    binding: ShrPtr<B>,
+    binding: B,
     _iphantom: PhantomData<fn() -> I>,
     _ophantom: PhantomData<fn() -> O>,
 }
@@ -84,8 +83,8 @@ pub enum CmpOp {
 /// Compare two numeric bindings.
 pub struct GetCmp<T, L, R> {
     cmp: CmpOp,
-    left: ShrPtr<L>,
-    right: ShrPtr<R>,
+    left: L,
+    right: R,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -103,7 +102,7 @@ where
     /// * `binding` - the binding value to clamp
     /// * `min` - the binding for the minimum value
     /// * `max` - the binding for the maximum value
-    pub fn new(binding: ShrPtr<B>, min: ShrPtr<Min>, max: ShrPtr<Max>) -> Self {
+    pub fn new(binding: B, min: Min, max: Max) -> Self {
         Self {
             binding,
             min,
@@ -124,7 +123,13 @@ where
         let b = self.binding.get();
         let min = self.min.get();
         let max = self.max.get();
-        num::clamp(b, min, max)
+        if b < min {
+            min
+        } else if b > max {
+            max
+        } else {
+            b
+        }
     }
 }
 
@@ -140,7 +145,7 @@ where
     ///
     /// * `binding` - the binding value to clamp
     /// * `min` - the binding for the minimum value
-    pub fn new(binding: ShrPtr<B>, min: ShrPtr<Min>) -> Self {
+    pub fn new(binding: B, min: Min) -> Self {
         Self {
             binding,
             min,
@@ -178,7 +183,7 @@ where
     ///
     /// * `binding` - the binding value to clamp
     /// * `max` - the binding for the maximum value
-    pub fn new(binding: ShrPtr<B>, max: ShrPtr<Max>) -> Self {
+    pub fn new(binding: B, max: Max) -> Self {
         Self {
             binding,
             max,
@@ -216,7 +221,7 @@ where
     ///
     /// * `left` - the binding for left value of the sum
     /// * `right` - the binding for the right value of the sum
-    pub fn new(left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
+    pub fn new(left: L, right: R) -> Self {
         Self {
             left,
             right,
@@ -248,7 +253,7 @@ where
     ///
     /// * `left` - the binding for left value of the multiplication
     /// * `right` - the binding for the right value of the multiplication
-    pub fn new(left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
+    pub fn new(left: L, right: R) -> Self {
         Self {
             left,
             right,
@@ -280,7 +285,7 @@ where
     ///
     /// * `num` - the binding for numerator value of the division
     /// * `den` - the binding for denominator value of the division
-    pub fn new(num: ShrPtr<N>, den: ShrPtr<D>) -> Self {
+    pub fn new(num: N, den: D) -> Self {
         Self {
             num,
             den,
@@ -317,7 +322,7 @@ where
     ///
     /// * `left` - the binding for left value of the division
     /// * `right` - the binding for the right value of the division
-    pub fn new(left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
+    pub fn new(left: L, right: R) -> Self {
         Self {
             left,
             right,
@@ -352,7 +357,7 @@ where
     /// # Arguments
     ///
     /// * `binding` - the binding to negate
-    pub fn new(binding: ShrPtr<B>) -> Self {
+    pub fn new(binding: B) -> Self {
         Self {
             binding,
             _phantom: Default::default(),
@@ -393,12 +398,12 @@ where
     /// use sched::binding::ops::GetCast;
     /// use sched::ptr::ShrPtr;
     ///
-    /// let f: ShrPtr<f32> = 23f32.into();
+    /// let f: f32 = 23f32.into();
     /// let c : ShrPtr<GetCast<f32, u8, _>> = GetCast::new(f.clone()).into();
     /// assert_eq!(23f32, f.get());
     /// assert_eq!(23u8, c.get());
     /// ```
-    pub fn new(binding: ShrPtr<B>) -> Self {
+    pub fn new(binding: B) -> Self {
         Self {
             binding,
             _iphantom: Default::default(),
@@ -435,7 +440,7 @@ where
     /// * `cmp` - the comparison to execute
     /// * `left` - the binding for left value of the comparison
     /// * `right` - the binding for the right value of the comparison
-    pub fn new(cmp: CmpOp, left: ShrPtr<L>, right: ShrPtr<R>) -> Self {
+    pub fn new(cmp: CmpOp, left: L, right: R) -> Self {
         Self {
             cmp,
             left,
@@ -461,5 +466,46 @@ where
             CmpOp::Less => left.lt(&right),
             CmpOp::LessOrEqual => left.le(&right),
         }
+    }
+}
+
+mod tests {
+    use super::*;
+    use crate::binding::ParamBindingGet;
+    use std::sync::Arc;
+
+    #[test]
+    fn clamp() {
+        let min: i32 = 20;
+        let max: i32 = 23;
+        let mut v: i32 = 1;
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(min, c.get());
+
+        v = 234;
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(max, c.get());
+
+        v = 22;
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(v, c.get());
+
+        let min = Arc::new(-23);
+        let max = &43;
+        let v = &24;
+
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(*v, c.get());
+
+        let c2 = GetClamp::new(c, &34, &49);
+        assert_eq!(34, c2.get());
+
+        let c3: Arc<dyn ParamBindingGet<i32>> = Arc::new(GetClamp::new(30, 0, 100));
+        let c4 = Arc::new(GetClamp::new(c3.clone(), -100, 100));
+        assert_eq!(30, c4.get());
+
+        //incorrect input but we want to keep going, will return max
+        let c = GetClamp::new(1000isize, 100isize, -100isize);
+        assert_eq!(-100isize, c.get());
     }
 }
