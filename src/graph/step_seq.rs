@@ -1,21 +1,33 @@
-use crate::binding::BindingGetP;
+use crate::binding::ParamBindingGet;
 use crate::context::SchedContext;
 use crate::graph::{ChildCount, ChildExec, GraphExec};
 
-pub struct StepSeq {
-    step_ticks: BindingGetP<usize>,
-    steps: BindingGetP<usize>,
+pub struct StepSeq<StepTicks, Steps>
+where
+    StepTicks: ParamBindingGet<usize>,
+    Steps: ParamBindingGet<usize>,
+{
+    step_ticks: StepTicks,
+    steps: Steps,
 }
 
-impl StepSeq {
-    pub fn new(step_ticks: BindingGetP<usize>, steps: BindingGetP<usize>) -> Self {
+impl<StepTicks, Steps> StepSeq<StepTicks, Steps>
+where
+    StepTicks: ParamBindingGet<usize>,
+    Steps: ParamBindingGet<usize>,
+{
+    pub fn new(step_ticks: StepTicks, steps: Steps) -> Self {
         Self { step_ticks, steps }
     }
 }
 
 //step sequencer acts as a gate, triggering its appropriate child with the context passed in only
 //at step_ticks context ticks
-impl GraphExec for StepSeq {
+impl<StepTicks, Steps> GraphExec for StepSeq<StepTicks, Steps>
+where
+    StepTicks: ParamBindingGet<usize>,
+    Steps: ParamBindingGet<usize>,
+{
     fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool {
         let step_ticks = self.step_ticks.get();
 

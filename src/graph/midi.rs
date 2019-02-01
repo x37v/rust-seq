@@ -1,21 +1,35 @@
 use super::*;
-use crate::binding::BindingGetP;
+use crate::binding::ParamBindingGet;
 use crate::midi::MidiTrigger;
 use crate::ptr::SShrPtr;
 use crate::time::TimeSched;
 
 /// A graph leaf node that triggers a midi note.
 #[derive(GraphLeaf)]
-pub struct MidiNote {
+pub struct MidiNote<Chan, Note, Dur, OnVel, OffVel>
+where
+    Chan: ParamBindingGet<u8>,
+    Note: ParamBindingGet<u8>,
+    Dur: ParamBindingGet<TimeResched>,
+    OnVel: ParamBindingGet<u8>,
+    OffVel: ParamBindingGet<u8>,
+{
     trigger: SShrPtr<MidiTrigger>,
-    chan: BindingGetP<u8>,
-    note: BindingGetP<u8>,
-    dur: BindingGetP<TimeResched>,
-    on_vel: BindingGetP<u8>,
-    off_vel: BindingGetP<u8>,
+    chan: Chan,
+    note: Note,
+    dur: Dur,
+    on_vel: OnVel,
+    off_vel: OffVel,
 }
 
-impl MidiNote {
+impl<Chan, Note, Dur, OnVel, OffVel> MidiNote<Chan, Note, Dur, OnVel, OffVel>
+where
+    Chan: ParamBindingGet<u8>,
+    Note: ParamBindingGet<u8>,
+    Dur: ParamBindingGet<TimeResched>,
+    OnVel: ParamBindingGet<u8>,
+    OffVel: ParamBindingGet<u8>,
+{
     /// Construct a new `MidiNote`
     ///
     /// # Arguments
@@ -28,11 +42,11 @@ impl MidiNote {
     /// * `off_vel` - the binding for the note off velocity
     pub fn new(
         trigger: SShrPtr<MidiTrigger>,
-        chan: BindingGetP<u8>,
-        note: BindingGetP<u8>,
-        dur: BindingGetP<TimeResched>,
-        on_vel: BindingGetP<u8>,
-        off_vel: BindingGetP<u8>,
+        chan: Chan,
+        note: Note,
+        dur: Dur,
+        on_vel: OnVel,
+        off_vel: OffVel,
     ) -> Self {
         Self {
             trigger,
@@ -45,7 +59,14 @@ impl MidiNote {
     }
 }
 
-impl GraphLeafExec for MidiNote {
+impl<Chan, Note, Dur, OnVel, OffVel> GraphLeafExec for MidiNote<Chan, Note, Dur, OnVel, OffVel>
+where
+    Chan: ParamBindingGet<u8>,
+    Note: ParamBindingGet<u8>,
+    Dur: ParamBindingGet<TimeResched>,
+    OnVel: ParamBindingGet<u8>,
+    OffVel: ParamBindingGet<u8>,
+{
     fn exec_leaf(&mut self, context: &mut dyn SchedContext) {
         let chan = self.chan.get();
         let note = self.note.get();

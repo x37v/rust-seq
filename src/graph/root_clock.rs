@@ -1,16 +1,23 @@
 use super::*;
+use crate::binding::ParamBindingGet;
 use crate::time::TimeResched;
 
 pub type Micro = f32;
-pub struct RootClock {
+pub struct RootClock<PeriodMicros>
+where
+    PeriodMicros: ParamBindingGet<Micro>,
+{
     tick: usize,
     tick_sub: f32,
-    period_micros: BindingGetP<Micro>,
+    period_micros: PeriodMicros,
     children: ChildList,
 }
 
-impl RootClock {
-    pub fn new(period_micros: BindingGetP<Micro>) -> Self {
+impl<PeriodMicros> RootClock<PeriodMicros>
+where
+    PeriodMicros: ParamBindingGet<Micro>,
+{
+    pub fn new(period_micros: PeriodMicros) -> Self {
         Self {
             tick: 0,
             tick_sub: 0f32,
@@ -23,7 +30,10 @@ impl RootClock {
     }
 }
 
-impl SchedCall for RootClock {
+impl<PeriodMicros> SchedCall for RootClock<PeriodMicros>
+where
+    PeriodMicros: ParamBindingGet<Micro>,
+{
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
         let period_micros = self.period_micros.get();
         if self.children.count() > 0 {
