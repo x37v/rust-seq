@@ -1,5 +1,5 @@
 use crate::binding::ParamBindingGet;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Clamp a numeric binding between [min, max], inclusive.
 pub struct GetClamp<T, B, Min, Max> {
