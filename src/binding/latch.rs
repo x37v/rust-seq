@@ -7,10 +7,6 @@ pub struct BindingLatch<T, Get, Set> {
     _phantom: PhantomData<fn() -> T>,
 }
 
-pub struct AggregateBindingLatch<'a> {
-    latches: Vec<BindingLatchP<'a>>,
-}
-
 impl<T, Get, Set> BindingLatch<T, Get, Set> {
     pub fn new(get: Get, set: Set) -> Self {
         Self {
@@ -18,12 +14,6 @@ impl<T, Get, Set> BindingLatch<T, Get, Set> {
             set,
             _phantom: PhantomData,
         }
-    }
-}
-
-impl<'a> AggregateBindingLatch<'a> {
-    pub fn new(latches: Vec<BindingLatchP<'a>>) -> Self {
-        Self { latches }
     }
 }
 
@@ -38,6 +28,19 @@ where
     }
 }
 
+/*
+ * TODO ?
+pub struct AggregateBindingLatch<'a> {
+    latches: Vec<BindingLatchP<'a>>,
+}
+
+
+impl<'a> AggregateBindingLatch<'a> {
+    pub fn new(latches: Vec<BindingLatchP<'a>>) -> Self {
+        Self { latches }
+    }
+}
+
 impl<'a> ParamBindingLatch for AggregateBindingLatch<'a> {
     fn store(&self) {
         for l in self.latches.iter() {
@@ -45,3 +48,4 @@ impl<'a> ParamBindingLatch for AggregateBindingLatch<'a> {
         }
     }
 }
+*/
