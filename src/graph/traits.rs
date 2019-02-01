@@ -19,7 +19,7 @@ pub trait ChildExec {
     fn exec_range(
         &mut self,
         context: &mut dyn SchedContext,
-        range: std::ops::Range<usize>,
+        range: core::ops::Range<usize>,
     ) -> ChildCount;
     fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount;
     fn count(&self) -> ChildCount;

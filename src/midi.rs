@@ -237,7 +237,7 @@ cfg_if! {
                 schedule.schedule_valued_trigger(
                     time,
                     self.trigger_index,
-                    &[BindingSet::Midi(value, self.value.clone())],
+                    &[BindingSet::Midi(value, clone_shrptr!(self.value))],
                     );
             }
         }

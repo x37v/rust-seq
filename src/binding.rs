@@ -1,5 +1,6 @@
 use crate::midi::MidiValue;
 use crate::ptr::ShrPtr;
+use core::ops::Deref;
 
 pub mod atomic;
 pub mod bpm;
@@ -15,7 +16,6 @@ cfg_if! {
         pub mod latch;
 
         use std::sync::Arc;
-        use core::ops::Deref;
     }
 }
 
@@ -71,6 +71,7 @@ where
     }
 }
 
+#[cfg(feature = "with_std")]
 impl<T> ParamBindingGet<T> for Arc<T>
 where
     T: Send + Sync + ParamBindingGet<T>,
@@ -80,6 +81,7 @@ where
     }
 }
 
+#[cfg(feature = "with_std")]
 impl<T> ParamBindingGet<T> for Arc<dyn ParamBindingGet<T>>
 where
     T: Send + Sync,

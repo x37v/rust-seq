@@ -18,3 +18,21 @@ macro_rules! new_sshrptr {
         std::sync::Arc::new(::spinlock::Mutex::new($x))
     };
 }
+
+cfg_if! {
+    if #[cfg(feature = "with_alloc")] {
+        #[macro_export]
+        macro_rules! clone_shrptr {
+            ( $x:expr ) => {
+                $x.clone()
+            };
+        }
+    } else {
+        #[macro_export]
+        macro_rules! clone_shrptr {
+            ( $x:expr ) => {
+                $x
+            };
+        }
+    }
+}

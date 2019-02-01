@@ -5,7 +5,8 @@ authors = ["Alex Norman <alex@x37v.info>"]
 edition = "2018"
 
 [features]
-with_std = ["sched_macros", "xnor_llist", "rand", "failure"]
+with_std = ["sched_macros", "xnor_llist", "rand", "failure", "with_alloc"]
+with_alloc = []
 without_std = ["libc"]
 euclidian = ["euclidian-rythms"]
 default = ["with_std", "euclidian"]

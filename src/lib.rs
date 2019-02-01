@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "with_std"), no_std)]
-#![cfg_attr(feature = "with_alloc", feature(alloc))]
 #![cfg_attr(feature = "with_alloc", feature(global_allocator))]
+#![feature(unsize)]
+#![feature(coerce_unsized)]
+#![feature(dispatch_from_dyn)]
 
 #[macro_use]
 extern crate cfg_if;

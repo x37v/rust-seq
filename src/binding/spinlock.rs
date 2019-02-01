@@ -1,7 +1,7 @@
 use super::*;
 use crate::ptr::ShrPtr;
 use ::spinlock::Mutex;
-use std::cell::Cell;
+use core::cell::Cell;
 
 pub type SpinlockParamBindingP<T> = ShrPtr<SpinlockParamBinding<T>>;
 

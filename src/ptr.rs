@@ -1,33 +1,32 @@
 cfg_if! {
     if #[cfg(feature = "with_std")] {
+        use std::sync::Arc;
+    } else if #[cfg(feature = "with_alloc")] {
+        extern crate alloc;
+        use alloc::sync::Arc;
+        use alloc::boxed::Box;
+    }
+}
+
+cfg_if! {
+    if #[cfg(feature = "with_alloc")] {
+
         /// A unique ptr
         pub type UniqPtr<T> = Box<T>;
 
         /// A shared ptr
-        pub type ShrPtr<T> = std::sync::Arc<T>;
+        pub type ShrPtr<T> = Arc<T>;
 
         /// A sync/send mutable shared ptr
-        pub type SShrPtr<T> = std::sync::Arc<spinlock::Mutex<T>>;
+        pub type SShrPtr<T> = Arc<spinlock::Mutex<T>>;
     } else {
-        extern crate alloc;
-
-        struct Src<T> { //static, fake reference counted
-            data: &'static mut T
-        }
-
-        impl<T> Clone for Src<T> {
-            fn clone(&self) -> Src<T> {
-                Src { data: self.data }
-            }
-        }
-
         /// A unique ptr
-        pub type UniqPtr<T> = alloc::boxed::Box<T>;
+        pub type UniqPtr<T> = &'static T;
 
         /// A shared ptr
-        pub type ShrPtr<T> = alloc::sync::Arc<T>;
+        pub type ShrPtr<T> = &'static T;
 
         /// A sync/send mutable shared ptr
-        pub type SShrPtr<T> = alloc::sync::Arc<spinlock::Mutex<T>>;
+        pub type SShrPtr<T> = &'static spinlock::Mutex<T>;
     }
 }

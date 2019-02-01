@@ -1,5 +1,5 @@
 use super::*;
-use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 
 /// Implementations of `ParamBindingGet` and `ParamBindingSet` for `AtomicBool`, `AtomicUsize`,
 /// and `AtomicIsize`
