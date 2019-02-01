@@ -13,6 +13,9 @@ cfg_if! {
         pub mod ops;
         pub mod observable;
         pub mod latch;
+
+        use std::sync::Arc;
+        use core::ops::Deref;
     }
 }
 
@@ -50,9 +53,47 @@ where
     }
 }
 
-///implement get for sync types
-impl<T: Copy + Send + Sync> ParamBindingGet<T> for T {
+impl<T> ParamBindingGet<T> for T
+where
+    T: Copy + Send + Sync,
+{
     fn get(&self) -> T {
         *self
+    }
+}
+
+impl<T> ParamBindingGet<T> for &T
+where
+    T: Copy + Sync,
+{
+    fn get(&self) -> T {
+        **self
+    }
+}
+
+impl<T> ParamBindingGet<T> for Arc<T>
+where
+    T: Send + Sync + ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        Arc::deref(self).get()
+    }
+}
+
+impl<T> ParamBindingGet<T> for Arc<dyn ParamBindingGet<T>>
+where
+    T: Send + Sync,
+{
+    fn get(&self) -> T {
+        Arc::deref(self).get()
+    }
+}
+
+impl<T> ParamBindingGet<T> for &dyn ParamBindingGet<T>
+where
+    T: Send + Sync,
+{
+    fn get(&self) -> T {
+        self.deref().get()
     }
 }
