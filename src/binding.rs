@@ -102,3 +102,32 @@ where
         self.deref().get()
     }
 }
+
+#[cfg(feature = "alloc")]
+impl<T> ParamBindingSet<T> for Arc<T>
+where
+    T: Send + Sync + ParamBindingSet<T>,
+{
+    fn set(&self, value: T) {
+        Arc::deref(self).set(value)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T> ParamBindingSet<T> for Arc<dyn ParamBindingSet<T>>
+where
+    T: Send + Sync,
+{
+    fn set(&self, value: T) {
+        Arc::deref(self).set(value)
+    }
+}
+
+impl<T> ParamBindingSet<T> for &dyn ParamBindingSet<T>
+where
+    T: Send + Sync,
+{
+    fn set(&self, value: T) {
+        self.deref().set(value)
+    }
+}
