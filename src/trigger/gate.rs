@@ -51,7 +51,7 @@ where
     }
 }
 
-#[cfg(all(test, feature = "with_std"))]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

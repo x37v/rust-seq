@@ -28,7 +28,7 @@ pub trait SchedCall: Send {
 pub type SchedFn = UniqPtr<dyn SchedCall>;
 
 cfg_if! {
-    if #[cfg(feature = "with_std")] {
+    if #[cfg(feature = "std")] {
 
         pub trait TimedNodeData {
             fn set_time(&mut self, time: usize);

@@ -29,7 +29,7 @@ fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick:
 }
 
 cfg_if! {
-    if #[cfg(feature = "with_std")] {
+    if #[cfg(feature = "std")] {
         use crate::base::{
             InsertTimeSorted, LList, SrcSink, TimedFn, TimedNodeData,
             TimedTrig,

@@ -1,7 +1,7 @@
 cfg_if! {
-    if #[cfg(feature = "with_std")] {
+    if #[cfg(feature = "std")] {
         use std::sync::Arc;
-    } else if #[cfg(feature = "with_alloc")] {
+    } else if #[cfg(feature = "alloc")] {
         extern crate alloc;
         use alloc::sync::Arc;
         use alloc::boxed::Box;
@@ -9,7 +9,7 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(feature = "with_alloc")] {
+    if #[cfg(feature = "alloc")] {
 
         /// A unique ptr
         pub type UniqPtr<T> = Box<T>;

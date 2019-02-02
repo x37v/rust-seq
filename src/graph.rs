@@ -10,7 +10,7 @@ pub enum ChildCount {
 }
 
 cfg_if! {
-    if #[cfg(feature = "with_std")] {
+    if #[cfg(feature = "std")] {
 
         use crate::base::SchedCall;
         use crate::time::TimeResched;
@@ -30,7 +30,7 @@ cfg_if! {
         pub mod root_clock;
         pub mod step_seq;
 
-#[cfg(feature = "with_euclidean")]
+#[cfg(feature = "euclidean")]
         pub mod euclidean_gate;
 
 

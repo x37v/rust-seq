@@ -31,7 +31,7 @@ pub trait GraphIndexExec: Send {
 }
 
 cfg_if! {
-if #[cfg(feature = "with_std")] {
+if #[cfg(feature = "std")] {
     use crate::graph::AChildP;
 
     pub trait GraphNode {

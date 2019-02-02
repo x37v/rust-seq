@@ -5,10 +5,10 @@ authors = ["Alex Norman <alex@x37v.info>"]
 edition = "2018"
 
 [features]
-with_std = [ "xnor_llist", "failure", "with_alloc"]
-with_alloc = []
-with_euclidean = ["euclidian-rythms"]
-default = ["with_std", "with_euclidean"]
+std = [ "xnor_llist", "failure", "alloc"]
+alloc = []
+euclidean = ["euclidian-rythms"]
+default = ["std", "euclidean"]
 
 [dependencies]
 sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
@@ -27,7 +27,7 @@ rosc = "~0.1"
 
 [[example]]
 name = "jack-client"
-required-features = ["with_std", "euclidian"]
+required-features = ["std", "euclidean"]
 
 [[example]]
 name = "no_std"

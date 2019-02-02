@@ -20,7 +20,7 @@ macro_rules! new_sshrptr {
 }
 
 cfg_if! {
-    if #[cfg(feature = "with_alloc")] {
+    if #[cfg(feature = "alloc")] {
         #[macro_export]
         macro_rules! clone_shrptr {
             ( $x:expr ) => {

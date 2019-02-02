@@ -46,7 +46,7 @@ where
     }
 }
 
-#[cfg(feature = "with_std")]
+#[cfg(feature = "std")]
 mod tests {
     use super::*;
     use crate::base::{LList, SrcSink};

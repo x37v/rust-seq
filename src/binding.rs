@@ -9,22 +9,22 @@ pub mod ops;
 pub mod set;
 pub mod spinlock;
 
-#[cfg(feature = "with_std")]
+#[cfg(feature = "std")]
 pub mod cache;
-#[cfg(feature = "with_std")]
+#[cfg(feature = "std")]
 pub mod observable;
 
-#[cfg(feature = "with_alloc")]
+#[cfg(feature = "alloc")]
 use std::sync::Arc;
 
-#[cfg(feature = "with_alloc")]
+#[cfg(feature = "alloc")]
 pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
-#[cfg(not(feature = "with_alloc"))]
+#[cfg(not(feature = "alloc"))]
 pub type BindingSetP<T> = &'static dyn ParamBindingSet<T>;
 
-#[cfg(feature = "with_alloc")]
+#[cfg(feature = "alloc")]
 pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
-#[cfg(not(feature = "with_alloc"))]
+#[cfg(not(feature = "alloc"))]
 pub type BindingLatchP<'a> = &'static dyn ParamBindingLatch;
 
 pub trait ParamBindingGet<T>: Send + Sync {
@@ -74,7 +74,7 @@ where
     }
 }
 
-#[cfg(feature = "with_alloc")]
+#[cfg(feature = "alloc")]
 impl<T> ParamBindingGet<T> for Arc<T>
 where
     T: Send + Sync + ParamBindingGet<T>,
@@ -84,7 +84,7 @@ where
     }
 }
 
-#[cfg(feature = "with_alloc")]
+#[cfg(feature = "alloc")]
 impl<T> ParamBindingGet<T> for Arc<dyn ParamBindingGet<T>>
 where
     T: Send + Sync,
