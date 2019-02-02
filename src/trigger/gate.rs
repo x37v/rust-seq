@@ -60,6 +60,6 @@ mod tests {
         let g = false;
         let v: Vec<SShrPtr<dyn Trigger>> = Vec::new();
 
-        let tg = TriggerGate::new(g, v);
+        let _ = TriggerGate::new(g, v);
     }
 }
