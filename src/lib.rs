@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "alloc", feature(global_allocator))]
 #![feature(unsize)]
 #![feature(coerce_unsized)]
 #![feature(dispatch_from_dyn)]

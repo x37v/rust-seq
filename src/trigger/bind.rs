@@ -1,6 +1,5 @@
 use crate::binding::ParamBindingGet;
 use crate::binding::ParamBindingSet;
-use crate::ptr::{SShrPtr, ShrPtr};
 use crate::trigger::*;
 use core::marker::PhantomData;
 
