@@ -131,3 +131,26 @@ where
         self.deref().set(value)
     }
 }
+
+#[cfg(feature = "alloc")]
+impl<T> ParamBindingLatch for Arc<T>
+where
+    T: Send + Sync + ParamBindingLatch,
+{
+    fn store(&self) {
+        Arc::deref(self).store()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl ParamBindingLatch for Arc<dyn ParamBindingLatch> {
+    fn store(&self) {
+        Arc::deref(self).store()
+    }
+}
+
+impl ParamBindingLatch for &dyn ParamBindingLatch {
+    fn store(&self) {
+        self.deref().store()
+    }
+}
