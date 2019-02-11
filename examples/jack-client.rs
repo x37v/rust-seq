@@ -10,9 +10,7 @@ use sched::binding::observable::{new_observer_node, Observable, ObservableBindin
 use sched::binding::ops::*;
 use sched::binding::set::BindingSet;
 use sched::binding::spinlock::SpinlockParamBinding;
-use sched::binding::{
-    BindingLatchP, ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet,
-};
+use sched::binding::{ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet};
 use sched::context::SchedContext;
 
 use sched::graph::clock_ratio::ClockRatio;
@@ -41,6 +39,7 @@ use sched::quneo_display::DisplayType as QDisplayType;
 use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
 pub type BindingP<T> = std::sync::Arc<dyn ParamBinding<T>>;
+pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
 
 struct PageData {
     index: ShrPtr<ObservableBinding<usize, AtomicUsize>>,

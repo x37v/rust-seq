@@ -22,11 +22,6 @@ pub type BindingSetP<T> = Arc<dyn ParamBindingSet<T>>;
 #[cfg(not(feature = "alloc"))]
 pub type BindingSetP<T> = &'static dyn ParamBindingSet<T>;
 
-#[cfg(feature = "alloc")]
-pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
-#[cfg(not(feature = "alloc"))]
-pub type BindingLatchP<'a> = &'static dyn ParamBindingLatch;
-
 pub trait ParamBindingGet<T>: Send + Sync {
     fn get(&self) -> T;
 }
