@@ -1,14 +1,14 @@
 use super::*;
 use core::marker::PhantomData;
 
-pub struct BindingLatch<T, Get, Set> {
+pub struct BindingLatch<'a, T, Get, Set> {
     get: Get,
     set: Set,
-    _phantom: PhantomData<fn() -> T>,
+    _phantom: PhantomData<&'a T>,
 }
 
-impl<T, Get, Set> BindingLatch<T, Get, Set> {
-    pub fn new(get: Get, set: Set) -> Self {
+impl<'a, T, Get, Set> BindingLatch<'a, T, Get, Set> {
+    pub const fn new(get: Get, set: Set) -> Self {
         Self {
             get,
             set,
@@ -17,9 +17,9 @@ impl<T, Get, Set> BindingLatch<T, Get, Set> {
     }
 }
 
-impl<T, Get, Set> ParamBindingLatch for BindingLatch<T, Get, Set>
+impl<'a, T, Get, Set> ParamBindingLatch for BindingLatch<'a, T, Get, Set>
 where
-    T: Send + Copy,
+    T: Send + Sync + Copy,
     Get: ParamBindingGet<T>,
     Set: ParamBindingSet<T>,
 {
