@@ -38,7 +38,9 @@ use std::io;
 use sched::quneo_display::DisplayType as QDisplayType;
 use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
 
-pub type BindingP<T> = std::sync::Arc<dyn ParamBinding<T>>;
+use std::sync::Arc;
+
+pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
 pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
 
 struct PageData {
