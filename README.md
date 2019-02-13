@@ -1,6 +1,8 @@
 # rust-sched
 a work in progress scheduled executor, built in rust
 
+The info below is likely outdated.
+
 ## Terminology
 
 ### Scheduler
