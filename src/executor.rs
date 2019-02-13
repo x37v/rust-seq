@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
 
 pub struct Executor {
-    list: LList<TimedFn>,
+    schedule: LList<TimedFn>,
     triggers: LList<SShrPtr<dyn Trigger>>,
     trigger_list: LList<TimedTrig>,
     time_last: usize,
@@ -25,7 +25,7 @@ impl Executor {
         src_sink: SrcSink,
     ) -> Self {
         Executor {
-            list: LList::new(),
+            schedule: LList::new(),
             triggers: LList::new(),
             trigger_list: LList::new(),
             time,
@@ -41,7 +41,7 @@ impl Executor {
     }
 
     pub fn add_node(&mut self, node: SchedFnNode) {
-        self.list.insert_time_sorted(node);
+        self.schedule.insert_time_sorted(node);
     }
 
     pub fn add_trigger(&mut self, trigger_node: TriggerNode) {
@@ -65,7 +65,7 @@ impl Executor {
                 let mut context = RootContext::new(
                     time,
                     self.ticks_per_second_last,
-                    &mut self.list,
+                    &mut self.schedule,
                     &mut self.trigger_list,
                     &mut self.src_sink,
                 );
@@ -90,12 +90,12 @@ impl Executor {
             self.add_node(n);
         }
 
-        while let Some(mut timedfn) = self.list.pop_front_while(|n| n.time() < next) {
+        while let Some(mut timedfn) = self.schedule.pop_front_while(|n| n.time() < next) {
             let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
             let mut context = RootContext::new(
                 current,
                 ticks_per_second,
-                &mut self.list,
+                &mut self.schedule,
                 &mut self.trigger_list,
                 &mut self.src_sink,
             );
@@ -121,7 +121,7 @@ impl Sched for Executor {
             Some(mut n) => {
                 n.set_time(util::add_atomic_time(&self.time, &time)); //XXX should we clamp above current time?
                 n.set_func(Some(func));
-                self.list.insert_time_sorted(n);
+                self.schedule.insert_time_sorted(n);
             }
             None => {
                 println!("OOPS");
