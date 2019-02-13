@@ -10,7 +10,7 @@ use std::sync::mpsc::Receiver;
 pub struct Executor {
     schedule: LList<TimedFn>,
     triggers: LList<SShrPtr<dyn Trigger>>,
-    trigger_list: LList<TimedTrig>,
+    trigger_schedule: LList<TimedTrig>,
     time_last: usize,
     ticks_per_second_last: usize,
     time: ShrPtr<AtomicUsize>,
@@ -27,7 +27,7 @@ impl Executor {
         Executor {
             schedule: LList::new(),
             triggers: LList::new(),
-            trigger_list: LList::new(),
+            trigger_schedule: LList::new(),
             time,
             time_last: 0,
             ticks_per_second_last: 0,
@@ -54,7 +54,7 @@ impl Executor {
         //triggers are evaluated at the end of the run so 'now' is actually 'next'
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
-        while let Some(trig) = self.trigger_list.pop_front_while(|n| n.time() < now) {
+        while let Some(trig) = self.trigger_schedule.pop_front_while(|n| n.time() < now) {
             //set all the values
             for vn in trig.values().iter() {
                 vn.store();
@@ -66,7 +66,7 @@ impl Executor {
                     time,
                     self.ticks_per_second_last,
                     &mut self.schedule,
-                    &mut self.trigger_list,
+                    &mut self.trigger_schedule,
                     &mut self.src_sink,
                 );
                 for trig in self.triggers.iter() {
@@ -96,7 +96,7 @@ impl Executor {
                 current,
                 ticks_per_second,
                 &mut self.schedule,
-                &mut self.trigger_list,
+                &mut self.trigger_schedule,
                 &mut self.src_sink,
             );
             match timedfn.sched_call(&mut context) {

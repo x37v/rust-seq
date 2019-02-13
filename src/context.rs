@@ -39,8 +39,8 @@ cfg_if! {
         pub struct RootContext<'a> {
             base_tick: usize,
             base_tick_period_micros: f32,
-            list: &'a mut LList<TimedFn>,
-            trig_list: &'a mut LList<TimedTrig>,
+            schedule: &'a mut LList<TimedFn>,
+            trigger_schedule: &'a mut LList<TimedTrig>,
             src_sink: &'a mut SrcSink,
         }
 
@@ -48,16 +48,16 @@ cfg_if! {
             pub fn new(
                 tick: usize,
                 ticks_per_second: usize,
-                list: &'a mut LList<TimedFn>,
-                trig_list: &'a mut LList<TimedTrig>,
+                schedule: &'a mut LList<TimedFn>,
+                trigger_schedule: &'a mut LList<TimedTrig>,
                 src_sink: &'a mut SrcSink,
                 ) -> Self {
                 let tpm = 1e6f32 / (ticks_per_second as f32);
                 Self {
                     base_tick: tick,
                     base_tick_period_micros: tpm,
-                    list,
-                    trig_list,
+                    schedule,
+                    trigger_schedule,
                     src_sink,
                 }
             }
@@ -89,7 +89,7 @@ cfg_if! {
                 if let Some(mut n) = self.src_sink.pop_node() {
                     n.set_func(Some(func));
                     n.set_time(self.to_tick(&time));
-                    self.list.insert_time_sorted(n);
+                    self.schedule.insert_time_sorted(n);
                 } else {
                     println!("OOPS");
                 }
@@ -104,7 +104,7 @@ cfg_if! {
                 if let Some(mut n) = self.src_sink.pop_trig() {
                     n.set_index(Some(index));
                     n.set_time(self.to_tick(&time));
-                    self.trig_list.insert_time_sorted(n);
+                    self.trigger_schedule.insert_time_sorted(n);
                 } else {
                     println!("OOPS");
                 }
@@ -127,7 +127,7 @@ cfg_if! {
                             return;
                         }
                     }
-                    self.trig_list.insert_time_sorted(n);
+                    self.trigger_schedule.insert_time_sorted(n);
                 } else {
                     println!("OOPS");
                 }
@@ -139,7 +139,7 @@ cfg_if! {
                     if let Some(mut vn) = self.src_sink.pop_value_set() {
                         **vn = value.clone();
                         n.add_value(vn);
-                        self.trig_list.insert_time_sorted(n);
+                        self.trigger_schedule.insert_time_sorted(n);
                     } else {
                         println!("OOPS");
                     }
@@ -264,10 +264,10 @@ mod tests {
     #[test]
     fn works() {
         let mut src_sink = SrcSink::new();
-        let mut list = LList::new();
-        let mut trig_list = LList::new();
+        let mut schedule = LList::new();
+        let mut trigger_schedule = LList::new();
 
-        let mut c = RootContext::new(0, 0, &mut list, &mut trig_list, &mut src_sink);
+        let mut c = RootContext::new(0, 0, &mut schedule, &mut trigger_schedule, &mut src_sink);
         let fbinding = new_shrptr!(SpinlockParamBinding::new(0f32));
         let ibinding = new_shrptr!(SpinlockParamBinding::new(0));
         let trig = TriggerId::new();
