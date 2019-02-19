@@ -8,18 +8,6 @@ pub trait PriorityQueue<N, T> {
     /// * `element` - the element to insert at the index given
     fn insert(&mut self, index: N, element: T) -> bool;
 
-    ///
-    /// Pop `Some(index, element)` if `func` returns true and there are elements in the queue.
-    /// Returns `None` if `func` returns `false` or there are no elements left in the queue.
-    ///
-    /// # Arguments
-    /// * `func` - the function that determines the pop conditions: takes an index and returns
-    /// bool, indicating if that the element at that index should removed from the queue and
-    /// returned.
-    ///
-    /// # Remarks
-    /// Pop should be done in order.
-    fn pop_if<F>(&mut self, func: F) -> Option<(N, T)>
-    where
-        F: Fn(&N) -> bool;
+    /// Pop if less than the given index
+    fn pop_lt(&mut self, index: N) -> Option<(N, T)>;
 }

@@ -1,16 +1,21 @@
 use super::*;
 use crate::binding::ParamBindingLatch;
 use crate::context::RootContext;
-use crate::ptr::{SShrPtr, ShrPtr};
+use crate::pqueue::PriorityQueue;
+use crate::ptr::{SShrPtr, ShrPtr, UniqPtr};
 use crate::time::{TimeResched, TimeSched};
 use crate::trigger::Trigger;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
 
-pub struct Executor {
-    schedule: LList<TimedFn>,
+pub struct Executor<SPQ, TPQ>
+where
+    SPQ: PriorityQueue<usize, SchedFn>,
+    TPQ: PriorityQueue<usize, UniqPtr<TimedTrig>>,
+{
+    schedule: SPQ,
+    trigger_schedule: TPQ,
     triggers: LList<SShrPtr<dyn Trigger>>,
-    trigger_schedule: LList<TimedTrig>,
     time_last: usize,
     ticks_per_second_last: usize,
     time: ShrPtr<AtomicUsize>,
@@ -18,16 +23,22 @@ pub struct Executor {
     src_sink: SrcSink,
 }
 
-impl Executor {
+impl<SPQ, TPQ> Executor<SPQ, TPQ>
+where
+    SPQ: PriorityQueue<usize, SchedFn>,
+    TPQ: PriorityQueue<usize, UniqPtr<TimedTrig>>,
+{
     pub fn new(
+        schedule: SPQ,
+        trigger_schedule: TPQ,
         time: ShrPtr<AtomicUsize>,
         schedule_receiver: Receiver<SchedFnNode>,
         src_sink: SrcSink,
     ) -> Self {
         Executor {
-            schedule: LList::new(),
+            schedule,
+            trigger_schedule,
             triggers: LList::new(),
-            trigger_schedule: LList::new(),
             time,
             time_last: 0,
             ticks_per_second_last: 0,
@@ -40,8 +51,8 @@ impl Executor {
         self.time_last
     }
 
-    pub fn add_node(&mut self, node: SchedFnNode) {
-        self.schedule.insert_time_sorted(node);
+    pub fn schedule(&mut self, tick: usize, func: SchedFn) {
+        self.schedule.insert(tick, func);
     }
 
     pub fn add_trigger(&mut self, trigger_node: TriggerNode) {
@@ -54,13 +65,13 @@ impl Executor {
         //triggers are evaluated at the end of the run so 'now' is actually 'next'
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
-        while let Some(trig) = self.trigger_schedule.pop_front_while(|n| n.time() < now) {
+        while let Some((time, trig)) = self.trigger_schedule.pop_lt(now) {
             //set all the values
             for vn in trig.values().iter() {
                 vn.store();
             }
             if let Some(index) = trig.index() {
-                let time = std::cmp::max(self.time_last, trig.time());
+                let time = std::cmp::max(self.time_last, time);
                 //we pass a context to the trig but all it can access is the ability to trig
                 let mut context = RootContext::new(
                     time,
@@ -87,11 +98,11 @@ impl Executor {
 
         //grab new nodes
         while let Ok(n) = self.schedule_receiver.try_recv() {
-            self.add_node(n);
+            //XXX DO IT self.add_node(n);
         }
 
-        while let Some(mut timedfn) = self.schedule.pop_front_while(|n| n.time() < next) {
-            let current = std::cmp::max(timedfn.time, now); //clamp to now at minimum
+        while let Some((time, mut func)) = self.schedule.pop_lt(next) {
+            let current = std::cmp::max(time, now); //clamp to now at minimum
             let mut context = RootContext::new(
                 current,
                 ticks_per_second,
@@ -99,13 +110,13 @@ impl Executor {
                 &mut self.trigger_schedule,
                 &mut self.src_sink,
             );
-            match timedfn.sched_call(&mut context) {
+            match func.sched_call(&mut context) {
                 TimeResched::Relative(time) | TimeResched::ContextRelative(time) => {
-                    timedfn.time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
-                    self.add_node(timedfn);
+                    let time = current + std::cmp::max(1, time); //schedule minimum of 1 from current
+                    self.schedule(time, func);
                 }
                 TimeResched::None => {
-                    self.src_sink.dispose(timedfn);
+                    //XXX TODO self.src_sink.dispose(func);
                 }
             }
         }
@@ -115,17 +126,14 @@ impl Executor {
     }
 }
 
-impl Sched for Executor {
+impl<SPQ, TPQ> Sched for Executor<SPQ, TPQ>
+where
+    SPQ: PriorityQueue<usize, SchedFn>,
+    TPQ: PriorityQueue<usize, UniqPtr<TimedTrig>>,
+{
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        match self.src_sink.pop_node() {
-            Some(mut n) => {
-                n.set_time(util::add_atomic_time(&self.time, &time)); //XXX should we clamp above current time?
-                n.set_func(Some(func));
-                self.schedule.insert_time_sorted(n);
-            }
-            None => {
-                println!("OOPS");
-            }
-        }
+        //XXX should we clamp above current time?
+        self.schedule
+            .insert(util::add_atomic_time(&self.time, &time), func);
     }
 }

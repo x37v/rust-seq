@@ -1,5 +1,6 @@
 use crate::base::SchedFn;
 use crate::binding::set::BindingSet;
+use crate::pqueue::PriorityQueue;
 use crate::time::{TimeResched, TimeSched};
 use crate::trigger::{ScheduleTrigger, TriggerId};
 use crate::util::add_clamped;
@@ -31,16 +32,17 @@ fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick:
 cfg_if! {
     if #[cfg(feature = "std")] {
         use crate::base::{
-            InsertTimeSorted, LList, SrcSink, TimedFn, TimedNodeData,
+            InsertTimeSorted, SrcSink, TimedFn, TimedNodeData,
             TimedTrig,
         };
 
+        type TimedTrigPtr = crate::ptr::UniqPtr<TimedTrig>;
 
         pub struct RootContext<'a> {
             base_tick: usize,
             base_tick_period_micros: f32,
-            schedule: &'a mut LList<TimedFn>,
-            trigger_schedule: &'a mut LList<TimedTrig>,
+            schedule: &'a mut dyn PriorityQueue<usize, SchedFn>,
+            trigger_schedule: &'a mut dyn PriorityQueue<usize, TimedTrigPtr>,
             src_sink: &'a mut SrcSink,
         }
 
@@ -48,8 +50,8 @@ cfg_if! {
             pub fn new(
                 tick: usize,
                 ticks_per_second: usize,
-                schedule: &'a mut LList<TimedFn>,
-                trigger_schedule: &'a mut LList<TimedTrig>,
+                schedule: &'a mut dyn PriorityQueue<usize, SchedFn>,
+                trigger_schedule: &'a mut dyn PriorityQueue<usize, TimedTrigPtr>,
                 src_sink: &'a mut SrcSink,
                 ) -> Self {
                 let tpm = 1e6f32 / (ticks_per_second as f32);
@@ -86,13 +88,7 @@ cfg_if! {
                 self.base_tick_period_micros
             }
             fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-                if let Some(mut n) = self.src_sink.pop_node() {
-                    n.set_func(Some(func));
-                    n.set_time(self.to_tick(&time));
-                    self.schedule.insert_time_sorted(n);
-                } else {
-                    println!("OOPS");
-                }
+                self.schedule.insert(self.to_tick(&time), func);
             }
             fn as_schedule_trigger_mut(&mut self) -> &mut dyn ScheduleTrigger {
                 self
@@ -101,6 +97,7 @@ cfg_if! {
 
         impl<'a> ScheduleTrigger for RootContext<'a> {
             fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId) {
+                /* XXX
                 if let Some(mut n) = self.src_sink.pop_trig() {
                     n.set_index(Some(index));
                     n.set_time(self.to_tick(&time));
@@ -108,6 +105,7 @@ cfg_if! {
                 } else {
                     println!("OOPS");
                 }
+                */
             }
             fn schedule_valued_trigger(
                 &mut self,
@@ -115,6 +113,7 @@ cfg_if! {
                 index: TriggerId,
                 values: &[BindingSet],
                 ) {
+                /*
                 if let Some(mut n) = self.src_sink.pop_trig() {
                     n.set_index(Some(index));
                     n.set_time(self.to_tick(&time));
@@ -131,8 +130,10 @@ cfg_if! {
                 } else {
                     println!("OOPS");
                 }
+                */
             }
             fn schedule_value(&mut self, time: TimeSched, value: &BindingSet) {
+                /*
                 if let Some(mut n) = self.src_sink.pop_trig() {
                     n.set_index(None);
                     n.set_time(self.to_tick(&time));
@@ -146,6 +147,7 @@ cfg_if! {
                 } else {
                     println!("OOPS");
                 }
+                */
             }
 
             //at the root, context and non context are the same

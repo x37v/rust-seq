@@ -15,11 +15,14 @@ pub mod binding;
 pub mod context;
 pub mod graph;
 pub mod midi;
+pub mod pqueue;
 pub mod ptr;
 pub mod time;
 pub mod trigger;
 pub mod util;
 pub use crate::base::*;
+
+mod llist_pqueue;
 
 cfg_if! {
     if #[cfg(feature = "std")] {

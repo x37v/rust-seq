@@ -54,7 +54,10 @@ cfg_if! {
         use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
         use std::thread;
         use crate::executor::Executor;
+        use crate::llist_pqueue::LListPQueue;
 
+        //XXX TODO, make this UniqPtr<Trig> without any time
+        type LListExecutor = Executor<LListPQueue<SchedFn>, LListPQueue<UniqPtr<TimedTrig>>>;
 
         //implement sched_call for any Fn that with the correct sig
         impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
@@ -164,7 +167,7 @@ cfg_if! {
 
         pub struct Scheduler {
             time: ShrPtr<AtomicUsize>,
-            executor: Option<Executor>,
+            executor: Option<LListExecutor>,
             schedule_sender: SyncSender<SchedFnNode>,
             updater: Option<SrcSinkUpdater>,
             helper_handle: Option<thread::JoinHandle<()>>,
@@ -266,9 +269,13 @@ cfg_if! {
                 let time = ShrPtr::new(AtomicUsize::new(0));
                 let mut src_sink = SrcSink::new();
                 let updater = src_sink.updater();
+                let eschedule = LListPQueue::new();
+                let etrig_schedule = LListPQueue::new();
                 Scheduler {
                     time: time.clone(),
-                    executor: Some(Executor::new(time, schedule_receiver, src_sink)),
+                    executor: Some(Executor::new(
+                            eschedule, etrig_schedule,
+                            time, schedule_receiver, src_sink)),
                     schedule_sender,
                     updater,
                     helper_handle: None,
@@ -288,7 +295,7 @@ cfg_if! {
                 }
             }
 
-            pub fn executor(&mut self) -> Option<Executor> {
+            pub fn executor(&mut self) -> Option<LListExecutor> {
                 self.executor.take()
             }
         }
