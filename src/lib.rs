@@ -14,6 +14,7 @@ mod base;
 pub mod binding;
 pub mod context;
 pub mod graph;
+pub mod list;
 pub mod midi;
 pub mod pqueue;
 pub mod ptr;
