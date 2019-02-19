@@ -32,7 +32,7 @@ fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick:
 cfg_if! {
     if #[cfg(feature = "std")] {
         use crate::base::{
-            InsertTimeSorted, SrcSink, TimedFn, TimedNodeData,
+            SrcSink, TimedFn,
             TimedTrig,
         };
 

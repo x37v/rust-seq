@@ -30,15 +30,6 @@ pub type SchedFn = UniqPtr<dyn SchedCall>;
 cfg_if! {
     if #[cfg(feature = "std")] {
 
-        pub trait TimedNodeData {
-            fn set_time(&mut self, time: usize);
-            fn time(&self) -> usize;
-        }
-
-        pub trait InsertTimeSorted<T> {
-            fn insert_time_sorted(&mut self, node: UniqPtr<LNode<T>>);
-        }
-
         pub type TimedTrigNode = UniqPtr<LNode<TimedTrig>>;
         pub type SchedFnNode = UniqPtr<LNode<TimedFn>>;
         pub type BindingSetNode = UniqPtr<LNode<BindingSet>>;
@@ -74,30 +65,12 @@ cfg_if! {
             pub func: Option<SchedFn>,
         }
 
-        impl<T> InsertTimeSorted<T> for LList<T>
-            where
-                T: TimedNodeData,
-            {
-                fn insert_time_sorted(&mut self, node: UniqPtr<LNode<T>>) {
-                    self.insert(node, |n, o| n.time() <= o.time());
-                }
-            }
-
         impl TimedFn {
             pub fn set_func(&mut self, func: Option<SchedFn>) {
                 self.func = func
             }
             pub fn func(&mut self) -> Option<SchedFn> {
                 self.func.take()
-            }
-        }
-
-        impl TimedNodeData for TimedFn {
-            fn set_time(&mut self, time: usize) {
-                self.time = time;
-            }
-            fn time(&self) -> usize {
-                self.time
             }
         }
 
@@ -128,15 +101,6 @@ cfg_if! {
             }
             pub fn values(&self) -> &LList<BindingSet> {
                 &self.values
-            }
-        }
-
-        impl TimedNodeData for TimedTrig {
-            fn set_time(&mut self, time: usize) {
-                self.time = time;
-            }
-            fn time(&self) -> usize {
-                self.time
             }
         }
 
