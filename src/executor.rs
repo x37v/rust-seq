@@ -7,39 +7,40 @@ use crate::time::{TimeResched, TimeSched};
 use crate::trigger::Trigger;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
+use xnor_llist::{List, Node};
 
 //XXX use TrigCallPtr
 pub struct Executor<SPQ, TPQ>
 where
     SPQ: PriorityQueue<usize, SchedFn>,
-    TPQ: PriorityQueue<usize, UniqPtr<TimedTrig>>,
+    TPQ: PriorityQueue<usize, TrigCallPtr>,
 {
     schedule: SPQ,
     trigger_schedule: TPQ,
-    triggers: LList<SShrPtr<dyn Trigger>>,
+    triggers: List<TrigPtr>,
     time_last: usize,
     ticks_per_second_last: usize,
     time: ShrPtr<AtomicUsize>,
-    schedule_receiver: Receiver<SchedFnNode>,
+    schedule_receiver: Receiver<(usize, SchedFn)>,
     src_sink: SrcSink,
 }
 
 impl<SPQ, TPQ> Executor<SPQ, TPQ>
 where
     SPQ: PriorityQueue<usize, SchedFn>,
-    TPQ: PriorityQueue<usize, UniqPtr<TimedTrig>>,
+    TPQ: PriorityQueue<usize, TrigCallPtr>,
 {
     pub fn new(
         schedule: SPQ,
         trigger_schedule: TPQ,
         time: ShrPtr<AtomicUsize>,
-        schedule_receiver: Receiver<SchedFnNode>,
+        schedule_receiver: Receiver<(usize, SchedFn)>,
         src_sink: SrcSink,
     ) -> Self {
         Executor {
             schedule,
             trigger_schedule,
-            triggers: LList::new(),
+            triggers: List::new(),
             time,
             time_last: 0,
             ticks_per_second_last: 0,
@@ -56,8 +57,8 @@ where
         self.schedule.insert(tick, func);
     }
 
-    pub fn add_trigger(&mut self, trigger_node: TriggerNode) {
-        self.triggers.push_back(trigger_node);
+    pub fn add_trigger(&mut self, _trigger: TrigPtr) {
+        //XXX self.triggers.push_back(trigger);
     }
 
     //signature of function is
@@ -66,11 +67,8 @@ where
         //triggers are evaluated at the end of the run so 'now' is actually 'next'
         //so we evaluate all the triggers that happened before 'now'
         let now = self.time.load(Ordering::SeqCst);
-        while let Some((time, trig)) = self.trigger_schedule.pop_lt(now) {
-            //set all the values
-            for vn in trig.values().iter() {
-                vn.store();
-            }
+        while let Some((time, mut trig)) = self.trigger_schedule.pop_lt(now) {
+            trig.latch_values();
             if let Some(index) = trig.index() {
                 let time = std::cmp::max(self.time_last, time);
                 //we pass a context to the trig but all it can access is the ability to trig
@@ -88,7 +86,7 @@ where
                     }
                 }
             }
-            self.src_sink.dispose(trig);
+            //XXX self.src_sink.dispose(trig);
         }
     }
 
@@ -130,7 +128,7 @@ where
 impl<SPQ, TPQ> Sched for Executor<SPQ, TPQ>
 where
     SPQ: PriorityQueue<usize, SchedFn>,
-    TPQ: PriorityQueue<usize, UniqPtr<TimedTrig>>,
+    TPQ: PriorityQueue<usize, TrigCallPtr>,
 {
     fn schedule(&mut self, time: TimeSched, func: SchedFn) {
         //XXX should we clamp above current time?

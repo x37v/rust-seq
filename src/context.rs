@@ -32,17 +32,15 @@ fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick:
 cfg_if! {
     if #[cfg(feature = "std")] {
         use crate::base::{
-            SrcSink, TimedFn,
-            TimedTrig,
+            SrcSink,
+            TrigCallPtr,
         };
-
-        type TimedTrigPtr = crate::ptr::UniqPtr<TimedTrig>;
 
         pub struct RootContext<'a> {
             base_tick: usize,
             base_tick_period_micros: f32,
             schedule: &'a mut dyn PriorityQueue<usize, SchedFn>,
-            trigger_schedule: &'a mut dyn PriorityQueue<usize, TimedTrigPtr>,
+            trigger_schedule: &'a mut dyn PriorityQueue<usize, TrigCallPtr>,
             src_sink: &'a mut SrcSink,
         }
 
@@ -51,7 +49,7 @@ cfg_if! {
                 tick: usize,
                 ticks_per_second: usize,
                 schedule: &'a mut dyn PriorityQueue<usize, SchedFn>,
-                trigger_schedule: &'a mut dyn PriorityQueue<usize, TimedTrigPtr>,
+                trigger_schedule: &'a mut dyn PriorityQueue<usize, TrigCallPtr>,
                 src_sink: &'a mut SrcSink,
                 ) -> Self {
                 let tpm = 1e6f32 / (ticks_per_second as f32);

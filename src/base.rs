@@ -26,20 +26,11 @@ pub trait SchedCall: Send {
 
 //an object to be put into a schedule and called later
 pub type SchedFn = UniqPtr<dyn SchedCall>;
-pub type TrigCallPtr = UniqPtr<TrigCall>;
+pub type TrigCallPtr = UniqPtr<dyn TrigCall>;
+pub type TrigPtr = SShrPtr<dyn Trigger>;
 
 cfg_if! {
     if #[cfg(feature = "std")] {
-
-        pub type TimedTrigNode = UniqPtr<LNode<TimedTrig>>;
-        pub type SchedFnNode = UniqPtr<LNode<TimedFn>>;
-        pub type BindingSetNode = UniqPtr<LNode<BindingSet>>;
-        pub type TriggerNode = UniqPtr<LNode<SShrPtr<dyn Trigger>>>;
-
-        use xnor_llist;
-
-        pub use xnor_llist::List as LList;
-        pub use xnor_llist::Node as LNode;
 
         use std;
         use std::sync::atomic::AtomicUsize;
@@ -49,7 +40,7 @@ cfg_if! {
         use crate::llist_pqueue::LListPQueue;
 
         //XXX TODO, make this UniqPtr<Trig> without any time
-        type LListExecutor = Executor<LListPQueue<SchedFn>, LListPQueue<UniqPtr<TimedTrig>>>;
+        type LListExecutor = Executor<LListPQueue<SchedFn>, LListPQueue<TrigCallPtr>>;
 
         //implement sched_call for any Fn that with the correct sig
         impl<F: Fn(&mut dyn SchedContext) -> TimeResched> SchedCall for F
@@ -61,94 +52,28 @@ cfg_if! {
                 }
             }
 
-        pub struct TimedFn {
-            pub time: usize,
-            pub func: Option<SchedFn>,
-        }
-
-        impl TimedFn {
-            pub fn set_func(&mut self, func: Option<SchedFn>) {
-                self.func = func
-            }
-            pub fn func(&mut self) -> Option<SchedFn> {
-                self.func.take()
-            }
-        }
-
-        impl Default for TimedFn {
-            fn default() -> Self {
-                Self {
-                    time: 0,
-                    func: None,
-                }
-            }
-        }
-
-        pub struct TimedTrig {
-            time: usize,
-            index: Option<TriggerId>,
-            values: LList<BindingSet>,
-        }
-
-        impl TimedTrig {
-            pub fn set_index(&mut self, index: Option<TriggerId>) {
-                self.index = index;
-            }
-            pub fn index(&self) -> Option<TriggerId> {
-                self.index
-            }
-            pub fn add_value(&mut self, vnode: BindingSetNode) {
-                self.values.push_front(vnode);
-            }
-            pub fn values(&self) -> &LList<BindingSet> {
-                &self.values
-            }
-        }
-
-        impl Default for TimedTrig {
-            fn default() -> Self {
-                Self {
-                    time: 0,
-                    index: None,
-                    values: LList::new(),
-                }
-            }
-        }
-
         pub struct SrcSink {
-            node_cache: Receiver<SchedFnNode>,
-            trig_cache: Receiver<TimedTrigNode>,
-            value_set_cache: Receiver<BindingSetNode>,
             dispose_schedule_sender: SyncSender<UniqPtr<dyn Send>>,
             updater: Option<SrcSinkUpdater>,
         }
 
         pub struct SrcSinkUpdater {
-            node_cache_updater: SyncSender<SchedFnNode>,
-            trig_cache_updater: SyncSender<TimedTrigNode>,
-            value_set_cache_updater: SyncSender<BindingSetNode>,
             dispose_schedule_receiver: Receiver<UniqPtr<dyn Send>>,
         }
 
         pub struct Scheduler {
             time: ShrPtr<AtomicUsize>,
             executor: Option<LListExecutor>,
-            schedule_sender: SyncSender<SchedFnNode>,
+            schedule_sender: SyncSender<(usize,SchedFn)>,
             updater: Option<SrcSinkUpdater>,
             helper_handle: Option<thread::JoinHandle<()>>,
         }
 
         impl SrcSinkUpdater {
             pub fn new(
-                node_cache_updater: SyncSender<SchedFnNode>,
-                trig_cache_updater: SyncSender<TimedTrigNode>,
-                value_set_cache_updater: SyncSender<BindingSetNode>,
                 dispose_schedule_receiver: Receiver<UniqPtr<dyn Send>>,
                 ) -> Self {
                 Self {
-                    node_cache_updater,
-                    trig_cache_updater,
-                    value_set_cache_updater,
                     dispose_schedule_receiver,
                 }
             }
@@ -160,6 +85,7 @@ cfg_if! {
                         Err(TryRecvError::Empty) => (),
                         Err(TryRecvError::Disconnected) => return false,
                     }
+                    /*
                     match self.node_cache_updater.try_send(Default::default()) {
                         Ok(_) => continue,
                         Err(TrySendError::Full(_)) => (),
@@ -175,6 +101,7 @@ cfg_if! {
                         Err(TrySendError::Full(_)) => (),
                         Err(TrySendError::Disconnected(_)) => return false,
                     }
+                    */
                     break;
                 }
                 true
@@ -184,18 +111,9 @@ cfg_if! {
         impl SrcSink {
             pub fn new() -> Self {
                 let (dispose_schedule_sender, dispose_schedule_receiver) = sync_channel(1024);
-                let (node_cache_updater, node_cache) = sync_channel(1024);
-                let (trig_cache_updater, trig_cache) = sync_channel(1024);
-                let (value_set_cache_updater, value_set_cache) = sync_channel(1024);
                 Self {
-                    node_cache,
-                    trig_cache,
-                    value_set_cache,
                     dispose_schedule_sender,
                     updater: Some(SrcSinkUpdater::new(
-                            node_cache_updater,
-                            trig_cache_updater,
-                            value_set_cache_updater,
                             dispose_schedule_receiver,
                             )),
                 }
@@ -205,6 +123,7 @@ cfg_if! {
                 self.updater.take()
             }
 
+            /*
             pub fn pop_node(&mut self) -> Option<SchedFnNode> {
                 self.node_cache.try_recv().ok()
             }
@@ -216,6 +135,7 @@ cfg_if! {
             pub fn pop_value_set(&mut self) -> Option<BindingSetNode> {
                 self.value_set_cache.try_recv().ok()
             }
+            */
 
             pub fn dispose(&mut self, item: UniqPtr<dyn Send>) {
                 let _ = self.dispose_schedule_sender.send(item);
@@ -271,23 +191,16 @@ cfg_if! {
             }
         }
 
-        impl SchedCall for TimedFn {
-            fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
-                if let Some(ref mut f) = self.func {
-                    f.sched_call(context)
-                } else {
-                    TimeResched::None
-                }
-            }
-        }
-
         impl Sched for Scheduler {
             fn schedule(&mut self, time: TimeSched, func: SchedFn) {
+                /*
+                 * TODO
                 let f = LNode::new_boxed(TimedFn {
                     func: Some(func),
                     time: crate::util::add_atomic_time(&self.time, &time),
                 });
                 self.schedule_sender.send(f).unwrap();
+                */
             }
         }
     }
@@ -298,12 +211,12 @@ mod tests {
     use super::*;
     use std::thread;
 
+    /*
     #[test]
     fn can_vec() {
         let _x: Vec<TimedFn> = (0..20).map({ |_| TimedFn::default() }).collect();
     }
 
-    /*
     #[test]
     fn basic_test() {
         let mut s = Scheduler::new();
