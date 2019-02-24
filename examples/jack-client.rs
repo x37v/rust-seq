@@ -28,7 +28,7 @@ use sched::ptr::{SShrPtr, ShrPtr, UniqPtr};
 use sched::midi::{MidiTrigger, MidiValue};
 
 use sched::time::{TimeResched, TimeSched};
-use sched::{LNode, Sched, Scheduler};
+use sched::{Sched, Scheduler};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::sync_channel;

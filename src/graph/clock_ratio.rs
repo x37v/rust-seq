@@ -49,9 +49,10 @@ where
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use crate::base::{LList, SrcSink};
+    use crate::base::SrcSink;
     use crate::context::RootContext;
     use crate::graph::ChildExec;
+    use crate::llist_pqueue::LListPQueue;
     use crate::time::TimeResched;
     use std::collections::VecDeque;
     use std::sync::Arc;
@@ -114,8 +115,8 @@ mod tests {
     #[test]
     fn ratio_from_root() {
         let mut src_sink = SrcSink::new();
-        let mut list = LList::new();
-        let mut trig_list = LList::new();
+        let mut list = LListPQueue::new();
+        let mut trig_list = LListPQueue::new();
 
         let mut c = RootContext::new(0usize, 44100, &mut list, &mut trig_list, &mut src_sink);
 

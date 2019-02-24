@@ -197,8 +197,9 @@ cfg_if! {
 mod tests {
     use super::node_wrapper::GraphNodeWrapper;
     use super::*;
-    use crate::base::{LList, SrcSink};
+    use crate::base::SrcSink;
     use crate::context::{RootContext, SchedContext};
+    use crate::llist_pqueue::LListPQueue;
     use std;
 
     struct X {}
@@ -236,8 +237,8 @@ mod tests {
         x.lock().child_append(LNode::new_boxed(y.clone()));
 
         let mut src_sink = SrcSink::new();
-        let mut list = LList::new();
-        let mut trig_list = LList::new();
+        let mut list = LListPQueue::new();
+        let mut trig_list = LListPQueue::new();
 
         let mut c = RootContext::new(0, 0, &mut list, &mut trig_list, &mut src_sink);
         for i in l.iter() {

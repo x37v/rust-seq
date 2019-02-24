@@ -66,16 +66,17 @@ where
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use crate::base::{LList, SrcSink};
+    use crate::base::SrcSink;
     use crate::context::RootContext;
+    use crate::llist_pqueue::LListPQueue;
     use crate::time::TimeResched;
     use std::sync::Arc;
 
     #[test]
     fn root_clock_call() {
         let mut src_sink = SrcSink::new();
-        let mut list = LList::new();
-        let mut trig_list = LList::new();
+        let mut list = LListPQueue::new();
+        let mut trig_list = LListPQueue::new();
 
         //44100 sample rate, 200 micro second clock
         //[8.82, 17.64, 26.46, 35.28, 44.1, 52.92]

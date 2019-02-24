@@ -257,15 +257,16 @@ impl<'a> ScheduleTrigger for ChildContext<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::base::{LList, SrcSink};
+    use crate::base::SrcSink;
     use crate::binding::spinlock::SpinlockParamBinding;
     use crate::context::RootContext;
+    use crate::llist_pqueue::LListPQueue;
     use crate::time::TimeSched;
     #[test]
     fn works() {
         let mut src_sink = SrcSink::new();
-        let mut schedule = LList::new();
-        let mut trigger_schedule = LList::new();
+        let mut schedule = LListPQueue::new();
+        let mut trigger_schedule = LListPQueue::new();
 
         let mut c = RootContext::new(0, 0, &mut schedule, &mut trigger_schedule, &mut src_sink);
         let fbinding = new_shrptr!(SpinlockParamBinding::new(0f32));
