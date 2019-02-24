@@ -8,6 +8,7 @@ use crate::trigger::Trigger;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
 
+//XXX use TrigCallPtr
 pub struct Executor<SPQ, TPQ>
 where
     SPQ: PriorityQueue<usize, SchedFn>,

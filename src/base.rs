@@ -2,7 +2,7 @@ use crate::binding::set::BindingSet;
 use crate::context::SchedContext;
 use crate::ptr::*;
 use crate::time::{TimeResched, TimeSched};
-use crate::trigger::{Trigger, TriggerId};
+use crate::trigger::{TrigCall, Trigger, TriggerId};
 
 pub enum Value {
     Byte(u8),
@@ -26,6 +26,7 @@ pub trait SchedCall: Send {
 
 //an object to be put into a schedule and called later
 pub type SchedFn = UniqPtr<dyn SchedCall>;
+pub type TrigCallPtr = UniqPtr<TrigCall>;
 
 cfg_if! {
     if #[cfg(feature = "std")] {

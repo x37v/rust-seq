@@ -12,6 +12,13 @@ pub trait Trigger {
     fn trigger_eval(&self, tick: usize, context: &mut dyn ScheduleTrigger);
 }
 
+pub trait TrigCall {
+    fn set_index(&mut self, index: Option<TriggerId>);
+    fn index(&self) -> Option<TriggerId>;
+    fn add_value(&mut self, binding: BindingSet);
+    fn latch_values(&mut self);
+}
+
 pub trait ScheduleTrigger {
     fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId);
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[BindingSet]);
@@ -26,7 +33,7 @@ pub struct TriggerId {
     id: usize,
 }
 
-pub struct TrigCall<VL>
+pub struct LListTrigCall<VL>
 where
     VL: LinkedList<BindingSet>,
     for<'a> &'a VL: core::iter::IntoIterator<Item = &'a mut BindingSet>,
@@ -35,21 +42,21 @@ where
     values: VL,
 }
 
-impl<VL> TrigCall<VL>
+impl<VL> TrigCall for LListTrigCall<VL>
 where
     VL: LinkedList<BindingSet>,
     for<'a> &'a VL: core::iter::IntoIterator<Item = &'a mut BindingSet>,
 {
-    pub fn set_index(&mut self, index: Option<TriggerId>) {
+    fn set_index(&mut self, index: Option<TriggerId>) {
         self.index = index;
     }
-    pub fn index(&self) -> Option<TriggerId> {
+    fn index(&self) -> Option<TriggerId> {
         self.index
     }
-    pub fn add_value(&mut self, binding: BindingSet) {
+    fn add_value(&mut self, binding: BindingSet) {
         self.values.push_back(binding);
     }
-    pub fn latch_values(&mut self) {
+    fn latch_values(&mut self) {
         for v in &self.values {
             v.store()
         }
