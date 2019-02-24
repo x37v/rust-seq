@@ -95,9 +95,9 @@ where
         let next = now + ticks;
         self.ticks_per_second_last = ticks_per_second;
 
-        //grab new nodes
-        while let Ok(n) = self.schedule_receiver.try_recv() {
-            //XXX DO IT self.add_node(n);
+        //grab new events
+        while let Ok((t, n)) = self.schedule_receiver.try_recv() {
+            self.schedule.insert(t, n);
         }
 
         while let Some((time, mut func)) = self.schedule.pop_lt(next) {
