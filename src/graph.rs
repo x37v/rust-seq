@@ -86,7 +86,7 @@ cfg_if! {
                 let tmp = self.children.split(|_| true); //XXX should be a better way
                 for (i, c) in (0..).zip(tmp.into_iter()) {
                     if i == index && !c.lock().exec(context) {
-                        continue;
+                        continue; //XXX dispose..
                     }
                     self.children.push_back(c);
                 }
@@ -101,7 +101,7 @@ cfg_if! {
                 let tmp = self.children.split(|_| true); //XXX should be a better way
                 for (i, c) in (0..).zip(tmp.into_iter()) {
                     if i.ge(&range.start) && i.lt(&range.end) && !c.lock().exec(context) {
-                        continue;
+                        continue; //XXX dispose
                     }
                     self.children.push_back(c);
                 }
@@ -113,6 +113,8 @@ cfg_if! {
                 for c in tmp.into_iter() {
                     if c.lock().exec(context) {
                         self.children.push_back(c);
+                    } else {
+                        //XXX dispose
                     }
                 }
                 self.count()
