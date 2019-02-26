@@ -9,6 +9,9 @@ pub enum ChildCount {
     Inf,
 }
 
+pub type ANodeP = SShrPtr<dyn GraphNode>;
+pub type AIndexNodeP = SShrPtr<dyn GraphIndexExec>;
+
 cfg_if! {
     if #[cfg(feature = "std")] {
 
@@ -43,11 +46,9 @@ cfg_if! {
             index_children: &'a mut IndexChildList,
         }
 
-        pub type ANodeP = SShrPtr<dyn GraphNode>;
         pub type AChildP = UniqPtr<LNode<ANodeP>>;
         pub type ChildList = LList<ANodeP>;
 
-        pub type AIndexNodeP = SShrPtr<dyn GraphIndexExec>;
         pub type AIndexChildP = UniqPtr<LNode<AIndexNodeP>>;
         pub type IndexChildList = LList<AIndexNodeP>;
 
