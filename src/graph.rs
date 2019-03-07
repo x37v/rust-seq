@@ -12,6 +12,18 @@ pub enum ChildCount {
 pub type ANodeP = SShrPtr<dyn GraphNode>;
 pub type AIndexNodeP = SShrPtr<dyn GraphIndexExec>;
 
+pub trait ChildListT {
+    fn count(&self) -> ChildCount;
+    fn push_back(&mut self, child: ANodeP);
+    /// execute `func` on children in the range given,
+    /// if func returns true, return them to the list
+    fn in_range<'a>(&mut self, range: std::ops::Range<usize>, func: &'a dyn Fn(ANodeP) -> bool);
+}
+
+pub trait IndexChildListT {
+    fn each<'a>(&mut self, func: &'a dyn Fn(AIndexNodeP));
+}
+
 cfg_if! {
     if #[cfg(feature = "std")] {
 
@@ -37,20 +49,19 @@ cfg_if! {
         pub mod euclidean_gate;
 
 
-        struct Children<'a> {
-            children: &'a mut ChildList,
+        struct Children<'a, T>
+            where T: ChildListT
+        {
+            children: &'a mut T,
         }
 
-        struct NChildren<'a> {
-            children: &'a mut ChildList,
-            index_children: &'a mut IndexChildList,
+        struct NChildren<'a, C, I>
+            where C: ChildListT,
+                  I: IndexChildListT
+        {
+            children: &'a mut C,
+            index_children: &'a mut I,
         }
-
-        pub type AChildP = UniqPtr<LNode<ANodeP>>;
-        pub type ChildList = LList<ANodeP>;
-
-        pub type AIndexChildP = UniqPtr<LNode<AIndexNodeP>>;
-        pub type IndexChildList = LList<AIndexNodeP>;
 
         impl PartialOrd for ChildCount {
             fn partial_cmp(&self, other: &ChildCount) -> Option<Ordering> {
@@ -76,8 +87,10 @@ cfg_if! {
             }
         }
 
-        impl<'a> Children<'a> {
-            fn new(children: &'a mut ChildList) -> Self {
+        impl<'a, T> Children<'a, T>
+            where T: ChildListT
+        {
+            fn new(children: &'a mut T) -> Self {
                 Self { children }
             }
         }
