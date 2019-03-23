@@ -40,17 +40,11 @@ where
 {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
         let period_micros = self.period_micros.get();
-        if self.children.count() > 0 {
-            let mut ccontext = ChildContext::new(context, 0, self.tick, period_micros);
-            let mut tmp = LList::new();
-            std::mem::swap(&mut self.children, &mut tmp);
-
-            for c in tmp.into_iter() {
-                if c.lock().exec(&mut ccontext) {
-                    self.children.push_back(c);
-                }
-            }
-        }
+        let mut ccontext = ChildContext::new(context, 0, self.tick, period_micros);
+        self.children
+            .in_range(0..self.children.count(), &|child: ANodeP| {
+                child.lock().exec(&mut ccontext)
+            });
 
         let ctp = context.context_tick_period_micros();
         if period_micros <= 0f32 || ctp <= 0f32 {
