@@ -3,36 +3,40 @@ use crate::binding::ParamBindingGet;
 use crate::time::TimeResched;
 
 pub type Micro = f32;
-pub struct RootClock<PeriodMicros>
+pub struct RootClock<PeriodMicros, C>
 where
     PeriodMicros: ParamBindingGet<Micro>,
+    C: ChildListT,
 {
     tick: usize,
     tick_sub: f32,
     period_micros: PeriodMicros,
-    children: ChildList,
+    children: C,
 }
 
-impl<PeriodMicros> RootClock<PeriodMicros>
+impl<PeriodMicros, C> RootClock<PeriodMicros, C>
 where
     PeriodMicros: ParamBindingGet<Micro>,
+    C: ChildListT,
 {
-    pub fn new(period_micros: PeriodMicros) -> Self {
+    pub fn new(period_micros: PeriodMicros, children: C) -> Self {
         Self {
             tick: 0,
             tick_sub: 0f32,
             period_micros,
-            children: LList::new(),
+            children,
         }
     }
-    pub fn child_append(&mut self, child: AChildP) {
+
+    pub fn child_append(&mut self, child: ANodeP) {
         self.children.push_back(child);
     }
 }
 
-impl<PeriodMicros> SchedCall for RootClock<PeriodMicros>
+impl<PeriodMicros, C> SchedCall for RootClock<PeriodMicros, C>
 where
     PeriodMicros: ParamBindingGet<Micro>,
+    C: ChildListT,
 {
     fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
         let period_micros = self.period_micros.get();
