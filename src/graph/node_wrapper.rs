@@ -55,7 +55,7 @@ where
     C: ChildListT,
     I: IndexChildListT,
 {
-    pub fn new(exec: UniqPtr<dyn GraphExec>, children: C, index_children: C) -> Self {
+    pub fn new(exec: UniqPtr<dyn GraphExec>, children: C, index_children: I) -> Self {
         Self {
             exec,
             children,
@@ -63,6 +63,7 @@ where
         }
     }
 
+    #[cfg(feature = "std")]
     pub fn index_child_append(&mut self, child: AIndexNodeP) {
         self.index_children.push_back(child);
     }

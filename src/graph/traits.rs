@@ -32,14 +32,19 @@ pub trait GraphIndexExec: Send {
 
 pub trait ChildListT: Send {
     fn count(&self) -> usize;
-    fn push_back(&mut self, child: ANodeP);
     /// execute `func` on children in the range given,
     /// if func returns true, return them to the list
-    fn in_range<'a>(&mut self, range: std::ops::Range<usize>, func: &'a dyn Fn(ANodeP) -> bool);
+    fn in_range<'a>(&mut self, range: std::ops::Range<usize>, func: &'a dyn FnMut(ANodeP) -> bool);
+
+    #[cfg(feature = "std")]
+    fn push_back(&mut self, child: ANodeP);
 }
 
 pub trait IndexChildListT: Send {
-    fn each<'a>(&mut self, func: &'a dyn Fn(AIndexNodeP));
+    fn each<'a>(&mut self, func: &'a dyn FnMut(AIndexNodeP));
+
+    #[cfg(feature = "std")]
+    fn push_back(&mut self, child: AIndexNodeP);
 }
 
 cfg_if! {

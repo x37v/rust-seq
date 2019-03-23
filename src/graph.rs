@@ -88,14 +88,7 @@ cfg_if! {
             where T: ChildListT
         {
             fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
-                let tmp = self.children.split(|_| true); //XXX should be a better way
-                for (i, c) in (0..).zip(tmp.into_iter()) {
-                    if i == index && !c.lock().exec(context) {
-                        continue; //XXX dispose..
-                    }
-                    self.children.push_back(c);
-                }
-                self.count()
+                self.exec_range(context, index..index+1)
             }
 
             fn exec_range(
@@ -103,26 +96,13 @@ cfg_if! {
                 context: &mut dyn SchedContext,
                 range: std::ops::Range<usize>,
                 ) -> ChildCount {
-                let tmp = self.children.split(|_| true); //XXX should be a better way
-                for (i, c) in (0..).zip(tmp.into_iter()) {
-                    if i.ge(&range.start) && i.lt(&range.end) && !c.lock().exec(context) {
-                        continue; //XXX dispose
-                    }
-                    self.children.push_back(c);
-                }
+                self.children.in_range(range, &|c: ANodeP| c.lock().exec(context));
                 self.count()
             }
 
             fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
-                let tmp = self.children.split(|_| true); //XXX should be a better way
-                for c in tmp.into_iter() {
-                    if c.lock().exec(context) {
-                        self.children.push_back(c);
-                    } else {
-                        //XXX dispose
-                    }
-                }
-                self.count()
+                let count = self.children.count();
+                self.exec_range(context, 0..count)
             }
 
             fn count(&self) -> ChildCount {
@@ -146,9 +126,7 @@ cfg_if! {
             }
 
             fn exec_index_callbacks(&mut self, index: usize, context: &mut dyn SchedContext) {
-                for c in self.index_children.iter() {
-                    c.lock().exec_index(index, context);
-                }
+                self.index_children.each(&|c: AIndexNodeP| c.lock().exec_index(index, context));
             }
         }
 
@@ -157,13 +135,7 @@ cfg_if! {
                   I: IndexChildListT
         {
             fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
-                if let Some(c) = self.children.pop_front() {
-                    self.exec_index_callbacks(index, context);
-                    if c.lock().exec(context) {
-                        self.children.push_front(c);
-                    }
-                }
-                self.count()
+                self.exec_range(context, index..index+1)
             }
 
             fn exec_range(
@@ -171,24 +143,15 @@ cfg_if! {
                 context: &mut dyn SchedContext,
                 range: std::ops::Range<usize>,
                 ) -> ChildCount {
-                if let Some(c) = self.children.pop_front() {
-                    let mut pop = true;
-                    {
-                        let mut l = c.lock();
-                        for index in range {
-                            self.exec_index_callbacks(index, context);
-                            pop |= !l.exec(context);
-                        }
-                    }
-                    if !pop {
-                        self.children.push_front(c);
-                    }
+                for index in range {
+                    self.exec_index_callbacks(index, context);
                 }
+                self.children.in_range(0..1, &|c: ANodeP| c.lock().exec(context));
                 self.count()
             }
 
             fn exec_all(&mut self, context: &mut dyn SchedContext) -> ChildCount {
-                self.exec(context, 0)
+                self.exec_range(context, 0..1)
             }
 
             fn count(&self) -> ChildCount {
