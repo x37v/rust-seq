@@ -31,7 +31,7 @@ pub trait GraphIndexExec: Send {
 }
 
 pub trait ChildListT: Send {
-    fn count(&self) -> ChildCount;
+    fn count(&self) -> usize;
     fn push_back(&mut self, child: ANodeP);
     /// execute `func` on children in the range given,
     /// if func returns true, return them to the list
