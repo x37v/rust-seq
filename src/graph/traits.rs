@@ -1,5 +1,5 @@
 use crate::context::SchedContext;
-use crate::graph::ChildCount;
+use crate::graph::{AIndexNodeP, ANodeP, ChildCount};
 
 pub trait GraphExec: Send {
     fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool;
@@ -30,13 +30,24 @@ pub trait GraphIndexExec: Send {
     fn exec_index(&mut self, index: usize, context: &mut dyn SchedContext);
 }
 
+pub trait ChildListT: Send {
+    fn count(&self) -> ChildCount;
+    fn push_back(&mut self, child: ANodeP);
+    /// execute `func` on children in the range given,
+    /// if func returns true, return them to the list
+    fn in_range<'a>(&mut self, range: std::ops::Range<usize>, func: &'a dyn Fn(ANodeP) -> bool);
+}
+
+pub trait IndexChildListT: Send {
+    fn each<'a>(&mut self, func: &'a dyn Fn(AIndexNodeP));
+}
+
 cfg_if! {
 if #[cfg(feature = "std")] {
-    use crate::graph::AChildP;
 
     pub trait GraphNode {
         fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
-        fn child_append(&mut self, child: AChildP) -> bool;
+        fn child_append(&mut self, child: ANodeP) -> bool;
     }
 } else {
     pub trait GraphNode {

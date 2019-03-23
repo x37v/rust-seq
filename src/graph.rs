@@ -12,18 +12,6 @@ pub enum ChildCount {
 pub type ANodeP = SShrPtr<dyn GraphNode>;
 pub type AIndexNodeP = SShrPtr<dyn GraphIndexExec>;
 
-pub trait ChildListT {
-    fn count(&self) -> ChildCount;
-    fn push_back(&mut self, child: ANodeP);
-    /// execute `func` on children in the range given,
-    /// if func returns true, return them to the list
-    fn in_range<'a>(&mut self, range: std::ops::Range<usize>, func: &'a dyn Fn(ANodeP) -> bool);
-}
-
-pub trait IndexChildListT {
-    fn each<'a>(&mut self, func: &'a dyn Fn(AIndexNodeP));
-}
-
 cfg_if! {
     if #[cfg(feature = "std")] {
 
@@ -95,7 +83,10 @@ cfg_if! {
             }
         }
 
-        impl<'a> ChildExec for Children<'a> {
+        impl<'a, T> ChildExec for Children<'a, T>
+
+            where T: ChildListT
+        {
             fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
                 let tmp = self.children.split(|_| true); //XXX should be a better way
                 for (i, c) in (0..).zip(tmp.into_iter()) {
@@ -143,8 +134,11 @@ cfg_if! {
             }
         }
 
-        impl<'a> NChildren<'a> {
-            pub fn new(children: &'a mut ChildList, index_children: &'a mut IndexChildList) -> Self {
+        impl<'a, C, I> NChildren<'a, C, I>
+            where C: ChildListT,
+                  I: IndexChildListT
+        {
+            pub fn new(children: &'a mut C, index_children: &'a mut I) -> Self {
                 Self {
                     children,
                     index_children,
@@ -158,7 +152,10 @@ cfg_if! {
             }
         }
 
-        impl<'a> ChildExec for NChildren<'a> {
+        impl<'a, C, I> ChildExec for NChildren<'a, C, I>
+            where C: ChildListT,
+                  I: IndexChildListT
+        {
             fn exec(&mut self, context: &mut dyn SchedContext, index: usize) -> ChildCount {
                 if let Some(c) = self.children.pop_front() {
                     self.exec_index_callbacks(index, context);
