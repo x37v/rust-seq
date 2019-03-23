@@ -17,6 +17,12 @@ impl<T> LListPQueue<T> {
     }
 }
 
+impl<T> Default for LListPQueue<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> PriorityQueue<usize, T> for LListPQueue<T> {
     fn insert(&mut self, index: usize, element: T) -> bool {
         false
