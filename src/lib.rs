@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![feature(unsize)]
-#![feature(coerce_unsized)]
-#![feature(dispatch_from_dyn)]
+//#![feature(unsize)]
+//#![feature(coerce_unsized)]
+//#![feature(dispatch_from_dyn)]
 
 #[macro_use]
 extern crate cfg_if;
