@@ -1,6 +1,4 @@
-#![feature(nll)]
-
-pub use ::spinlock;
+pub use spinlock;
 pub use xnor_llist;
 
 #[macro_use]
