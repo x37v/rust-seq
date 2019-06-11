@@ -1,6 +1,7 @@
 pub mod clock_ratio;
 mod traits;
 pub use self::traits::*;
+use crate::ptr::SShrPtr;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ChildCount {
@@ -18,7 +19,6 @@ cfg_if! {
         use crate::base::SchedCall;
         use crate::time::TimeResched;
         use crate::context::{ChildContext, SchedContext};
-        use crate::ptr::{SShrPtr, UniqPtr};
         use std::cmp::{Ordering, PartialOrd};
         use xnor_llist::List as LList;
         use xnor_llist::Node as LNode;
