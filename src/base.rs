@@ -1,8 +1,7 @@
-use crate::binding::set::BindingSet;
 use crate::context::SchedContext;
 use crate::ptr::*;
 use crate::time::{TimeResched, TimeSched};
-use crate::trigger::{TrigCall, Trigger, TriggerId};
+use crate::trigger::{TrigCall, Trigger};
 
 pub enum Value {
     Byte(u8),
