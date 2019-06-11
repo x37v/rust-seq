@@ -27,6 +27,8 @@ where
         let mut children = Children::new(&mut self.children);
         self.exec.exec(context, &mut children)
     }
+
+    #[cfg(feature = "std")]
     fn child_append(&mut self, child: ANodeP) -> bool {
         if match self.exec.children_max() {
             ChildCount::None => false,
@@ -79,6 +81,7 @@ where
         self.exec.exec(context, &mut children)
     }
 
+    #[cfg(feature = "std")]
     fn child_append(&mut self, child: ANodeP) -> bool {
         //only allow 1 child max
         if match self.exec.children_max() {
