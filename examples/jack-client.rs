@@ -22,7 +22,9 @@ use sched::graph::midi::MidiNote;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
-use sched::graph::{ANodeP, ChildCount, ChildExec, ChildListT, GraphNode};
+use sched::graph::{
+    AIndexNodeP, ANodeP, ChildCount, ChildExec, ChildListT, GraphNode, IndexChildListT,
+};
 use sched::ptr::{SShrPtr, ShrPtr, UniqPtr};
 
 use sched::midi::{MidiTrigger, MidiValue};
@@ -45,6 +47,10 @@ pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
 
 struct VecChildList {
     children: Vec<ANodeP>,
+}
+
+struct VecIndexChildList {
+    children: Vec<AIndexNodeP>,
 }
 
 struct PageData {
@@ -95,6 +101,14 @@ impl VecChildList {
     }
 }
 
+impl VecIndexChildList {
+    pub fn new() -> Self {
+        Self {
+            children: Vec::new(),
+        }
+    }
+}
+
 impl ChildListT for VecChildList {
     fn count(&self) -> usize {
         self.children.len()
@@ -111,6 +125,16 @@ impl ChildListT for VecChildList {
     }
 
     fn push_back(&mut self, child: ANodeP) {
+        self.children.push(child);
+    }
+}
+
+impl IndexChildListT for VecIndexChildList {
+    fn each<'a>(&mut self, func: &'a dyn FnMut(AIndexNodeP)) {
+        //XXX TODO
+    }
+
+    fn push_back(&mut self, child: AIndexNodeP) {
         self.children.push(child);
     }
 }
@@ -163,7 +187,7 @@ fn main() {
     let _ppq = bpm::ClockPPQBinding(bpm_binding.clone()).into_shared();
     let micros: ShrPtr<dyn ParamBindingGet<f32>> =
         bpm::ClockPeriodMicroBinding(bpm_binding.clone()).into_shared();
-    let mut clock = RootClock::new(micros.clone()).into_unique();
+    let mut clock = RootClock::new(micros.clone(), VecChildList::new()).into_unique();
 
     let _pulses = SpinlockParamBinding::new(2).into_shared();
     let step_ticks = SpinlockParamBinding::new(960usize / 4usize).into_shared();
@@ -283,11 +307,13 @@ fn main() {
                 127u8,
             )
             .into_unique(),
+            VecChildList::new(),
         )
         .into_sshared();
 
         let gate = GraphNodeWrapper::new(
             Gate::new(step_gate.clone() as ShrPtr<dyn ParamBindingGet<bool>>).into_unique(),
+            VecChildList::new(),
         )
         .into_sshared();
         let step_seq = NChildGraphNodeWrapper::new(
@@ -296,6 +322,8 @@ fn main() {
                 steps.clone() as ShrPtr<dyn ParamBindingGet<usize>>,
             )
             .into_unique(),
+            VecChildList::new(),
+            VecIndexChildList::new(),
         )
         .into_sshared();
 
@@ -314,20 +342,24 @@ fn main() {
             uniform,
         )
         .into_shared();
-        let prob = GraphNodeWrapper::new(Gate::new(cmp.clone()).into_unique()).into_sshared();
+        let prob = GraphNodeWrapper::new(Gate::new(cmp.clone()).into_unique(), VecChildList::new())
+            .into_sshared();
         prob.lock().child_append(trig.clone());
 
         let triggeredc = triggered.clone();
-        let trig_report = GraphNodeWrapper::new(FuncWrapper::new_boxed(
-            ChildCount::None,
-            move |context: &mut dyn SchedContext, _children: &mut dyn ChildExec| {
-                context.schedule_value(
-                    TimeSched::ContextRelative(0),
-                    &BindingSet::Bool(true, triggeredc.clone()),
-                );
-                true
-            },
-        ))
+        let trig_report = GraphNodeWrapper::new(
+            FuncWrapper::new_boxed(
+                ChildCount::None,
+                move |context: &mut dyn SchedContext, _children: &mut dyn ChildExec| {
+                    context.schedule_value(
+                        TimeSched::ContextRelative(0),
+                        &BindingSet::Bool(true, triggeredc.clone()),
+                    );
+                    true
+                },
+            ),
+            VecChildList::new(),
+        )
         .into_sshared();
 
         prob.lock().child_append(trig_report.clone());
@@ -360,6 +392,7 @@ fn main() {
                 div as ShrPtr<dyn ParamBindingGet<u8>>,
             )
             .into_unique(),
+            VecChildList::new(),
         )
         .into_sshared();
         ratio.lock().child_append(step_seq.clone());
