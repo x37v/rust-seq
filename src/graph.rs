@@ -17,6 +17,7 @@ use crate::base::SchedCall;
 use crate::context::{ChildContext, SchedContext};
 use crate::time::TimeResched;
 
+pub mod gate;
 pub mod index_report;
 pub mod one_hot;
 pub mod step_seq;
@@ -30,7 +31,6 @@ pub mod index_latch;
 pub mod midi;
 pub mod root_clock;
 pub mod func;
-pub mod gate;
 pub mod node_wrapper;
     }
 }
