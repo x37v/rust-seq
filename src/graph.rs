@@ -29,9 +29,9 @@ pub mod euclidean_gate;
 
 cfg_if! {
     if #[cfg(feature = "std")] {
+pub mod func;
 pub mod index_latch;
 pub mod midi;
-pub mod func;
     }
 }
 
