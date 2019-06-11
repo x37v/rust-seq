@@ -28,6 +28,7 @@ where
         }
     }
 
+    #[cfg(feature = "std")]
     pub fn child_append(&mut self, child: ANodeP) {
         self.children.push_back(child);
     }
@@ -56,7 +57,7 @@ where
 
             //XXX what if next is less than 1?
             assert!(next >= 1f32, "tick less than sample size not supported");
-            TimeResched::ContextRelative(std::cmp::max(1, next.floor() as usize))
+            TimeResched::ContextRelative(core::cmp::max(1, next.floor() as usize))
         }
     }
 }
