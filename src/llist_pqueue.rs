@@ -1,4 +1,6 @@
 use crate::pqueue::PriorityQueue;
+cfg_if! {
+    if #[cfg(feature = "std")] {
 use xnor_llist::List as LList;
 use xnor_llist::Node as LNode;
 
@@ -31,4 +33,6 @@ impl<T> PriorityQueue<usize, T> for LListPQueue<T> {
     fn pop_lt(&mut self, index: usize) -> Option<(usize, T)> {
         None
     }
+}
+}
 }
