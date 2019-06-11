@@ -25,15 +25,12 @@ pub use crate::base::*;
 
 mod llist_pqueue;
 
+#[macro_use]
+extern crate sched_macros;
+
 cfg_if! {
     if #[cfg(feature = "std")] {
-
-        #[macro_use]
-        extern crate sched_macros;
-
-
         pub mod executor;
-
 
         //XXX move to its own crate?
         pub mod quneo_display;
