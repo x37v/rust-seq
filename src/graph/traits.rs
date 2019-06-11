@@ -47,16 +47,8 @@ pub trait IndexChildListT: Send {
     fn push_back(&mut self, child: AIndexNodeP);
 }
 
-cfg_if! {
-if #[cfg(feature = "std")] {
-
-    pub trait GraphNode {
-        fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
-        fn child_append(&mut self, child: ANodeP) -> bool;
-    }
-} else {
-    pub trait GraphNode {
-        fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
-    }
-}
+pub trait GraphNode {
+    fn exec(&mut self, context: &mut dyn SchedContext) -> bool;
+    #[cfg(feature = "std")]
+    fn child_append(&mut self, child: ANodeP) -> bool;
 }
