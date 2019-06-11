@@ -21,7 +21,7 @@ cfg_if! {
         pub type SShrPtr<T> = Arc<spinlock::Mutex<T>>;
     } else {
         /// A unique ptr
-        pub type UniqPtr<T> = &'static T;
+        pub type UniqPtr<T> = &'static mut T;
 
         /// A shared ptr
         pub type ShrPtr<T> = &'static T;
