@@ -22,7 +22,7 @@ use sched::graph::midi::MidiNote;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
-use sched::graph::{ChildCount, ChildExec, GraphNode};
+use sched::graph::{ANodeP, ChildCount, ChildExec, ChildListT, GraphNode};
 use sched::ptr::{SShrPtr, ShrPtr, UniqPtr};
 
 use sched::midi::{MidiTrigger, MidiValue};
@@ -42,6 +42,10 @@ use std::sync::Arc;
 
 pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
 pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
+
+struct VecChildList {
+    children: Vec<ANodeP>,
+}
 
 struct PageData {
     index: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
@@ -80,6 +84,34 @@ impl PageData {
             triggered,
             triggered_off: SpinlockParamBinding::new(false).into_shared(),
         }
+    }
+}
+
+impl VecChildList {
+    pub fn new() -> Self {
+        Self {
+            children: Vec::new(),
+        }
+    }
+}
+
+impl ChildListT for VecChildList {
+    fn count(&self) -> usize {
+        self.children.len()
+    }
+
+    /// execute `func` on children in the range given,
+    /// if func returns true, return them to the list
+    fn in_range<'a>(
+        &mut self,
+        range: core::ops::Range<usize>,
+        func: &'a dyn FnMut(ANodeP) -> bool,
+    ) {
+        //TODO
+    }
+
+    fn push_back(&mut self, child: ANodeP) {
+        self.children.push(child);
     }
 }
 
@@ -269,14 +301,10 @@ fn main() {
 
         let index_binding = ObservableBinding::new(AtomicUsize::new(0)).into_shared();
         let index_latch = IndexLatch::new(latches).into_sshared();
-        step_seq
-            .lock()
-            .index_child_append(LNode::new_boxed(index_latch));
+        step_seq.lock().index_child_append(index_latch.clone());
 
         let index_report = IndexReporter::new(index_binding.clone()).into_sshared();
-        step_seq
-            .lock()
-            .index_child_append(LNode::new_boxed(index_report));
+        step_seq.lock().index_child_append(index_report.clone());
 
         let uniform: ShrPtr<dyn ParamBindingGet<f32>> =
             GetUniformRand::new(0f32, 1f32).into_shared();
@@ -287,7 +315,7 @@ fn main() {
         )
         .into_shared();
         let prob = GraphNodeWrapper::new(Gate::new(cmp.clone()).into_unique()).into_sshared();
-        prob.lock().child_append(LNode::new_boxed(trig));
+        prob.lock().child_append(trig.clone());
 
         let triggeredc = triggered.clone();
         let trig_report = GraphNodeWrapper::new(FuncWrapper::new_boxed(
@@ -302,9 +330,9 @@ fn main() {
         ))
         .into_sshared();
 
-        prob.lock().child_append(LNode::new_boxed(trig_report));
-        gate.lock().child_append(LNode::new_boxed(prob));
-        step_seq.lock().child_append(LNode::new_boxed(gate));
+        prob.lock().child_append(trig_report.clone());
+        gate.lock().child_append(prob.clone());
+        step_seq.lock().child_append(gate.clone());
 
         let mul = SpinlockParamBinding::new(1).into_shared();
         let div = SpinlockParamBinding::new(1).into_shared();
@@ -334,8 +362,8 @@ fn main() {
             .into_unique(),
         )
         .into_sshared();
-        ratio.lock().child_append(LNode::new_boxed(step_seq));
-        clock.child_append(LNode::new_boxed(ratio));
+        ratio.lock().child_append(step_seq.clone());
+        clock.child_append(ratio.clone());
     }
 
     sched.schedule(TimeSched::Relative(0), clock);
@@ -454,7 +482,7 @@ fn main() {
     };
 
     let mut ex = sched.executor().unwrap();
-    ex.add_trigger(LNode::new_boxed(midi_trig.clone()));
+    ex.add_trigger(midi_trig.clone());
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         //read in midi
         for m in midi_in.iter(ps) {
