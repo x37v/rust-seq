@@ -12,7 +12,7 @@ pub trait Trigger {
     fn trigger_eval(&self, tick: usize, context: &mut dyn ScheduleTrigger);
 }
 
-pub trait TrigCall {
+pub trait TrigCall: Send {
     fn set_index(&mut self, index: Option<TriggerId>);
     fn index(&self) -> Option<TriggerId>;
     fn add_value(&mut self, binding: BindingSet);
