@@ -23,14 +23,13 @@ pub mod trigger;
 pub mod util;
 pub use crate::base::*;
 
-mod llist_pqueue;
-
 #[macro_use]
 extern crate sched_macros;
 
 cfg_if! {
     if #[cfg(feature = "std")] {
         pub mod executor;
+        pub mod llist_pqueue;
 
         //XXX move to its own crate?
         pub mod quneo_display;
