@@ -19,7 +19,9 @@ use crate::time::TimeResched;
 
 pub mod gate;
 pub mod index_report;
+pub mod node_wrapper;
 pub mod one_hot;
+pub mod root_clock;
 pub mod step_seq;
 
 #[cfg(feature = "euclidean")]
@@ -29,9 +31,7 @@ cfg_if! {
     if #[cfg(feature = "std")] {
 pub mod index_latch;
 pub mod midi;
-pub mod root_clock;
 pub mod func;
-pub mod node_wrapper;
     }
 }
 
