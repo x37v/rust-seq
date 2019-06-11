@@ -34,7 +34,7 @@ pub trait ChildListT: Send {
     fn count(&self) -> usize;
     /// execute `func` on children in the range given,
     /// if func returns true, return them to the list
-    fn in_range<'a>(&mut self, range: std::ops::Range<usize>, func: &'a dyn FnMut(ANodeP) -> bool);
+    fn in_range<'a>(&mut self, range: core::ops::Range<usize>, func: &'a dyn FnMut(ANodeP) -> bool);
 
     #[cfg(feature = "std")]
     fn push_back(&mut self, child: ANodeP);
