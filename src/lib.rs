@@ -6,7 +6,7 @@
 #[macro_use]
 extern crate cfg_if;
 
-//this aren't actually usable outside of std
+//these aren't actually usable outside of std
 #[macro_use]
 pub mod macros;
 
