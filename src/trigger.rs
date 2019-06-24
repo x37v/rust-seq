@@ -1,3 +1,4 @@
+use crate::base::TrigPtr;
 use crate::binding::set::BindingSet;
 use crate::binding::ParamBindingLatch;
 use crate::list::LinkedList;
@@ -24,6 +25,16 @@ pub trait ScheduleTrigger {
     fn schedule_valued_trigger(&mut self, time: TimeSched, index: TriggerId, values: &[BindingSet]);
     fn schedule_value(&mut self, time: TimeSched, value: &BindingSet);
     fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched;
+}
+
+//add a new trigger to the set
+pub trait TriggerSetAdd {
+    fn add_trigger(&mut self, trigger: TrigPtr);
+}
+
+//eval the trigger that matches
+pub trait TriggerSetEval {
+    fn trigger_eval(&self, index: TriggerId, tick: usize, context: &mut dyn ScheduleTrigger);
 }
 
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
