@@ -48,12 +48,24 @@ impl TimeSched {
             }
         }
     }
-    pub fn to_absolute(&self, now: usize, ratio: (usize, usize)) -> usize {
-        //TODO context math
+
+    /// now: absolute ticks
+    /// context_offset: the number of absolute ticks from 'now' aligns with context 0
+    /// ratio: (context ticks, absolute ticks)
+    pub fn to_absolute(&self, now: usize, context_offset: isize, ratio: (usize, usize)) -> usize {
+        let div = if ratio.1 == 0 { 1 } else { ratio.1 };
+        //TODO TEST!!!
         match *self {
-            TimeSched::Absolute(tick) | TimeSched::ContextAbsolute(tick) => tick,
-            TimeSched::Relative(offset) | TimeSched::ContextRelative(offset) => {
-                offset_tick(now, offset)
+            TimeSched::Absolute(tick) => tick,
+            TimeSched::Relative(offset) => offset_tick(now, offset),
+            TimeSched::ContextAbsolute(tick) => offset_tick(
+                now.saturating_add(tick.saturating_mul(ratio.0) / div),
+                context_offset,
+            ),
+            TimeSched::ContextRelative(offset) => {
+                //convert relative to absolute
+                let offset = offset.saturating_mul(ratio.0 as isize) / (div as isize);
+                offset_tick(now, offset.saturating_add(context_offset))
             }
         }
     }
