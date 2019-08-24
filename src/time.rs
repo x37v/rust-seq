@@ -18,6 +18,10 @@ pub trait TimeContext {
     /// Absolute
     fn now(&self) -> usize;
     fn ticks_per_second(&self) -> usize;
+    /// Which absolute tick does context 0 happen
+    fn context_offset(&self) -> usize {
+        0usize
+    }
     /// context ticks, base ticks
     fn context_tick_ratio(&self) -> (usize, usize) {
         (1usize, 1usize)
@@ -50,22 +54,21 @@ impl TimeSched {
     }
 
     /// now: absolute ticks
-    /// context_offset: the number of absolute ticks from 'now' aligns with context 0
+    /// context_offset: the absolute tick that context: 0 starts
     /// ratio: (context ticks, absolute ticks)
-    pub fn to_absolute(&self, now: usize, context_offset: isize, ratio: (usize, usize)) -> usize {
+    pub fn to_absolute(&self, now: usize, context_offset: usize, ratio: (usize, usize)) -> usize {
         let div = if ratio.1 == 0 { 1 } else { ratio.1 };
         //TODO TEST!!!
         match *self {
             TimeSched::Absolute(tick) => tick,
             TimeSched::Relative(offset) => offset_tick(now, offset),
-            TimeSched::ContextAbsolute(tick) => offset_tick(
-                now.saturating_add(tick.saturating_mul(ratio.0) / div),
-                context_offset,
-            ),
+            TimeSched::ContextAbsolute(tick) => now
+                .saturating_add(tick.saturating_mul(ratio.0) / div)
+                .saturating_add(context_offset),
             TimeSched::ContextRelative(offset) => {
                 //convert relative to absolute
                 let offset = offset.saturating_mul(ratio.0 as isize) / (div as isize);
-                offset_tick(now, offset.saturating_add(context_offset))
+                offset_tick(now, offset).saturating_add(context_offset)
             }
         }
     }
