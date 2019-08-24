@@ -25,9 +25,9 @@ cfg-if = "0.1.6"
 jack = { git = "https://github.com/RustAudio/rust-jack.git" }
 rosc = "~0.1"
 
-[[example]]
-name = "jack-client"
-required-features = ["std", "euclidean"]
+#[[example]]
+#name = "jack-client"
+#required-features = ["std", "euclidean"]
 
 [[example]]
 name = "no_std"

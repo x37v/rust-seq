@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
-use sched::time::*;
+extern crate libc;
+extern crate sched;
 
-/*
 use sched::context::SchedContext;
 use sched::graph::GraphExec;
 use sched::graph::{ChildCount, ChildExec};
@@ -19,7 +19,6 @@ impl GraphExec for S {
         ChildCount::Inf
     }
 }
-*/
 
 #[no_mangle]
 pub extern "C" fn main(_argc: isize, _argv: *const *const u8) -> isize {
