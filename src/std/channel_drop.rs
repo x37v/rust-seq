@@ -214,21 +214,36 @@ mod tests {
         assert!(r.try_recv().is_err());
 
         //explicit drop
+        assert_eq!(2usize, *x);
         std::mem::drop(x);
         assert!(r.try_recv().is_ok());
         assert!(r.try_recv().is_err());
 
         //block drop
         {
-            let _y = ChannelDropBox::new(234.9f32);
+            let mut y = ChannelDropBox::new(234.9f32);
             assert!(r.try_recv().is_err());
+            assert_eq!(234.9f32, *y);
+            *y = 345.0f32;
+            assert_eq!(345.0f32, *y);
         }
         assert!(r.try_recv().is_ok());
         assert!(r.try_recv().is_err());
 
         //threaded drop
         let child = thread::spawn(move || {
-            let _z = ChannelDropBox::new("foo");
+            let z = ChannelDropBox::new("foo");
+            assert_eq!("foo", *z);
+        });
+        assert!(child.join().is_ok());
+        assert!(r.try_recv().is_ok());
+        assert!(r.try_recv().is_err());
+
+        //threaded drop
+        let z = ChannelDropBox::new("foo");
+        let child = thread::spawn(move || {
+            assert_eq!("foo", *z);
+            std::mem::drop(z);
         });
         assert!(child.join().is_ok());
         assert!(r.try_recv().is_ok());
@@ -250,7 +265,8 @@ mod tests {
 
         //block drop
         {
-            let _y = ChannelDropArc::new(234.9f32);
+            let y = ChannelDropArc::new(234.9f32);
+            assert_eq!(234.9f32, *y);
             assert!(r.try_recv().is_err());
         }
         assert!(r.try_recv().is_ok());
@@ -259,6 +275,15 @@ mod tests {
         //threaded drop
         let child = thread::spawn(move || {
             let _z = ChannelDropArc::new("foo");
+        });
+        assert!(child.join().is_ok());
+        assert!(r.try_recv().is_ok());
+        assert!(r.try_recv().is_err());
+
+        let z = ChannelDropArc::new("foo");
+        let child = thread::spawn(move || {
+            let p = z.clone();
+            assert_eq!("foo", *p);
         });
         assert!(child.join().is_ok());
         assert!(r.try_recv().is_ok());
@@ -277,9 +302,11 @@ mod tests {
 
         //block drop
         {
-            let y = ChannelDropArc::new(234.9f32);
+            let y = ChannelDropArc::new(42);
             let z = y.clone();
-            let _p = z.clone();
+            let p = z.clone();
+            assert_eq!(42, *p);
+            assert_eq!(42, *z);
             assert!(r.try_recv().is_err());
         }
         assert!(r.try_recv().is_ok());
@@ -289,9 +316,25 @@ mod tests {
         let child = thread::spawn(move || {
             let y = ChannelDropArc::new("foo");
             let z = y.clone();
-            let _p = z.clone();
+            let p = z.clone();
+            assert_eq!("foo", *p);
         });
         assert!(child.join().is_ok());
+        assert!(r.try_recv().is_ok());
+        assert!(r.try_recv().is_err());
+
+        //threaded drop
+        {
+            let y = ChannelDropArc::new("foo");
+            let z = y.clone();
+            let child = thread::spawn(move || {
+                let p = z.clone();
+                assert_eq!("foo", *p);
+            });
+            assert!(child.join().is_ok());
+            assert!(r.try_recv().is_err());
+            assert_eq!("foo", *y);
+        }
         assert!(r.try_recv().is_ok());
         assert!(r.try_recv().is_err());
     }
