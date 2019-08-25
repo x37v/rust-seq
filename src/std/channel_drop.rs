@@ -18,6 +18,8 @@ lazy_static::lazy_static! {
 ///
 /// Will return an `TrySendError::Disconnected` if it gets disconnected
 /// `Ok(())` otherwise.
+///
+/// TODO: could use a struct to hold this and when it drops, return the Receiver.
 pub fn get_consume() -> Option<Box<impl Fn() -> Result<(), TryRecvError>>> {
     let r = DROP_CHANNEL.1.lock().take();
     if let Some(rec) = r {
