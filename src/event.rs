@@ -6,11 +6,11 @@ use crate::time::*;
 
 /// trait for evaluating SinkEvents
 pub trait SinkEventEval<T> {
-    fn sink_eval(&self, context: &mut dyn ScheduleSinkContext<T>);
+    fn sink_eval(&mut self, context: &mut dyn ScheduleSinkContext<T>);
 }
 
 /// Interface to schedule SinkEvents
-/// most likely: T: DerefMut<SinkEventEval>
+/// most likely: T: DerefMut<dyn SinkEventEval>
 pub trait ScheduleSinkEvent<T> {
     fn schedule_event(&mut self, time: TimeSched, event: T) -> Result<(), core::fmt::Error>;
 }
