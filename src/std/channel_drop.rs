@@ -40,7 +40,7 @@ pub fn get_consume() -> Option<Box<impl Fn() -> Result<(), TryRecvError>>> {
 
 /// A wrapper for a Boxed item that when dropped, will push its boxed item to a channel so that it
 /// can be cleaned up in a cleanup thread.
-struct ChannelDrop<T>(Option<Box<T>>)
+pub struct ChannelDrop<T>(Option<Box<T>>)
 where
     T: 'static + Send;
 
