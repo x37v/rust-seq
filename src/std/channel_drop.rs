@@ -1,4 +1,5 @@
 use ::spinlock::Mutex;
+use std::convert::From;
 use std::ops::{Deref, DerefMut};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
 use std::sync::Arc;
@@ -74,6 +75,15 @@ where
 {
     pub fn new(item: T) -> Self {
         Self(Some(Box::new(item)))
+    }
+}
+
+impl<T> From<Box<T>> for ChannelDropBox<T>
+where
+    T: 'static + Send,
+{
+    fn from(item: Box<T>) -> Self {
+        Self(Some(item))
     }
 }
 
@@ -248,6 +258,14 @@ mod tests {
         assert!(child.join().is_ok());
         assert!(r.try_recv().is_ok());
         assert!(r.try_recv().is_err());
+
+        let b = Box::new(2usize);
+        {
+            let z: ChannelDropBox<usize> = b.into();
+            assert_eq!(2usize, *z);
+            assert!(r.try_recv().is_err());
+        }
+        assert!(r.try_recv().is_ok());
     }
 
     #[test]
