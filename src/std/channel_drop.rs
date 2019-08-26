@@ -147,6 +147,15 @@ where
     }
 }
 
+impl<T> From<Arc<T>> for ChannelDropArc<T>
+where
+    T: 'static + Send,
+{
+    fn from(item: Arc<T>) -> Self {
+        Self(Some(item))
+    }
+}
+
 impl<T> Default for ChannelDropArc<T>
 where
     T: 'static + Send + Default,
@@ -352,6 +361,16 @@ mod tests {
             assert!(child.join().is_ok());
             assert!(r.try_recv().is_err());
             assert_eq!("foo", *y);
+        }
+        assert!(r.try_recv().is_ok());
+        assert!(r.try_recv().is_err());
+
+        //into/from
+        let x = Arc::new(99usize);
+        {
+            let z: ChannelDropArc<usize> = x.into();
+            assert_eq!(99usize, *z);
+            assert!(r.try_recv().is_err());
         }
         assert!(r.try_recv().is_ok());
         assert!(r.try_recv().is_err());
