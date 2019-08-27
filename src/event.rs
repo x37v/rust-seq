@@ -1,21 +1,33 @@
 use crate::time::*;
+use core::ops::DerefMut;
 
 /// Sink events are events that happen on the output.
 /// They potentially generate other events, they also may hold other events and gate their actual
 /// output.
 
 /// trait for evaluating SinkEvents
-pub trait SinkEventEval<T> {
-    fn sink_eval(&mut self, context: &mut dyn ScheduleSinkContext<T>);
+pub trait SinkEventEval<Container>
+where
+    Container: DerefMut<Target = dyn SinkEventEval<Container>>,
+{
+    fn sink_eval(&mut self, context: &mut dyn ScheduleSinkContext<Container>);
 }
 
 /// Interface to schedule SinkEvents
 /// most likely: T: DerefMut<dyn SinkEventEval>
-pub trait ScheduleSinkEvent<T> {
-    fn schedule_event(&mut self, time: TimeSched, event: T) -> Result<(), core::fmt::Error>;
+pub trait ScheduleSinkEvent<Container>
+where
+    Container: DerefMut<Target = dyn SinkEventEval<Container>>,
+{
+    fn schedule_event(&mut self, time: TimeSched, event: Container)
+        -> Result<(), core::fmt::Error>;
 }
 
-pub trait ScheduleSinkContext<T>: ScheduleSinkEvent<T> + TimeContext {}
+pub trait ScheduleSinkContext<Container>: ScheduleSinkEvent<Container> + TimeContext
+where
+    Container: DerefMut<Target = dyn SinkEventEval<Container>>,
+{
+}
 
 /*
  *
