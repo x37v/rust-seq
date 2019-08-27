@@ -212,7 +212,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::mpsc::{Receiver, TryRecvError};
     use std::thread;
 
     #[test]
