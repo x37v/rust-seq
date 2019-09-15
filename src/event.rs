@@ -1,33 +1,33 @@
 use crate::time::*;
 use core::ops::DerefMut;
 
-/// Sink events are events that happen on the output.
-/// They potentially generate other events, they also may hold other events and gate their actual
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+        //XXX would like to use ChannelDropBox ...
+        type EventContainer = Box<dyn EventEval>;
+    } else {
+        type EventContainer = &'static mut dyn EventEval;
+    }
+}
+
+/// Events potentially generate other events, they also may hold other events and gate their actual
 /// output.
 
-/// trait for evaluating SinkEvents
-pub trait SinkEventEval<Container>
-where
-    Container: DerefMut<Target = dyn SinkEventEval<Container>>,
-{
-    fn sink_eval(&mut self, context: &mut dyn ScheduleSinkContext<Container>);
+/// trait for evaluating Events
+pub trait EventEval: Send {
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext);
 }
 
-/// Interface to schedule SinkEvents
-/// most likely: T: DerefMut<dyn SinkEventEval>
-pub trait ScheduleSinkEvent<Container>
-where
-    Container: DerefMut<Target = dyn SinkEventEval<Container>>,
-{
-    fn schedule_event(&mut self, time: TimeSched, event: Container)
-        -> Result<(), core::fmt::Error>;
+/// Interface to schedule Events
+pub trait EventSchedule {
+    fn event_schedule(
+        &mut self,
+        time: TimeSched,
+        event: EventContainer,
+    ) -> Result<(), core::fmt::Error>;
 }
 
-pub trait ScheduleSinkContext<Container>: ScheduleSinkEvent<Container> + TimeContext
-where
-    Container: DerefMut<Target = dyn SinkEventEval<Container>>,
-{
-}
+pub trait EventEvalContext: EventSchedule + TimeContext {}
 
 /*
  *
