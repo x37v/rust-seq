@@ -1,4 +1,4 @@
-use ::spinlock::Mutex;
+use spin::Mutex;
 use std::convert::From;
 use std::ops::{Deref, DerefMut};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
@@ -13,8 +13,8 @@ lazy_static::lazy_static! {
     };
 
     static ref DROP_ARC_CHANNEL: (
-        Mutex<SyncSender<Arc<dyn Send>>>,
-        Mutex<Option<Receiver<Arc<dyn Send>>>>) = {
+        Mutex<SyncSender<Arc<dyn Send + Sync>>>,
+        Mutex<Option<Receiver<Arc<dyn Send + Sync>>>>) = {
         let (s, r) = sync_channel(1024);
         (Mutex::new(s), Mutex::new(Some(r)))
     };
@@ -67,7 +67,7 @@ where
 
 pub struct ChannelDropArc<T>(Option<Arc<T>>)
 where
-    T: 'static + Send;
+    T: 'static + Send + Sync;
 
 impl<T> ChannelDropBox<T>
 where
@@ -140,7 +140,7 @@ where
 
 impl<T> ChannelDropArc<T>
 where
-    T: 'static + Send,
+    T: 'static + Send + Sync,
 {
     pub fn new(item: T) -> Self {
         Self(Some(Arc::new(item)))
@@ -149,7 +149,7 @@ where
 
 impl<T> From<Arc<T>> for ChannelDropArc<T>
 where
-    T: 'static + Send,
+    T: 'static + Send + Sync,
 {
     fn from(item: Arc<T>) -> Self {
         Self(Some(item))
@@ -158,7 +158,7 @@ where
 
 impl<T> Default for ChannelDropArc<T>
 where
-    T: 'static + Send + Default,
+    T: 'static + Send + Sync + Default,
 {
     fn default() -> Self {
         Self::new(Default::default())
@@ -167,7 +167,7 @@ where
 
 impl<T> Deref for ChannelDropArc<T>
 where
-    T: 'static + Send,
+    T: 'static + Send + Sync,
 {
     type Target = T;
 
@@ -178,7 +178,7 @@ where
 
 impl<T> Clone for ChannelDropArc<T>
 where
-    T: 'static + Send,
+    T: 'static + Send + Sync,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -187,7 +187,7 @@ where
 
 impl<T> Drop for ChannelDropArc<T>
 where
-    T: 'static + Send,
+    T: 'static + Send + Sync,
 {
     fn drop(&mut self) {
         let inner = self.0.take();

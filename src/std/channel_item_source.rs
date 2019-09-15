@@ -1,18 +1,27 @@
 use crate::item_source::ItemSource;
-use ::spinlock::Mutex;
+use spin::Mutex;
 use std::mem::MaybeUninit;
 use std::ops::DerefMut;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 
-pub struct ChannelItemSource<T> {
+pub struct ChannelItemSource<T>
+where
+    T: Send,
+{
     recv: Mutex<Receiver<Box<MaybeUninit<T>>>>,
 }
 
-pub struct ChannelItemCreator<T> {
+pub struct ChannelItemCreator<T>
+where
+    T: Send,
+{
     send: SyncSender<Box<MaybeUninit<T>>>,
 }
 
-impl<T> ChannelItemSource<T> {
+impl<T> ChannelItemSource<T>
+where
+    T: Send,
+{
     fn new(r: Receiver<Box<MaybeUninit<T>>>) -> Self {
         Self {
             recv: Mutex::new(r),
@@ -20,7 +29,10 @@ impl<T> ChannelItemSource<T> {
     }
 }
 
-impl<T> ItemSource<T, Box<T>> for ChannelItemSource<T> {
+impl<T> ItemSource<T, Box<T>> for ChannelItemSource<T>
+where
+    T: Send,
+{
     /// Try to get an item and set it to `init`
     /// Passes back a `Err(init)` on failure.
     fn try_get(&mut self, init: T) -> Result<Box<T>, T> {
@@ -35,7 +47,10 @@ impl<T> ItemSource<T, Box<T>> for ChannelItemSource<T> {
     }
 }
 
-impl<T> ChannelItemCreator<T> {
+impl<T> ChannelItemCreator<T>
+where
+    T: Send,
+{
     fn new(send: SyncSender<Box<MaybeUninit<T>>>) -> Self {
         Self { send }
     }
@@ -51,7 +66,10 @@ impl<T> ChannelItemCreator<T> {
     }
 }
 
-pub fn item_source<T>(n: usize) -> (ChannelItemCreator<T>, ChannelItemSource<T>) {
+pub fn item_source<T>(n: usize) -> (ChannelItemCreator<T>, ChannelItemSource<T>)
+where
+    T: Send,
+{
     let (s, r) = sync_channel(n);
     let mut c = ChannelItemCreator::new(s);
     c.fill().expect("failed to fill");
