@@ -4,9 +4,9 @@ use core::ops::DerefMut;
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         //XXX would like to use ChannelDropBox ...
-        type EventContainer = Box<dyn EventEval>;
+        pub type EventContainer = Box<dyn EventEval>;
     } else {
-        type EventContainer = &'static mut dyn EventEval;
+        pub type EventContainer = &'static mut dyn EventEval;
     }
 }
 
