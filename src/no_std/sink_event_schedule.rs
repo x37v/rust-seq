@@ -5,31 +5,22 @@ use crate::time::*;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
-pub struct SinkEventSchedule<T>
-where
-    T: DerefMut<Target = dyn SinkEventEval<T>>,
-{
+pub struct Schedule {
     now: usize,
-    phantom: PhantomData<T>,
 }
 
-impl<T> SinkEventSchedule<T>
-where
-    T: DerefMut<Target = dyn SinkEventEval<T>>,
-{
+impl Schedule {
     pub fn new() -> Self {
-        Self {
-            now: 0,
-            phantom: PhantomData,
-        }
+        Self { now: 0 }
     }
 }
 
-impl<T> ScheduleSinkEvent<T> for SinkEventSchedule<T>
-where
-    T: DerefMut<Target = dyn SinkEventEval<T>>,
-{
-    fn schedule_event(&mut self, time: TimeSched, event: T) -> Result<(), core::fmt::Error> {
+impl EventSchedule for Schedule {
+    fn event_schedule(
+        &mut self,
+        time: TimeSched,
+        event: EventContainer,
+    ) -> Result<(), core::fmt::Error> {
         Ok(())
     }
 }
