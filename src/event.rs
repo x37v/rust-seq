@@ -19,7 +19,7 @@ pub trait EventSchedule {
         &mut self,
         time: TimeSched,
         event: EventContainer,
-    ) -> Result<(), core::fmt::Error>;
+    ) -> Result<(), EventContainer>;
 }
 
 pub trait EventEvalContext: EventSchedule + TimeContext {}
