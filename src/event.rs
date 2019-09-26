@@ -1,21 +1,16 @@
 use crate::time::*;
-use core::ops::DerefMut;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        //XXX would like to use ChannelDropBox ...
-        pub type EventContainer = Box<dyn EventEval>;
-    } else {
-        pub type EventContainer = &'static mut dyn EventEval;
-    }
-}
+extern crate alloc;
+use alloc::boxed::Box;
+pub type EventContainer = Box<dyn EventEval>;
 
 /// Events potentially generate other events, they also may hold other events and gate their actual
 /// output.
 
 /// trait for evaluating Events
-pub trait EventEval: Send {
+pub trait EventEval: Send + core::any::Any {
     fn event_eval(&mut self, context: &mut dyn EventEvalContext);
+    fn into_any(self: Box<Self>) -> Box<dyn core::any::Any>;
 }
 
 /// Interface to schedule Events
@@ -45,3 +40,17 @@ pub trait EventEvalContext: EventSchedule + TimeContext {}
  *
  *
  */
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Test;
+    impl EventEval for Test {
+        fn event_eval(&mut self, context: &mut dyn EventEvalContext) {}
+        fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
+            self
+        }
+    }
+
+}
