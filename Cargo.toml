@@ -5,8 +5,7 @@ authors = ["Alex Norman <alex@x37v.info>"]
 edition = "2018"
 
 [features]
-std = [ "xnor_llist", "failure", "alloc"]
-alloc = []
+std = [ "xnor_llist", "failure"]
 euclidean = ["euclidian-rythms"]
 default = ["std", "euclidean"]
 
