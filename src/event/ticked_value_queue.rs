@@ -1,3 +1,4 @@
+extern crate alloc;
 use crate::event::{EventEval, EventEvalContext};
 
 pub trait TickPriorityQueue<T>: Send
@@ -5,6 +6,16 @@ where
     T: Send,
 {
     fn queue(&mut self, tick: usize, value: T) -> Result<(), T>;
+}
+
+//XXX is there a better way to setup Q below so that this doesn't need to be implemented?
+impl<T> TickPriorityQueue<T> for alloc::sync::Arc<spin::Mutex<dyn TickPriorityQueue<T>>>
+where
+    T: Send,
+{
+    fn queue(&mut self, tick: usize, value: T) -> Result<(), T> {
+        self.lock().queue(tick, value)
+    }
 }
 
 /// An event that pushes a value into a queue with tick = context.time_now()
@@ -45,5 +56,32 @@ where
 
     fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use spin::Mutex;
+    use std::sync::Arc;
+
+    struct TestQueue;
+
+    impl<T> TickPriorityQueue<T> for TestQueue
+    where
+        T: Send,
+    {
+        fn queue(&mut self, _tick: usize, _value: T) -> Result<(), T> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    pub fn can_build() {
+        type Queue = Arc<Mutex<dyn TickPriorityQueue<usize>>>;
+        let q: Queue = Arc::new(Mutex::new(TestQueue));
+        let e = Box::new(TickedValueQueueEvent::new(1usize, q));
+        let a = e.into_any();
+        assert!(a.is::<TickedValueQueueEvent<usize, Queue>>());
     }
 }
