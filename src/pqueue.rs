@@ -6,6 +6,12 @@ pub struct TickItem<T> {
     item: T,
 }
 
+impl<T> TickItem<T> {
+    pub fn tick(&self) -> usize {
+        self.tick
+    }
+}
+
 pub trait TickPriorityEnqueue<T>: Send {
     fn enqueue(&mut self, tick: usize, value: T) -> Result<(), T>;
 }
