@@ -66,32 +66,39 @@ impl<T> core::convert::Into<(usize, T)> for TickItem<T> {
     }
 }
 
-//impl Ord so we can use this in a pqueue
-impl<T> Ord for TickItem<Box<T>> {
+impl<T> Ord for TickItem<T>
+where
+    T: Ord,
+{
     fn cmp(&self, other: &Self) -> Ordering {
         match self.tick.cmp(&other.tick) {
             Ordering::Less => Ordering::Less,
             Ordering::Greater => Ordering::Greater,
-            Ordering::Equal => {
-                //if ticks are equal, sort by pointer
-                let left: *const T = self.item.as_ref();
-                let right: *const T = other.item.as_ref();
-                left.cmp(&right)
-            }
+            Ordering::Equal => self.item.cmp(&other.item),
         }
     }
 }
 
-impl<T> PartialOrd for TickItem<Box<T>> {
+impl<T> PartialOrd for TickItem<T>
+where
+    T: Ord,
+{
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T> PartialEq for TickItem<Box<T>> {
-    fn eq(&self, _other: &Self) -> bool {
-        false
+impl<T> PartialEq for TickItem<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        if self.tick.eq(&other.tick) {
+            self.item.eq(&other.item)
+        } else {
+            false
+        }
     }
 }
 
-impl<T> Eq for TickItem<Box<T>> {}
+impl<T> Eq for TickItem<T> where T: Eq {}
