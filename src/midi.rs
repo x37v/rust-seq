@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum MidiValue {
     NoteOn { chan: u8, num: u8, vel: u8 },
     NoteOff { chan: u8, num: u8, vel: u8 },
