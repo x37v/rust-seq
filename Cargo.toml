@@ -26,8 +26,8 @@ jack = { git = "https://github.com/RustAudio/rust-jack.git" }
 rosc = "~0.1"
 heapless = "0.5.0"
 
-#[[example]]
-#name = "jack-client"
+[[example]]
+name = "jack-client"
 #required-features = ["std", "euclidean"]
 
 [[example]]
