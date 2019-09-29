@@ -130,6 +130,7 @@ fn main() {
         //read in midi
         for m in midi_in.iter(ps) {}
 
+        let now = ex.tick_next();
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
 
         let mut out_p = midi_out.writer(ps);
@@ -153,10 +154,13 @@ fn main() {
             };
         };
 
-        let block_tick = ex.tick_next();
-        while let Some((t, midi)) = MIDI_QUEUE.lock().dequeue_lt(block_tick) {
-            let time = (block_tick - t) as u32 % ps.n_frames();
-            write_midi_value(time, &midi);
+        {
+            let mut q = MIDI_QUEUE.lock();
+            let next = ex.tick_next();
+            while let Some((t, midi)) = q.dequeue_lt(next) {
+                let time = (if t < now { now } else { t } - now) as u32;
+                write_midi_value(time, &midi);
+            }
         }
 
         jack::Control::Continue
