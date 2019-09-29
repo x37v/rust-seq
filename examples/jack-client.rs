@@ -30,17 +30,42 @@ impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
 }
 impl TickPriorityDequeue<EventContainer> for ScheduleQueue {
     fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, EventContainer)> {
-        None
+        if let Some(h) = self.0.peek() {
+            if h.tick() < tick {
+                //unchecked because we've already peeked
+                Some(unsafe { self.0.pop_unchecked().into() })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 impl TickPriorityEnqueue<MidiValue> for MidiQueue {
-    fn enqueue(&mut self, _tick: usize, _value: MidiValue) -> Result<(), MidiValue> {
-        Ok(())
+    fn enqueue(&mut self, tick: usize, value: MidiValue) -> Result<(), MidiValue> {
+        let item: TickItem<MidiValue> = (tick, value).into();
+        match self.0.push(item) {
+            Ok(()) => Ok(()),
+            Err(item) => {
+                let (_, item) = item.into();
+                Err(item)
+            }
+        }
     }
 }
 impl TickPriorityDequeue<MidiValue> for MidiQueue {
     fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, MidiValue)> {
-        None
+        if let Some(h) = self.0.peek() {
+            if h.tick() < tick {
+                //unchecked because we've already peeked
+                Some(unsafe { self.0.pop_unchecked().into() })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -91,17 +116,48 @@ fn main() {
         &MIDI_QUEUE as &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>,
     )));
 
+    let off = 44100usize * 10usize;
     assert!(SCHEDULE_QUEUE
         .lock()
-        .enqueue(44100usize * 2usize, note_off)
+        .enqueue(off + 44100usize * 2usize, note_off)
         .is_ok());
-    assert!(SCHEDULE_QUEUE.lock().enqueue(44100usize, note_on).is_ok());
+    assert!(SCHEDULE_QUEUE
+        .lock()
+        .enqueue(off + 44100usize, note_on)
+        .is_ok());
 
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         //read in midi
         for m in midi_in.iter(ps) {}
 
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
+
+        let mut out_p = midi_out.writer(ps);
+        let mut write_midi = |time: u32, bytes: &[u8]| {
+            let _ = out_p.write(&jack::RawMidi { time, bytes });
+        };
+        let mut write_midi_value = |time: u32, value: &MidiValue| {
+            let mut iter = value.iter();
+            match iter.len() {
+                3 => write_midi(
+                    time,
+                    &[
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                    ],
+                ),
+                2 => write_midi(time, &[iter.next().unwrap(), iter.next().unwrap()]),
+                1 => write_midi(time, &[iter.next().unwrap()]),
+                _ => (),
+            };
+        };
+
+        let block_tick = ex.tick_next();
+        while let Some((t, midi)) = MIDI_QUEUE.lock().dequeue_lt(block_tick) {
+            let time = (block_tick - t) as u32 % ps.n_frames();
+            write_midi_value(time, &midi);
+        }
 
         jack::Control::Continue
     };
