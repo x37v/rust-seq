@@ -1,10 +1,11 @@
 use crate::time::*;
+use core::cmp::Ordering;
 
 pub mod ticked_value_queue;
 
 extern crate alloc;
 use alloc::boxed::Box;
-pub type EventContainer = Box<dyn EventEvalAny>;
+pub struct EventContainer(Box<dyn EventEvalAny>);
 
 /// Events potentially generate other events, they also may hold other events and gate their actual
 /// output.
@@ -40,6 +41,40 @@ pub trait EventSchedule {
 pub trait EventEvalContext: EventSchedule + TimeContext {}
 
 impl<T> EventEvalContext for T where T: EventSchedule + TimeContext {}
+
+impl EventContainer {
+    pub fn new(item: Box<dyn EventEvalAny>) -> Self {
+        Self(item)
+    }
+}
+
+impl EventEval for EventContainer {
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched {
+        self.0.event_eval(context)
+    }
+}
+
+impl Ord for EventContainer {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let left: *const _ = self.0.as_ref();
+        let right: *const _ = other.0.as_ref();
+        left.cmp(&right)
+    }
+}
+
+impl PartialOrd for EventContainer {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for EventContainer {
+    fn eq(&self, _other: &Self) -> bool {
+        false //box, never equal
+    }
+}
+
+impl Eq for EventContainer {}
 
 /*
  *
