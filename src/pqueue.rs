@@ -24,7 +24,25 @@ where
     }
 }
 
+impl<T> TickPriorityEnqueue<T> for &'static spin::Mutex<dyn TickPriorityEnqueue<T>>
+where
+    T: Send,
+{
+    fn enqueue(&mut self, tick: usize, value: T) -> Result<(), T> {
+        self.lock().enqueue(tick, value)
+    }
+}
+
 impl<T> TickPriorityDequeue<T> for alloc::sync::Arc<spin::Mutex<dyn TickPriorityDequeue<T>>>
+where
+    T: Send,
+{
+    fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, T)> {
+        self.lock().dequeue_lt(tick)
+    }
+}
+
+impl<T> TickPriorityDequeue<T> for &'static spin::Mutex<dyn TickPriorityDequeue<T>>
 where
     T: Send,
 {
