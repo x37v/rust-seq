@@ -4,6 +4,7 @@ pub mod event;
 pub mod item_sink;
 pub mod item_source;
 pub mod midi;
+pub mod pqueue;
 pub mod schedule;
 pub mod time;
 

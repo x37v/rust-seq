@@ -1,22 +1,5 @@
-extern crate alloc;
 use crate::event::{EventEval, EventEvalContext};
-
-pub trait TickPriorityQueue<T>: Send
-where
-    T: Send,
-{
-    fn queue(&mut self, tick: usize, value: T) -> Result<(), T>;
-}
-
-//XXX is there a better way to setup Q below so that this doesn't need to be implemented?
-impl<T> TickPriorityQueue<T> for alloc::sync::Arc<spin::Mutex<dyn TickPriorityQueue<T>>>
-where
-    T: Send,
-{
-    fn queue(&mut self, tick: usize, value: T) -> Result<(), T> {
-        self.lock().queue(tick, value)
-    }
-}
+use crate::pqueue::TickPriorityEnqueue;
 
 /// An event that pushes a value into a queue with tick = context.time_now()
 ///
@@ -25,7 +8,7 @@ where
 pub struct TickedValueQueueEvent<T, Q>
 where
     T: 'static + Send + Copy,
-    Q: 'static + TickPriorityQueue<T>,
+    Q: 'static + TickPriorityEnqueue<T>,
 {
     value: T,
     queue: Q,
@@ -34,7 +17,7 @@ where
 impl<T, Q> TickedValueQueueEvent<T, Q>
 where
     T: 'static + Send + Copy,
-    Q: 'static + TickPriorityQueue<T>,
+    Q: 'static + TickPriorityEnqueue<T>,
 {
     pub fn new(value: T, queue: Q) -> Self {
         Self { value, queue }
@@ -44,11 +27,11 @@ where
 impl<T, Q> EventEval for TickedValueQueueEvent<T, Q>
 where
     T: 'static + Send + Copy,
-    Q: 'static + TickPriorityQueue<T>,
+    Q: 'static + TickPriorityEnqueue<T>,
 {
     fn event_eval(&mut self, context: &mut dyn EventEvalContext) {
         let t = context.time_now();
-        let r = self.queue.queue(t, self.value);
+        let r = self.queue.enqueue(t, self.value);
         if r.is_err() {
             //XXX report
         }
@@ -67,18 +50,18 @@ mod tests {
 
     struct TestQueue;
 
-    impl<T> TickPriorityQueue<T> for TestQueue
+    impl<T> TickPriorityEnqueue<T> for TestQueue
     where
         T: Send,
     {
-        fn queue(&mut self, _tick: usize, _value: T) -> Result<(), T> {
+        fn enqueue(&mut self, _tick: usize, _value: T) -> Result<(), T> {
             Ok(())
         }
     }
 
     #[test]
     pub fn can_build() {
-        type Queue = Arc<Mutex<dyn TickPriorityQueue<usize>>>;
+        type Queue = Arc<Mutex<dyn TickPriorityEnqueue<usize>>>;
         let q: Queue = Arc::new(Mutex::new(TestQueue));
         let e = Box::new(TickedValueQueueEvent::new(1usize, q));
         let a = e.into_any();

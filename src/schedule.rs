@@ -1,16 +1,12 @@
-use crate::event::ticked_value_queue::TickPriorityQueue;
 use crate::event::{EventContainer, EventSchedule};
 use crate::item_sink::ItemSink;
+use crate::pqueue::{TickPriorityDequeue, TickPriorityEnqueue};
 use crate::time::*;
-
-pub trait SchedulePop<N, T> {
-    fn pop_lt(&mut self, index: N) -> Option<(N, T)>;
-}
 
 pub struct ScheduleExecutor<R, W, D>
 where
-    R: SchedulePop<usize, EventContainer>,
-    W: TickPriorityQueue<EventContainer>,
+    R: TickPriorityDequeue<EventContainer>,
+    W: TickPriorityEnqueue<EventContainer>,
     D: ItemSink<EventContainer>,
 {
     tick_next: usize,
@@ -22,13 +18,13 @@ where
 pub struct RootContext<'a> {
     tick: usize,
     ticks_per_second: usize,
-    schedule: &'a mut dyn TickPriorityQueue<EventContainer>,
+    schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
 }
 
 impl<R, W, D> ScheduleExecutor<R, W, D>
 where
-    R: SchedulePop<usize, EventContainer>,
-    W: TickPriorityQueue<EventContainer>,
+    R: TickPriorityDequeue<EventContainer>,
+    W: TickPriorityEnqueue<EventContainer>,
     D: ItemSink<EventContainer>,
 {
     pub fn new(dispose_sink: D, schedule_reader: R, schedule_writer: W) -> Self {
@@ -46,7 +42,7 @@ where
         let mut context = RootContext::new(now, ticks_per_second, &mut self.schedule_writer);
 
         //evaluate events before next
-        while let Some((t, mut event)) = self.schedule_reader.pop_lt(next) {
+        while let Some((t, mut event)) = self.schedule_reader.dequeue_lt(next) {
             //clamp below now, exal and dispose
             let tick = if t < now { now } else { t };
             context.update_tick(tick);
@@ -64,7 +60,7 @@ impl<'a> RootContext<'a> {
     pub fn new(
         tick: usize,
         ticks_per_second: usize,
-        schedule: &'a mut dyn TickPriorityQueue<EventContainer>,
+        schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
     ) -> Self {
         Self {
             tick,
@@ -89,7 +85,7 @@ impl<'a> EventSchedule for RootContext<'a> {
             TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
             TimeSched::Relative(o) | TimeSched::ContextRelative(o) => offset_tick(self.tick, o),
         };
-        self.schedule.queue(tick, event)
+        self.schedule.enqueue(tick, event)
     }
 }
 
