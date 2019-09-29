@@ -4,6 +4,7 @@ pub mod event;
 pub mod item_sink;
 pub mod item_source;
 pub mod midi;
+pub mod schedule;
 pub mod time;
 
 cfg_if::cfg_if! {
