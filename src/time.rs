@@ -28,7 +28,7 @@ pub trait TimeContext {
     }
 }
 
-fn offset_tick(tick: usize, offset: isize) -> usize {
+pub fn offset_tick(tick: usize, offset: isize) -> usize {
     if offset >= 0isize {
         tick.saturating_add(offset as usize)
     } else {
