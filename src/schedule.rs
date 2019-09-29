@@ -46,9 +46,28 @@ where
             //clamp below now, exal and dispose
             let tick = if t < now { now } else { t };
             context.update_tick(tick);
-            event.event_eval(&mut context);
-            if self.dispose_sink.try_put(event).is_err() {
-                //XXX report?
+
+            //eval and see about rescheduling
+            let r = match event.event_eval(&mut context) {
+                TimeResched::Relative(t) => Some(TimeSched::Relative(t as isize)),
+                TimeResched::ContextRelative(t) => Some(TimeSched::ContextRelative(t as isize)),
+                TimeResched::None => None,
+            };
+
+            //try to reschedule if we should, otherwise dispose
+            let e = if let Some(t) = r {
+                match context.event_schedule(t, event) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        //XXX report, error re-scheduling
+                        self.dispose_sink.try_put(e)
+                    }
+                }
+            } else {
+                self.dispose_sink.try_put(event)
+            };
+            if e.is_err() {
+                //XXX report, error disposing
             }
         }
 
