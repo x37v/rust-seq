@@ -4,15 +4,28 @@ pub mod ticked_value_queue;
 
 extern crate alloc;
 use alloc::boxed::Box;
-pub type EventContainer = Box<dyn EventEval>;
+pub type EventContainer = Box<dyn EventEvalAny>;
 
 /// Events potentially generate other events, they also may hold other events and gate their actual
 /// output.
 
 /// trait for evaluating Events
-pub trait EventEval: Send + core::any::Any {
+pub trait EventEval: Send {
     fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched;
+}
+
+/// helper trait that we use so we can downcast
+pub trait EventEvalAny: EventEval + core::any::Any {
     fn into_any(self: Box<Self>) -> Box<dyn core::any::Any>;
+}
+
+impl<T> EventEvalAny for T
+where
+    T: 'static + EventEval,
+{
+    fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
+        self
+    }
 }
 
 /// Interface to schedule Events
@@ -53,9 +66,6 @@ mod tests {
     impl EventEval for Test {
         fn event_eval(&mut self, _context: &mut dyn EventEvalContext) -> TimeResched {
             TimeResched::None
-        }
-        fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
-            self
         }
     }
 

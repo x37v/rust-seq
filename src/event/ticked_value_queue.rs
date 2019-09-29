@@ -38,15 +38,12 @@ where
         }
         TimeResched::None
     }
-
-    fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
-        self
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::EventEvalAny;
     use spin::Mutex;
     use std::sync::Arc;
 
