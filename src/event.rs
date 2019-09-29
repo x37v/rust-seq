@@ -11,7 +11,7 @@ pub type EventContainer = Box<dyn EventEval>;
 
 /// trait for evaluating Events
 pub trait EventEval: Send + core::any::Any {
-    fn event_eval(&mut self, context: &mut dyn EventEvalContext);
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched;
     fn into_any(self: Box<Self>) -> Box<dyn core::any::Any>;
 }
 
@@ -51,7 +51,9 @@ mod tests {
 
     struct Test;
     impl EventEval for Test {
-        fn event_eval(&mut self, _context: &mut dyn EventEvalContext) {}
+        fn event_eval(&mut self, _context: &mut dyn EventEvalContext) -> TimeResched {
+            TimeResched::None
+        }
         fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
             self
         }

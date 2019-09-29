@@ -1,5 +1,6 @@
 use crate::event::{EventEval, EventEvalContext};
 use crate::pqueue::TickPriorityEnqueue;
+use crate::time::TimeResched;
 
 /// An event that pushes a value into a queue with tick = context.time_now()
 ///
@@ -29,12 +30,13 @@ where
     T: 'static + Send + Copy,
     Q: 'static + TickPriorityEnqueue<T>,
 {
-    fn event_eval(&mut self, context: &mut dyn EventEvalContext) {
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched {
         let t = context.time_now();
         let r = self.queue.enqueue(t, self.value);
         if r.is_err() {
             //XXX report
         }
+        TimeResched::None
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
