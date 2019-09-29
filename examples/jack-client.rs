@@ -1,6 +1,48 @@
 use jack;
 use std::io;
 
+use sched::event::ticked_value_queue::TickedValueQueueEvent;
+use sched::event::*;
+use sched::item_sink::ItemSink;
+use sched::midi::*;
+use sched::pqueue::*;
+use sched::schedule::ScheduleExecutor;
+
+struct Q;
+struct MQ;
+struct Sink;
+
+impl TickPriorityEnqueue<EventContainer> for Q {
+    fn enqueue(&mut self, _tick: usize, _value: EventContainer) -> Result<(), EventContainer> {
+        Ok(())
+    }
+}
+impl TickPriorityDequeue<EventContainer> for Q {
+    fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, EventContainer)> {
+        None
+    }
+}
+impl TickPriorityEnqueue<MidiValue> for MQ {
+    fn enqueue(&mut self, _tick: usize, _value: MidiValue) -> Result<(), MidiValue> {
+        Ok(())
+    }
+}
+impl TickPriorityDequeue<MidiValue> for MQ {
+    fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, MidiValue)> {
+        None
+    }
+}
+
+impl ItemSink<EventContainer> for Sink {
+    fn try_put(&mut self, item: EventContainer) -> Result<(), EventContainer> {
+        Ok(())
+    }
+}
+
+static DISPOSE_SINK: spin::Mutex<Sink> = spin::Mutex::new(Sink {});
+static SCHEDULE_QUEUE: spin::Mutex<Q> = spin::Mutex::new(Q {});
+static MIDI_QUEUE: spin::Mutex<MQ> = spin::Mutex::new(MQ {});
+
 fn main() {
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
@@ -13,9 +55,40 @@ fn main() {
         .register_port("control", jack::MidiIn::default())
         .unwrap();
 
+    let mut ex = ScheduleExecutor::new(
+        &DISPOSE_SINK as &'static spin::Mutex<dyn ItemSink<EventContainer>>,
+        &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityDequeue<EventContainer>>,
+        &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
+    );
+
+    let note_on = Box::new(TickedValueQueueEvent::new(
+        MidiValue::NoteOn {
+            chan: 0,
+            num: 64,
+            vel: 127,
+        },
+        &MIDI_QUEUE as &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>,
+    ));
+    let note_off = Box::new(TickedValueQueueEvent::new(
+        MidiValue::NoteOff {
+            chan: 0,
+            num: 64,
+            vel: 127,
+        },
+        &MIDI_QUEUE as &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>,
+    ));
+
+    assert!(SCHEDULE_QUEUE
+        .lock()
+        .enqueue(44100usize * 2usize, note_off)
+        .is_ok());
+    assert!(SCHEDULE_QUEUE.lock().enqueue(44100usize, note_on).is_ok());
+
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         //read in midi
         for m in midi_in.iter(ps) {}
+
+        ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
 
         jack::Control::Continue
     };
