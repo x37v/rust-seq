@@ -26,6 +26,8 @@ pub trait EventSchedule {
 
 pub trait EventEvalContext: EventSchedule + TimeContext {}
 
+impl<T> EventEvalContext for T where T: EventSchedule + TimeContext {}
+
 /*
  *
  *  example, scheduling midi on/off
