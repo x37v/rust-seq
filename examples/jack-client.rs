@@ -8,26 +8,37 @@ use sched::midi::*;
 use sched::pqueue::*;
 use sched::schedule::ScheduleExecutor;
 
-struct Q;
-struct MQ;
+use heapless::binary_heap::{BinaryHeap, Min};
+use heapless::consts::*;
+
 struct Sink;
 
-impl TickPriorityEnqueue<EventContainer> for Q {
-    fn enqueue(&mut self, _tick: usize, _value: EventContainer) -> Result<(), EventContainer> {
-        Ok(())
+struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
+struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
+
+impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
+    fn enqueue(&mut self, tick: usize, value: EventContainer) -> Result<(), EventContainer> {
+        let item: TickItem<EventContainer> = (tick, value).into();
+        match self.0.push(item) {
+            Ok(()) => Ok(()),
+            Err(item) => {
+                let (_, item) = item.into();
+                Err(item)
+            }
+        }
     }
 }
-impl TickPriorityDequeue<EventContainer> for Q {
+impl TickPriorityDequeue<EventContainer> for ScheduleQueue {
     fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, EventContainer)> {
         None
     }
 }
-impl TickPriorityEnqueue<MidiValue> for MQ {
+impl TickPriorityEnqueue<MidiValue> for MidiQueue {
     fn enqueue(&mut self, _tick: usize, _value: MidiValue) -> Result<(), MidiValue> {
         Ok(())
     }
 }
-impl TickPriorityDequeue<MidiValue> for MQ {
+impl TickPriorityDequeue<MidiValue> for MidiQueue {
     fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, MidiValue)> {
         None
     }
@@ -40,8 +51,10 @@ impl ItemSink<EventContainer> for Sink {
 }
 
 static DISPOSE_SINK: spin::Mutex<Sink> = spin::Mutex::new(Sink {});
-static SCHEDULE_QUEUE: spin::Mutex<Q> = spin::Mutex::new(Q {});
-static MIDI_QUEUE: spin::Mutex<MQ> = spin::Mutex::new(MQ {});
+static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
+    spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
+static MIDI_QUEUE: spin::Mutex<MidiQueue> =
+    spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 
 fn main() {
     let (client, _status) =
@@ -61,22 +74,22 @@ fn main() {
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
-    let note_on = Box::new(TickedValueQueueEvent::new(
+    let note_on = EventContainer::new(Box::new(TickedValueQueueEvent::new(
         MidiValue::NoteOn {
             chan: 0,
             num: 64,
             vel: 127,
         },
         &MIDI_QUEUE as &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>,
-    ));
-    let note_off = Box::new(TickedValueQueueEvent::new(
+    )));
+    let note_off = EventContainer::new(Box::new(TickedValueQueueEvent::new(
         MidiValue::NoteOff {
             chan: 0,
             num: 64,
             vel: 127,
         },
         &MIDI_QUEUE as &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>,
-    ));
+    )));
 
     assert!(SCHEDULE_QUEUE
         .lock()
