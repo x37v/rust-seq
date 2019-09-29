@@ -54,6 +54,10 @@ where
 
         self.tick_next = next;
     }
+
+    pub fn tick_next(&self) -> usize {
+        self.tick_next
+    }
 }
 
 impl<'a> RootContext<'a> {
