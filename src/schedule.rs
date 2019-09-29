@@ -78,7 +78,6 @@ impl<'a> RootContext<'a> {
     }
 }
 
-impl<'a> RootContext<'a> {}
 impl<'a> EventSchedule for RootContext<'a> {
     fn event_schedule(
         &mut self,
