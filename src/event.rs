@@ -51,7 +51,7 @@ mod tests {
 
     struct Test;
     impl EventEval for Test {
-        fn event_eval(&mut self, context: &mut dyn EventEvalContext) {}
+        fn event_eval(&mut self, _context: &mut dyn EventEvalContext) {}
         fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
             self
         }
