@@ -75,6 +75,7 @@ impl ItemSink<EventContainer> for DisposeSink {
     }
 }
 
+//XXX why do we have to wrap the mutex for DisposeSink? Q64 should be lock free
 static DISPOSE_SINK: spin::Mutex<DisposeSink> = spin::Mutex::new(DisposeSink(Q64::new()));
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
