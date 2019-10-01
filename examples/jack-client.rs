@@ -10,11 +10,11 @@ use sched::schedule::ScheduleExecutor;
 
 use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
-
-struct Sink;
+use heapless::mpmc::Q64;
 
 struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
 struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
+struct DisposeSink(Q64<EventContainer>);
 
 impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
     fn enqueue(&mut self, tick: usize, value: EventContainer) -> Result<(), EventContainer> {
@@ -69,13 +69,13 @@ impl TickPriorityDequeue<MidiValue> for MidiQueue {
     }
 }
 
-impl ItemSink<EventContainer> for Sink {
+impl ItemSink<EventContainer> for DisposeSink {
     fn try_put(&mut self, item: EventContainer) -> Result<(), EventContainer> {
-        Ok(())
+        self.0.enqueue(item)
     }
 }
 
-static DISPOSE_SINK: spin::Mutex<Sink> = spin::Mutex::new(Sink {});
+static DISPOSE_SINK: spin::Mutex<DisposeSink> = spin::Mutex::new(DisposeSink(Q64::new()));
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 static MIDI_QUEUE: spin::Mutex<MidiQueue> =
