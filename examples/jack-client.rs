@@ -69,14 +69,13 @@ impl TickPriorityDequeue<MidiValue> for MidiQueue {
     }
 }
 
-impl ItemSink<EventContainer> for DisposeSink {
+impl ItemSink<EventContainer> for &'static DisposeSink {
     fn try_put(&mut self, item: EventContainer) -> Result<(), EventContainer> {
         self.0.enqueue(item)
     }
 }
 
-//XXX why do we have to wrap the mutex for DisposeSink? Q64 should be lock free
-static DISPOSE_SINK: spin::Mutex<DisposeSink> = spin::Mutex::new(DisposeSink(Q64::new()));
+static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 static MIDI_QUEUE: spin::Mutex<MidiQueue> =
@@ -95,7 +94,7 @@ fn main() {
         .unwrap();
 
     let mut ex = ScheduleExecutor::new(
-        &DISPOSE_SINK as &'static spin::Mutex<dyn ItemSink<EventContainer>>,
+        &DISPOSE_SINK,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityDequeue<EventContainer>>,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
