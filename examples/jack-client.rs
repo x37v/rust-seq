@@ -16,6 +16,8 @@ struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
 struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
 struct DisposeSink(Q64<EventContainer>);
 
+type MidiEnqueue = &'static spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>;
+
 impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
     fn enqueue(&mut self, tick: usize, value: EventContainer) -> Result<(), EventContainer> {
         let item: TickItem<EventContainer> = (tick, value).into();
@@ -111,7 +113,7 @@ fn main() {
             num: 64,
             vel: 127,
         },
-        &MIDI_QUEUE as &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>,
+        &MIDI_QUEUE as MidiEnqueue,
     )));
     let note_off = EventContainer::new(Box::new(TickedValueQueueEvent::new(
         MidiValue::NoteOff {
@@ -119,7 +121,7 @@ fn main() {
             num: 64,
             vel: 127,
         },
-        &MIDI_QUEUE as &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>,
+        &MIDI_QUEUE as MidiEnqueue,
     )));
 
     let off = 44100usize * 10usize;
@@ -137,7 +139,7 @@ fn main() {
         if let Some(item) = DISPOSE_SINK.dequeue() {
             println!("got dispose");
             let a = Into::<BoxEventEval>::into(item).into_any();
-            if a.is::<TickedValueQueueEvent<MidiValue, &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>>>() {
+            if a.is::<TickedValueQueueEvent<MidiValue, MidiEnqueue>>() {
                 println!("is TickedValueQueueEvent<MidiValue, ..>");
             }
         } else {
