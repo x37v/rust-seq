@@ -75,6 +75,12 @@ impl ItemSink<EventContainer> for &'static DisposeSink {
     }
 }
 
+impl DisposeSink {
+    pub fn dequeue(&self) -> Option<EventContainer> {
+        self.0.dequeue()
+    }
+}
+
 static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
@@ -126,9 +132,22 @@ fn main() {
         .enqueue(off + 44100usize, note_on)
         .is_ok());
 
+    //dispose thread, simply ditching
+    std::thread::spawn(|| loop {
+        if let Some(item) = DISPOSE_SINK.dequeue() {
+            println!("got dispose");
+            let a = Into::<BoxEventEval>::into(item).into_any();
+            if a.is::<TickedValueQueueEvent<MidiValue, &spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>>>() {
+                println!("is TickedValueQueueEvent<MidiValue, ..>");
+            }
+        } else {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    });
+
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         //read in midi
-        for m in midi_in.iter(ps) {}
+        for _m in midi_in.iter(ps) {}
 
         let now = ex.tick_next();
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
