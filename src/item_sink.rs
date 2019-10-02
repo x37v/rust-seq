@@ -5,6 +5,14 @@ pub trait ItemSink<T>: Send {
     fn try_put(&mut self, item: T) -> Result<(), T>;
 }
 
+pub trait ItemDispose<T>: Send {
+    fn dispose_all(&mut self) -> Result<(), ()>;
+}
+
+pub trait ItemDisposeFunc<T>: Send {
+    fn with_each(&mut self, func: &dyn Fn(T)) -> Result<(), ()>;
+}
+
 impl<T> ItemSink<T> for alloc::sync::Arc<spin::Mutex<dyn ItemSink<T>>>
 where
     T: Send,
