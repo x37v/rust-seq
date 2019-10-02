@@ -8,10 +8,5 @@ pub mod pqueue;
 pub mod schedule;
 pub mod time;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        pub mod std;
-    } else {
-        pub mod no_std;
-    }
-}
+#[cfg(feature = "std")]
+pub mod std;
