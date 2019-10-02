@@ -1,7 +1,7 @@
 extern crate alloc;
 
 /// A sink for items of type T that can be sent across threads
-pub trait ItemSink<T>: Send + Sync {
+pub trait ItemSink<T>: Send {
     fn try_put(&mut self, item: T) -> Result<(), T>;
 }
 
