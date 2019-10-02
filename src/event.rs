@@ -5,7 +5,9 @@ pub mod ticked_value_queue;
 
 extern crate alloc;
 use alloc::boxed::Box;
-pub struct EventContainer(Box<dyn EventEvalAny>);
+
+pub type BoxEventEval = Box<dyn EventEvalAny>;
+pub struct EventContainer(BoxEventEval);
 
 /// Events potentially generate other events, they also may hold other events and gate their actual
 /// output.
@@ -43,8 +45,14 @@ pub trait EventEvalContext: EventSchedule + TimeContext {}
 impl<T> EventEvalContext for T where T: EventSchedule + TimeContext {}
 
 impl EventContainer {
-    pub fn new(item: Box<dyn EventEvalAny>) -> Self {
+    pub fn new(item: BoxEventEval) -> Self {
         Self(item)
+    }
+}
+
+impl core::convert::Into<BoxEventEval> for EventContainer {
+    fn into(self) -> BoxEventEval {
+        self.0
     }
 }
 
