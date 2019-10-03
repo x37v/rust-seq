@@ -2,6 +2,7 @@ use core::ops::Deref;
 use core::marker::PhantomData;
 use crate::graph::{GraphNodeExec, GraphChildExec, ChildCount};
 use crate::event::EventEvalContext;
+use num::cast::NumCast;
 
 pub struct ClockRatio<T, Mul, Div> {
     mul: Mul,
@@ -13,7 +14,7 @@ impl<T, Mul, Div> ClockRatio<T, Mul, Div>
 where
     Mul: Deref<Target=T> + Send,
     Div: Deref<Target=T> + Send,
-    T: num::Unsigned + Send
+    T: num::Unsigned + NumCast + Send
 {
     pub fn new(mul: Mul, div: Div) -> Self {
         Self { mul, div, phantom: PhantomData }
@@ -24,13 +25,13 @@ impl<T, Mul, Div> GraphNodeExec for ClockRatio<T, Mul, Div>
 where
     Mul: Deref<Target=T> + Send,
     Div: Deref<Target=T> + Send,
-    T: num::Unsigned + Send
+    T: num::Unsigned + NumCast + Send
 {
     fn graph_exec(&mut self, context: &mut dyn EventEvalContext, children: &mut dyn GraphChildExec)  {
-        let div = *self.div as usize;
+        let div: usize = NumCast::from(*self.div).expect("T should cast to usize");
 
         if div > 0 && context.context_tick_now() % div == 0 {
-            let mul = self.mul.deref() as usize;
+            let mul: usize = NumCast::from(*self.mul).expect("T should cast to usize");
             let base_period_micros = context.tick_period_micros();
             let period_micros = (context.context_tick_period_micros() * div as f32) / mul as f32;
             let offset = (mul * context.context_tick_now()) / div;
