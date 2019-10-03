@@ -1,6 +1,13 @@
 use crate::item_sink::{ItemDispose, ItemDisposeFunc, ItemSink};
-use std::ops::DerefMut;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TryRecvError, TrySendError};
+
+pub fn channel_item_sink<T>(channel_len: usize) -> (ChannelItemSink<T>, ChannelItemDispose<T>)
+where
+    T: Send,
+{
+    let (send, recv) = sync_channel(channel_len);
+    (ChannelItemSink { send }, ChannelItemDispose { recv })
+}
 
 pub struct ChannelItemSink<T>
 where
