@@ -112,11 +112,11 @@ impl<'a> EventSchedule for RootContext<'a> {
     }
 }
 
-impl<'a> TimeContext for RootContext<'a> {
-    fn time_now(&self) -> usize {
+impl<'a> TickContext for RootContext<'a> {
+    fn tick_now(&self) -> usize {
         self.tick
     }
-    fn time_ticks_per_second(&self) -> usize {
+    fn ticks_per_second(&self) -> usize {
         self.ticks_per_second
     }
 }

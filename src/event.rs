@@ -40,9 +40,9 @@ pub trait EventSchedule {
     ) -> Result<(), EventContainer>;
 }
 
-pub trait EventEvalContext: EventSchedule + TimeContext {}
+pub trait EventEvalContext: EventSchedule + TickContext {}
 
-impl<T> EventEvalContext for T where T: EventSchedule + TimeContext {}
+impl<T> EventEvalContext for T where T: EventSchedule + TickContext {}
 
 impl EventContainer {
     pub fn new(item: BoxEventEval) -> Self {

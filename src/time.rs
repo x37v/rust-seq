@@ -14,16 +14,26 @@ pub enum TimeResched {
     None,
 }
 
-pub trait TimeContext {
+pub trait TickContext {
     /// Absolute
-    fn time_now(&self) -> usize;
-    fn time_ticks_per_second(&self) -> usize;
-    /// Which absolute tick does context 0 happen
-    fn time_context_offset(&self) -> usize {
-        0usize
+    fn tick_now(&self) -> usize;
+    fn ticks_per_second(&self) -> usize;
+
+    /// Context
+    fn context_tick_now(&self) -> usize {
+        self.tick_now()
     }
+    fn context_ticks_per_second(&self) -> usize {
+        self.ticks_per_second()
+    }
+
+    /// Which absolute tick does context 0 happen
+    fn context_tick_offset(&self) -> isize {
+        0isize
+    }
+
     /// context ticks, base ticks
-    fn time_context_tick_ratio(&self) -> (usize, usize) {
+    fn context_tick_ratio(&self) -> (usize, usize) {
         (1usize, 1usize)
     }
 }

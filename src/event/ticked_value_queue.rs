@@ -31,7 +31,7 @@ where
     Q: 'static + TickPriorityEnqueue<T>,
 {
     fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched {
-        let t = context.time_now();
+        let t = context.tick_now();
         let r = self.queue.enqueue(t, self.value);
         if r.is_err() {
             //XXX report
