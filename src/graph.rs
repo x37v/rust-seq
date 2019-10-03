@@ -41,9 +41,7 @@ pub trait ChildExec {
     }
     fn child_exec_all(&mut self, context: &mut dyn EventEvalContext) {
         match self.child_count() {
-            ChildCount::None => {
-                return;
-            }
+            ChildCount::None => (),
             ChildCount::Some(i) => {
                 self.child_exec_range(context, core::ops::Range { start: 0, end: i });
             }
