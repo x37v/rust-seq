@@ -43,12 +43,13 @@ where
             let mul: usize = NumCast::from(self.mul.get()).expect("T should cast to usize");
             let base_period_micros = context.tick_period_micros();
             let period_micros = (context.context_tick_period_micros() * div as f32) / mul as f32;
-            let offset = (mul * context.context_tick_now()) / div;
+            let coffset = (mul * context.context_tick_now()) / div;
+            let mut ccontext = ChildContext::new(context, 0, coffset, period_micros);
             for i in 0..mul {
-                let tick = offset + i;
-                let base = ((i as f32 * period_micros) / base_period_micros) as isize;
-                //XXX TODO, optimise, can just update base and tick
-                let mut ccontext = ChildContext::new(context, base, tick, period_micros);
+                ccontext.update_parent_offset(
+                    ((i as f32 * period_micros) / base_period_micros) as isize,
+                );
+                ccontext.update_context_tick(coffset + i);
                 children.child_exec_all(&mut ccontext);
             }
         }
