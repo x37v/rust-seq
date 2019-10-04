@@ -1,5 +1,7 @@
 use crate::event::*;
 
+pub mod clock_ratio;
+
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum ChildCount {
     None,
@@ -7,7 +9,7 @@ pub enum ChildCount {
     Inf,
 }
 
-pub trait ChildExec {
+pub trait GraphChildExec {
     fn child_count(&self) -> ChildCount;
     fn child_exec_range(
         &mut self,
@@ -65,7 +67,7 @@ pub trait ChildExec {
 }
 
 pub trait GraphNodeExec: Send {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext, children: &mut dyn ChildExec);
+    fn graph_exec(&mut self, context: &mut dyn EventEvalContext, children: &mut dyn GraphChildExec);
     fn graph_children_max(&self) -> ChildCount {
         ChildCount::Inf
     }
@@ -81,7 +83,7 @@ impl<T> GraphNodeExec for T
 where
     T: GraphLeafExec,
 {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext, _children: &mut dyn ChildExec) {
+    fn graph_exec(&mut self, context: &mut dyn EventEvalContext, _children: &mut dyn GraphChildExec) {
         self.graph_exec_leaf(context)
     }
     fn graph_children_max(&self) -> ChildCount {
