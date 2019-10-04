@@ -7,7 +7,8 @@ edition = "2018"
 [features]
 std = [ "xnor_llist", "failure"]
 euclidean = ["euclidian-rythms"]
-default = ["std", "euclidean"]
+default = ["std", "euclidean", "graph_arc"]
+graph_arc = []
 
 [dependencies]
 sched_macros = { git = "https://github.com/x37v/sched_macros.git" }

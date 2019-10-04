@@ -9,6 +9,15 @@ pub enum ChildCount {
     Inf,
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "graph_arc")] {
+extern crate alloc;
+pub struct GraphNodeContainer(alloc::sync::Arc<dyn GraphNode>);
+    } else {
+pub struct GraphNodeContainer(&'static dyn GraphNode);
+    }
+}
+
 pub trait GraphChildExec {
     fn child_count(&self) -> ChildCount;
     fn child_exec_range(
@@ -66,6 +75,15 @@ pub trait GraphChildExec {
     }
 }
 
+/// A trait that executes a node and, if appropriate, its children.
+///
+/// This would be implemented for a wrapper a round a GraphNodeExec or GraphLeafExec
+/// and potentially some children.
+pub trait GraphNode: Send {
+    fn exec(&mut self, context: &mut dyn EventEvalContext);
+}
+
+/// A trait that a node, that will have children, implements
 pub trait GraphNodeExec: Send {
     fn graph_exec(&mut self, context: &mut dyn EventEvalContext, children: &mut dyn GraphChildExec);
     fn graph_children_max(&self) -> ChildCount {
@@ -73,7 +91,7 @@ pub trait GraphNodeExec: Send {
     }
 }
 
-/// A graph node with no children, will never have children
+/// A trait that a leaf, a node without children, implements
 pub trait GraphLeafExec: Send {
     fn graph_exec_leaf(&mut self, context: &mut dyn EventEvalContext);
 }
@@ -83,10 +101,39 @@ impl<T> GraphNodeExec for T
 where
     T: GraphLeafExec,
 {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext, _children: &mut dyn GraphChildExec) {
+    fn graph_exec(
+        &mut self,
+        context: &mut dyn EventEvalContext,
+        _children: &mut dyn GraphChildExec,
+    ) {
         self.graph_exec_leaf(context)
     }
     fn graph_children_max(&self) -> ChildCount {
         ChildCount::None
     }
 }
+
+/*
+impl GraphChildExec for &'static [&dyn GraphNodeExec] {
+    fn child_count(&self) -> ChildCount {
+        if self.len() == 0 {
+            ChildCount::None
+        } else {
+            ChildCount::Some(self.len())
+        }
+    }
+    fn child_exec_range(
+        &mut self,
+        context: &mut dyn EventEvalContext,
+        range: core::ops::Range<usize>,
+    ) {
+        let l = self.len();
+        if l > 0 {
+            let r = Range {
+                start: core::cmp::min(l - 1, range.start),
+                end: core::cmp::min(l, range.end),
+            };
+        }
+    }
+}
+*/
