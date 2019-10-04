@@ -28,13 +28,9 @@ pub trait TickContext {
     fn context_tick_now(&self) -> usize {
         self.tick_now()
     }
-    fn context_ticks_per_second(&self) -> usize {
-        self.ticks_per_second()
-    }
 
     fn context_tick_period_micros(&self) -> f32 {
-        //XXX likely want to cache this
-        1e6f32 / (self.context_ticks_per_second() as f32)
+        self.tick_period_micros()
     }
 
     /// Which absolute tick does context 0 happen

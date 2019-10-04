@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod binding;
+pub mod context;
 pub mod event;
 pub mod graph;
 pub mod item_sink;

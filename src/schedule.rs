@@ -1,3 +1,4 @@
+use crate::context::RootContext;
 use crate::event::*;
 use crate::item_sink::ItemSink;
 use crate::pqueue::{TickPriorityDequeue, TickPriorityEnqueue};
@@ -13,12 +14,6 @@ where
     schedule_reader: R,
     schedule_writer: W,
     dispose_sink: D,
-}
-
-pub struct RootContext<'a> {
-    tick: usize,
-    ticks_per_second: usize,
-    schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
 }
 
 impl<R, W, D> ScheduleExecutor<R, W, D>
@@ -76,47 +71,5 @@ where
 
     pub fn tick_next(&self) -> usize {
         self.tick_next
-    }
-}
-
-impl<'a> RootContext<'a> {
-    pub fn new(
-        tick: usize,
-        ticks_per_second: usize,
-        schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
-    ) -> Self {
-        Self {
-            tick,
-            ticks_per_second,
-            schedule,
-        }
-    }
-
-    pub fn update_tick(&mut self, tick: usize) {
-        self.tick = tick;
-    }
-}
-
-impl<'a> EventSchedule for RootContext<'a> {
-    fn event_schedule(
-        &mut self,
-        time: TimeSched,
-        event: EventContainer,
-    ) -> Result<(), EventContainer> {
-        //in the root, context and absolute are the same
-        let tick = match time {
-            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
-            TimeSched::Relative(o) | TimeSched::ContextRelative(o) => offset_tick(self.tick, o),
-        };
-        self.schedule.enqueue(tick, event)
-    }
-}
-
-impl<'a> TickContext for RootContext<'a> {
-    fn tick_now(&self) -> usize {
-        self.tick
-    }
-    fn ticks_per_second(&self) -> usize {
-        self.ticks_per_second
     }
 }
