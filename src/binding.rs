@@ -35,7 +35,7 @@ where
     }
 }
 
-impl<U, T> ParamBindingSet<T> for &'static U
+impl<U, T> ParamBindingSet<T> for U
 where
     U: Sync + Send + DerefMut<Target = T>,
     T: Copy + Send,
