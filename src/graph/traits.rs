@@ -1,6 +1,7 @@
 use crate::event::*;
 use crate::graph::ChildCount;
 
+/// A trait that a node uses to execute its child nodes.
 pub trait GraphChildExec {
     fn child_count(&self) -> ChildCount;
     fn child_exec_range(
@@ -66,7 +67,7 @@ pub trait GraphNode: Send {
     fn exec(&mut self, context: &mut dyn EventEvalContext);
 }
 
-/// A trait that a node, that will have children, implements
+/// A trait that a node, that will have children, implements.
 pub trait GraphNodeExec: Send {
     fn graph_exec(&mut self, context: &mut dyn EventEvalContext, children: &mut dyn GraphChildExec);
     fn graph_children_max(&self) -> ChildCount {
@@ -74,12 +75,12 @@ pub trait GraphNodeExec: Send {
     }
 }
 
-/// A trait that a leaf, a node without children, implements
+/// A trait that a leaf, a node without children, implements.
 pub trait GraphLeafExec: Send {
     fn graph_exec_leaf(&mut self, context: &mut dyn EventEvalContext);
 }
 
-/// automatically implement the node exec for leafs
+/// Automatically implement the node exec for leaf.
 impl<T> GraphNodeExec for T
 where
     T: GraphLeafExec,
