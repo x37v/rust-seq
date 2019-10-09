@@ -1,4 +1,4 @@
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 
 pub trait ParamBindingGet<T>: Send {
     fn get(&self) -> T;
