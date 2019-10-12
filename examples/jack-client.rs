@@ -8,6 +8,10 @@ use sched::midi::*;
 use sched::pqueue::*;
 use sched::schedule::ScheduleExecutor;
 
+use sched::graph::{
+    node_wrapper::GraphNodeWrapper, root_clock::RootClock, GraphLeafExec, GraphNodeContainer,
+};
+
 use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
 use heapless::mpmc::Q64;
@@ -83,6 +87,18 @@ impl DisposeSink {
     }
 }
 
+struct GraphPrinter;
+
+impl GraphLeafExec for GraphPrinter {
+    fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
+        println!(
+            "graph_exec {} {}",
+            context.tick_now(),
+            context.context_tick_now()
+        );
+    }
+}
+
 static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
@@ -107,22 +123,22 @@ fn main() {
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
-    let note_on = EventContainer::new(Box::new(TickedValueQueueEvent::new(
+    let note_on = EventContainer::new(TickedValueQueueEvent::new(
         MidiValue::NoteOn {
             chan: 0,
             num: 64,
             vel: 127,
         },
         &MIDI_QUEUE as MidiEnqueue,
-    )));
-    let note_off = EventContainer::new(Box::new(TickedValueQueueEvent::new(
+    ));
+    let note_off = EventContainer::new(TickedValueQueueEvent::new(
         MidiValue::NoteOff {
             chan: 0,
             num: 64,
             vel: 127,
         },
         &MIDI_QUEUE as MidiEnqueue,
-    )));
+    ));
 
     let off = 44100usize * 10usize;
     assert!(SCHEDULE_QUEUE
@@ -133,6 +149,13 @@ fn main() {
         .lock()
         .enqueue(off + 44100usize, note_on)
         .is_ok());
+
+    let root = GraphNodeContainer::new(GraphNodeWrapper::new(
+        GraphPrinter,
+        sched::graph::children::empty::Children,
+    ));
+    let root = EventContainer::new(RootClock::new(&2_000_000f32, root));
+    assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
     //dispose thread, simply ditching
     std::thread::spawn(|| loop {
