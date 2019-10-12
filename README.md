@@ -1,6 +1,10 @@
 # rust-sched
 a work in progress scheduled executor, built in rust
 
+## external deps
+
+* cargo make: `cargo install cargo-make`
+
 ```
 cargo test --no-default-features --features std
 ```
