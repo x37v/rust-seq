@@ -7,6 +7,7 @@ pub mod gate;
 pub mod node_wrapper;
 pub mod one_hot;
 pub mod root_clock;
+pub mod step_seq;
 
 mod traits;
 pub use self::traits::*;
