@@ -31,8 +31,8 @@ heapless = "0.5.0"
 name = "jack-client"
 #required-features = ["std", "euclidean"]
 
-[[example]]
-name = "no_std"
+#[[example]]
+#name = "no_std"
 
 #XXX for the no_std test, remove when not needed anymore
 [profile.dev]
