@@ -24,25 +24,24 @@ pub mod empty {
     }
 }
 
-/// Children build from a static mut slice
-pub mod slice {
+pub mod boxed {
     use crate::event::*;
     use crate::graph::{
         ChildCount, GraphChildExec, GraphIndexExec, GraphNode, GraphNodeContainer,
         IndexChildContainer,
     };
 
-    pub struct Children(&'static mut [GraphNodeContainer]);
-    pub struct IndexChildren(&'static mut [IndexChildContainer]);
+    pub struct Children(Box<[GraphNodeContainer]>);
+    pub struct IndexChildren(Box<[IndexChildContainer]>);
 
     impl Children {
-        pub fn new(children: &'static mut [GraphNodeContainer]) -> Self {
+        pub fn new(children: Box<[GraphNodeContainer]>) -> Self {
             Self(children)
         }
     }
 
     impl IndexChildren {
-        pub fn new(children: &'static mut [IndexChildContainer]) -> Self {
+        pub fn new(children: Box<[IndexChildContainer]>) -> Self {
             Self(children)
         }
     }
