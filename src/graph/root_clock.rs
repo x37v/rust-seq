@@ -51,6 +51,7 @@ where
             self.tick += 1;
 
             //XXX what if next is less than 1?
+            //XXX could move root.node_exec in here execute multiple times..
             assert!(next >= 1f32, "tick less than sample size not supported");
             TimeResched::ContextRelative(core::cmp::max(1, next.floor() as usize))
         }
