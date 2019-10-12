@@ -44,11 +44,8 @@ impl GraphIndexExec for IndexChildContainer {
 
 #[cfg(test)]
 mod tests {
-    extern crate alloc;
     use super::node_wrapper::GraphNodeWrapper;
     use super::*;
-    use alloc::sync::Arc;
-    use spin::Mutex;
     use std::thread;
 
     struct TestNodeExec;
