@@ -36,3 +36,31 @@ impl GraphIndexExec for IndexChildContainer {
         self.0.lock().exec_index(index, context)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::node_wrapper::GraphNodeWrapper;
+    use super::*;
+    use core::convert::From;
+    use spin::Mutex;
+
+    struct TestNodeExec;
+    impl GraphNodeExec for TestNodeExec {
+        fn graph_exec(
+            &mut self,
+            _context: &mut dyn EventEvalContext,
+            _children: &mut dyn GraphChildExec,
+        ) {
+        }
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(not(feature = "graph_arc"))] {
+            use crate::graph::children::empty::Children;
+            static TEST_EXEC: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
+            static TEST_CHILD: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
+            static EMPTY: [Mutex<TestNodeExec>;0] = [];
+            static NODE: GraphNodeWrapper<&'static Mutex<TestNodeExec>,Children> = GraphNodeWrapper{exec: &TEST_EXEC, children: Children };
+        }
+    }
+}
