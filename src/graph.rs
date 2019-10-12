@@ -14,16 +14,9 @@ pub enum ChildCount {
     Inf,
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "graph_arc")] {
-        extern crate alloc;
-        pub struct GraphNodeContainer(alloc::sync::Arc<spin::Mutex<dyn GraphNode>>);
-        pub struct IndexChildContainer(alloc::sync::Arc<spin::Mutex<dyn GraphIndexExec>>);
-    } else {
-        pub struct GraphNodeContainer(&'static spin::Mutex<dyn GraphNode>);
-        pub struct IndexChildContainer(&'static spin::Mutex<dyn GraphIndexExec>);
-    }
-}
+extern crate alloc;
+pub struct GraphNodeContainer(alloc::sync::Arc<spin::Mutex<dyn GraphNode>>);
+pub struct IndexChildContainer(alloc::sync::Arc<spin::Mutex<dyn GraphIndexExec>>);
 
 impl GraphNode for GraphNodeContainer {
     fn node_exec(&mut self, context: &mut dyn EventEvalContext) {
@@ -53,21 +46,5 @@ mod tests {
             _children: &mut dyn GraphChildExec,
         ) {
         }
-    }
-
-    #[test]
-    #[cfg(all(test, not(feature = "graph_arc")))]
-    pub fn can_build_static() {
-        static TEST_EXEC: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
-        static TEST_CHILD: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
-        static NODE: Mutex<GraphNodeWrapper<&'static Mutex<TestNodeExec>, EmptyChildren>> =
-            Mutex::new(GraphNodeWrapper {
-                exec: &TEST_EXEC,
-                children: children::empty::Children,
-            });
-
-        let mut root: GraphNodeContainer = GraphNodeContainer(&NODE);
-        let mut context = crate::context::tests::TestContext::new(0, 44100);
-        root.node_exec(&mut context);
     }
 }
