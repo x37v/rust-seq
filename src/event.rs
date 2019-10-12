@@ -45,8 +45,8 @@ pub trait EventEvalContext: EventSchedule + TickContext {}
 impl<T> EventEvalContext for T where T: EventSchedule + TickContext {}
 
 impl EventContainer {
-    pub fn new(item: BoxEventEval) -> Self {
-        Self(item)
+    pub fn new<T: 'static + EventEvalAny>(item: T) -> Self {
+        Self(Box::new(item))
     }
 }
 
