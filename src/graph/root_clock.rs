@@ -4,8 +4,9 @@ use crate::event::{EventEval, EventEvalContext};
 use crate::graph::GraphNode;
 use crate::time::TimeResched;
 
-/// A event_eval schedulable item that holds and executes a graph tree
 pub type Micro = f32;
+
+/// A event_eval schedulable item that holds and executes a graph tree
 pub struct RootClock<PeriodMicros, T>
 where
     PeriodMicros: ParamBindingGet<Micro>,
