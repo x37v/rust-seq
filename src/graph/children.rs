@@ -1,3 +1,29 @@
+pub mod empty {
+    use crate::event::*;
+    use crate::graph::{ChildCount, GraphChildExec, GraphIndexExec};
+
+    #[derive(Default)]
+    pub struct Children;
+    #[derive(Default)]
+    pub struct IndexChildren;
+
+    impl GraphChildExec for Children {
+        fn child_count(&self) -> ChildCount {
+            ChildCount::None
+        }
+        fn child_exec_range(
+            &mut self,
+            _context: &mut dyn EventEvalContext,
+            _range: core::ops::Range<usize>,
+        ) {
+        }
+    }
+
+    impl GraphIndexExec for IndexChildren {
+        fn exec_index(&mut self, _index: usize, _context: &mut dyn EventEvalContext) {}
+    }
+}
+
 /// Children build from a static mut slice
 pub mod slice {
     use crate::event::*;
