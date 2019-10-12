@@ -59,7 +59,6 @@ mod tests {
             use crate::graph::children::empty::Children;
             static TEST_EXEC: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
             static TEST_CHILD: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
-            static EMPTY: [Mutex<TestNodeExec>;0] = [];
             static NODE: GraphNodeWrapper<&'static Mutex<TestNodeExec>,Children> = GraphNodeWrapper{exec: &TEST_EXEC, children: Children };
         }
     }
