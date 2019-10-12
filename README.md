@@ -1,6 +1,10 @@
 # rust-sched
 a work in progress scheduled executor, built in rust
 
+```
+cargo test --no-default-features --features std
+```
+
 The info below is likely outdated.
 
 ## Terminology
