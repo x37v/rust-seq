@@ -109,3 +109,39 @@ impl<'a> TickContext for ChildContext<'a> {
         self.context_tick_period_micros
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    pub struct TestContext {
+        tick: usize,
+        ticks_per_second: usize,
+    }
+
+    impl TestContext {
+        pub fn new(tick: usize, ticks_per_second: usize) -> Self {
+            Self {
+                tick,
+                ticks_per_second,
+            }
+        }
+    }
+    impl EventSchedule for TestContext {
+        fn event_schedule(
+            &mut self,
+            _time: TimeSched,
+            _event: EventContainer,
+        ) -> Result<(), EventContainer> {
+            Ok(())
+        }
+    }
+
+    impl TickContext for TestContext {
+        fn tick_now(&self) -> usize {
+            self.tick
+        }
+        fn ticks_per_second(&self) -> usize {
+            self.ticks_per_second
+        }
+    }
+}
