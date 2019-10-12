@@ -5,6 +5,7 @@ pub mod clock_ratio;
 pub mod fanout;
 pub mod gate;
 pub mod node_wrapper;
+pub mod one_hot;
 pub mod root_clock;
 
 mod traits;
