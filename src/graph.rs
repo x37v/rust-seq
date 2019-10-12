@@ -18,9 +18,21 @@ extern crate alloc;
 pub struct GraphNodeContainer(alloc::sync::Arc<spin::Mutex<dyn GraphNode>>);
 pub struct IndexChildContainer(alloc::sync::Arc<spin::Mutex<dyn GraphIndexExec>>);
 
+impl GraphNodeContainer {
+    pub fn new<T: 'static + GraphNode>(item: T) -> Self {
+        Self(alloc::sync::Arc::new(spin::Mutex::new(item)))
+    }
+}
+
 impl GraphNode for GraphNodeContainer {
     fn node_exec(&mut self, context: &mut dyn EventEvalContext) {
         self.0.lock().node_exec(context)
+    }
+}
+
+impl IndexChildContainer {
+    pub fn new<T: 'static + GraphIndexExec>(item: T) -> Self {
+        Self(alloc::sync::Arc::new(spin::Mutex::new(item)))
     }
 }
 
@@ -32,19 +44,41 @@ impl GraphIndexExec for IndexChildContainer {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
     use super::node_wrapper::GraphNodeWrapper;
     use super::*;
-    use core::convert::From;
+    use alloc::sync::Arc;
     use spin::Mutex;
-    type EmptyChildren = crate::graph::children::empty::Children;
+    use std::thread;
 
     struct TestNodeExec;
     impl GraphNodeExec for TestNodeExec {
         fn graph_exec(
             &mut self,
-            _context: &mut dyn EventEvalContext,
-            _children: &mut dyn GraphChildExec,
+            context: &mut dyn EventEvalContext,
+            children: &mut dyn GraphChildExec,
         ) {
+            children.child_exec_all(context);
         }
+    }
+
+    #[test]
+    fn can_build_and_exec() {
+        let mut context = crate::context::tests::TestContext::new(0, 44100);
+        let c = GraphNodeContainer::new(GraphNodeWrapper::new(
+            TestNodeExec,
+            crate::graph::children::empty::Children,
+        ));
+
+        let children = crate::graph::children::boxed::Children::new(Box::new([c]));
+
+        let mut r = GraphNodeContainer::new(GraphNodeWrapper::new(TestNodeExec, children));
+
+        r.node_exec(&mut context);
+        r.node_exec(&mut context);
+        let child = thread::spawn(move || {
+            r.node_exec(&mut context);
+        });
+        assert!(child.join().is_ok());
     }
 }
