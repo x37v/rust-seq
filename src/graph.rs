@@ -2,6 +2,7 @@ use crate::event::EventEvalContext;
 
 pub mod children;
 pub mod clock_ratio;
+pub mod fanout;
 pub mod node_wrapper;
 pub mod root_clock;
 
