@@ -6,8 +6,8 @@ where
     E: GraphNodeExec,
     C: GraphChildExec,
 {
-    exec: E,
-    children: C,
+    pub exec: E,
+    pub children: C,
 }
 
 impl<E, C> GraphNodeWrapper<E, C>
