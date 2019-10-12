@@ -98,6 +98,23 @@ where
     }
 }
 
+impl<T> GraphNodeExec for &'static spin::Mutex<T>
+where
+    T: GraphNodeExec,
+{
+    fn graph_exec(
+        &mut self,
+        context: &mut dyn EventEvalContext,
+        children: &mut dyn GraphChildExec,
+    ) {
+        self.lock().graph_exec(context, children)
+    }
+
+    fn graph_children_max(&self) -> ChildCount {
+        self.lock().graph_children_max()
+    }
+}
+
 /*
 impl GraphChildExec for &'static [&dyn GraphNodeExec] {
     fn child_count(&self) -> ChildCount {
