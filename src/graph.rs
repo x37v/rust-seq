@@ -43,6 +43,7 @@ mod tests {
     use super::*;
     use core::convert::From;
     use spin::Mutex;
+    type EmptyChildren = crate::graph::children::empty::Children;
 
     struct TestNodeExec;
     impl GraphNodeExec for TestNodeExec {
@@ -54,12 +55,19 @@ mod tests {
         }
     }
 
-    cfg_if::cfg_if! {
-        if #[cfg(not(feature = "graph_arc"))] {
-            use crate::graph::children::empty::Children;
-            static TEST_EXEC: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
-            static TEST_CHILD: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
-            static NODE: GraphNodeWrapper<&'static Mutex<TestNodeExec>,Children> = GraphNodeWrapper{exec: &TEST_EXEC, children: Children };
-        }
+    #[test]
+    #[cfg(all(test, not(feature = "graph_arc")))]
+    pub fn can_build_static() {
+        static TEST_EXEC: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
+        static TEST_CHILD: Mutex<TestNodeExec> = Mutex::new(TestNodeExec);
+        static NODE: Mutex<GraphNodeWrapper<&'static Mutex<TestNodeExec>, EmptyChildren>> =
+            Mutex::new(GraphNodeWrapper {
+                exec: &TEST_EXEC,
+                children: children::empty::Children,
+            });
+
+        let mut root: GraphNodeContainer = GraphNodeContainer(&NODE);
+        let mut context = crate::context::tests::TestContext::new(0, 44100);
+        root.node_exec(&mut context);
     }
 }
