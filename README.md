@@ -6,7 +6,7 @@ a work in progress scheduled executor, built in rust
 * cargo make: `cargo install cargo-make`
 
 ```
-cargo test --no-default-features --features std
+cargo make test
 ```
 
 The info below is likely outdated.

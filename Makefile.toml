@@ -1,0 +1,9 @@
+
+[tasks.test-noarc]
+command = "cargo"
+args = ["test", "--no-default-features", "--features", "std"]
+
+[tasks.test]
+dependencies = [
+	"test-noarc",
+]

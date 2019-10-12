@@ -111,5 +111,4 @@ mod tests {
             TimeResched::None
         }
     }
-
 }
