@@ -6,7 +6,7 @@ use crate::time::TimeResched;
 
 pub type Micro = f32;
 
-/// A event_eval schedulable item that holds and executes a graph tree
+/// A event_eval schedulable item that holds and executes a graph tree root.
 pub struct RootClock<PeriodMicros, T>
 where
     PeriodMicros: ParamBindingGet<Micro>,
