@@ -75,19 +75,21 @@ impl TimeSched {
     /// now: absolute ticks
     /// context_offset: the absolute tick that context: 0 starts
     /// ratio: (context ticks, absolute ticks)
-    pub fn to_absolute(&self, now: usize, context_offset: usize, ratio: (usize, usize)) -> usize {
-        let div = if ratio.1 == 0 { 1 } else { ratio.1 };
-        //TODO TEST!!!
+    pub fn to_absolute<'a>(&self, context: &'a dyn TickContext) -> usize {
         match *self {
             TimeSched::Absolute(tick) => tick,
-            TimeSched::Relative(offset) => offset_tick(now, offset),
-            TimeSched::ContextAbsolute(tick) => now
-                .saturating_add(tick.saturating_mul(ratio.0) / div)
-                .saturating_add(context_offset),
-            TimeSched::ContextRelative(offset) => {
+            TimeSched::Relative(offset) => offset_tick(context.tick_now(), offset),
+            TimeSched::ContextAbsolute(_tick) => {
+                unimplemented!();
+                //context.time_now()
+                //.saturating_add(tick.saturating_mul(ratio.0) / div)
+                //.saturating_add(context_offset)
+            }
+            TimeSched::ContextRelative(_offset) => {
+                unimplemented!();
                 //convert relative to absolute
-                let offset = offset.saturating_mul(ratio.0 as isize) / (div as isize);
-                offset_tick(now, offset).saturating_add(context_offset)
+                //let offset = offset.saturating_mul(ratio.0 as isize) / (div as isize);
+                //offset_tick(now, offset).saturating_add(context_offset)
             }
         }
     }
