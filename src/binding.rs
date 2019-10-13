@@ -2,6 +2,7 @@ extern crate alloc;
 use core::ops::Deref;
 
 pub mod ops;
+pub mod spinlock;
 
 // include automatic impls
 mod atomic;
