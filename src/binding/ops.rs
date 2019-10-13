@@ -394,12 +394,14 @@ where
     /// The type of the source binding can be discovered easily by the compiler.
     ///
     /// ```
+    /// extern crate alloc;
     /// use sched::binding::ParamBindingGet;
     /// use sched::binding::ops::GetCast;
-    /// use sched::ptr::ShrPtr;
+    /// use alloc::sync::Arc;
+    /// use spin::Mutex;
     ///
     /// let f: f32 = 23f32.into();
-    /// let c : ShrPtr<GetCast<f32, u8, _>> = GetCast::new(f.clone()).into();
+    /// let c : Arc<Mutex<dyn ParamBindingGet<u8>>> = Arc::new(Mutex::new(GetCast::new(f.clone())));
     /// assert_eq!(23f32, f.get());
     /// assert_eq!(23u8, c.get());
     /// ```
