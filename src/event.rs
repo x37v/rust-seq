@@ -40,13 +40,26 @@ pub trait EventSchedule {
     ) -> Result<(), EventContainer>;
 }
 
-pub trait EventEvalContext: EventSchedule + TickContext {}
+pub trait EventEvalContext: EventSchedule + TickContext {
+    fn as_tick_context(&self) -> &dyn TickContext;
+}
 
-impl<T> EventEvalContext for T where T: EventSchedule + TickContext {}
+impl<T> EventEvalContext for T
+where
+    T: EventSchedule + TickContext,
+{
+    fn as_tick_context(&self) -> &dyn TickContext {
+        self
+    }
+}
 
 impl EventContainer {
     pub fn new<T: 'static + EventEvalAny>(item: T) -> Self {
         Self(Box::new(item))
+    }
+
+    pub fn new_from_box(b: BoxEventEval) -> Self {
+        Self(b)
     }
 }
 
