@@ -72,9 +72,6 @@ impl TimeSched {
         }
     }
 
-    /// now: absolute ticks
-    /// context_offset: the absolute tick that context: 0 starts
-    /// ratio: (context ticks, absolute ticks)
     pub fn to_absolute<'a>(&self, context: &'a dyn TickContext) -> usize {
         match *self {
             TimeSched::Absolute(tick) => tick,
