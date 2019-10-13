@@ -1,3 +1,4 @@
+extern crate alloc;
 use core::ops::Deref;
 
 mod atomic;
@@ -6,7 +7,7 @@ pub trait ParamBindingGet<T>: Send {
     fn get(&self) -> T;
 }
 
-pub trait ParamBindingSet<T>: Send {
+pub trait ParamBindingSet<T>: Send + Sync {
     fn set(&self, value: T);
 }
 
@@ -34,5 +35,14 @@ where
 {
     fn get(&self) -> T {
         *self.deref()
+    }
+}
+
+impl<T> ParamBindingSet<T> for alloc::sync::Arc<dyn ParamBindingSet<T>>
+where
+    T: Copy + Send,
+{
+    fn set(&self, value: T) {
+        self.deref().set(value)
     }
 }
