@@ -1,6 +1,9 @@
 extern crate alloc;
 use core::ops::Deref;
 
+pub mod ops;
+
+// include automatic impls
 mod atomic;
 
 pub trait ParamBindingGet<T>: Send {
