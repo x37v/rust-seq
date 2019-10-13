@@ -1,5 +1,6 @@
 extern crate alloc;
 
+//pub mod bpm;
 pub mod generators;
 pub mod ops;
 pub mod spinlock;
@@ -46,6 +47,15 @@ where
 }
 */
 
+impl<T> ParamBindingGet<T> for T
+where
+    T: Copy + Send + Sync,
+{
+    fn get(&self) -> T {
+        *self
+    }
+}
+
 impl<T> ParamBindingGet<T> for &'static T
 where
     T: Copy + Send + Sync,
@@ -55,12 +65,30 @@ where
     }
 }
 
+impl<T> ParamBindingGet<T> for alloc::sync::Arc<T>
+where
+    T: Copy + Send + Sync,
+{
+    fn get(&self) -> T {
+        *self.deref()
+    }
+}
+
 impl<T> ParamBindingGet<T> for alloc::sync::Arc<dyn ParamBindingGet<T>>
 where
     T: Copy + Send,
 {
     fn get(&self) -> T {
         self.deref().get()
+    }
+}
+
+impl<T> ParamBindingGet<T> for alloc::sync::Arc<spin::Mutex<dyn ParamBindingGet<T>>>
+where
+    T: Copy + Send,
+{
+    fn get(&self) -> T {
+        self.lock().get()
     }
 }
 
