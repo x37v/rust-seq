@@ -2,8 +2,13 @@ use super::*;
 
 use core::sync::atomic::*;
 
-macro_rules! impl_set {
+macro_rules! impl_get_set {
     ($t:ty, $a:ty) => {
+        impl ParamBindingGet<$t> for $a {
+            fn get(&self) -> $t {
+                self.load(Ordering::SeqCst)
+            }
+        }
         impl ParamBindingSet<$t> for $a {
             fn set(&self, value: $t) {
                 self.store(value, Ordering::SeqCst);
@@ -12,14 +17,14 @@ macro_rules! impl_set {
     };
 }
 
-impl_set!(bool, AtomicBool);
-impl_set!(i8, AtomicI8);
-impl_set!(i16, AtomicI16);
-impl_set!(i32, AtomicI32);
-impl_set!(i64, AtomicI64);
-impl_set!(isize, AtomicIsize);
-impl_set!(u8, AtomicU8);
-impl_set!(u16, AtomicU16);
-impl_set!(u32, AtomicU32);
-impl_set!(u64, AtomicU64);
-impl_set!(usize, AtomicUsize);
+impl_get_set!(bool, AtomicBool);
+impl_get_set!(i8, AtomicI8);
+impl_get_set!(i16, AtomicI16);
+impl_get_set!(i32, AtomicI32);
+impl_get_set!(i64, AtomicI64);
+impl_get_set!(isize, AtomicIsize);
+impl_get_set!(u8, AtomicU8);
+impl_get_set!(u16, AtomicU16);
+impl_get_set!(u32, AtomicU32);
+impl_get_set!(u64, AtomicU64);
+impl_get_set!(usize, AtomicUsize);

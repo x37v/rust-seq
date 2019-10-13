@@ -1,13 +1,15 @@
 extern crate alloc;
-use core::ops::Deref;
 
+pub mod generators;
 pub mod ops;
 pub mod spinlock;
+
+use core::ops::Deref;
 
 // include automatic impls
 mod atomic;
 
-pub trait ParamBindingGet<T>: Send {
+pub trait ParamBindingGet<T>: Send + Sync {
     fn get(&self) -> T;
 }
 
@@ -32,6 +34,7 @@ where
     }
 }
 
+/*
 impl<U, T> ParamBindingGet<T> for U
 where
     U: Send + Deref<Target = T>,
@@ -39,6 +42,25 @@ where
 {
     fn get(&self) -> T {
         *self.deref()
+    }
+}
+*/
+
+impl<T> ParamBindingGet<T> for &'static T
+where
+    T: Copy + Send + Sync,
+{
+    fn get(&self) -> T {
+        **self
+    }
+}
+
+impl<T> ParamBindingGet<T> for alloc::sync::Arc<dyn ParamBindingGet<T>>
+where
+    T: Copy + Send,
+{
+    fn get(&self) -> T {
+        self.deref().get()
     }
 }
 
