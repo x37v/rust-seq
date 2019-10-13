@@ -1,11 +1,11 @@
 use super::*;
-use ::spinlock::Mutex;
 use core::cell::Cell;
+use spin::Mutex;
 
 /// Wrap any `Copy` type in a `spinlock::Mutex` so it can be shared across threads.
 ///
-/// *Note*: `AtomicBool`, `AtomicUsize`, and `AtomicIsize` `ParamBindingGet` and `ParamBindingSet`
-/// implementations exist, these are be better to use for `bool`, `usize` and `isize` wrapping.
+/// *Note*: `Atomic.*` types automatically implement `ParamBindingGet` and `ParamBindingSet`
+/// so you probably want to use those when you can.
 
 pub struct SpinlockParamBinding<T: Copy> {
     lock: Mutex<Cell<T>>,
