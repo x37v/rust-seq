@@ -1,10 +1,10 @@
 use crate::binding::{ParamBindingGet, ParamBindingSet};
 use crate::event::EventEvalContext;
-use crate::graph::{GraphChildExec, GraphNodeExec};
+use crate::graph::{GraphChildExec, GraphIndexExec, GraphNodeExec};
 use core::marker::PhantomData;
 
 /// A graph node that stores a bound get into a set and then calls all of its children.
-pub struct BindStore<T, G, S>
+pub struct BindStoreNode<T, G, S>
 where
     T: Send + Copy,
     G: ParamBindingGet<T>,
@@ -15,7 +15,15 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<T, G, S> BindStore<T, G, S>
+/// A graph index child that stores the index that it is called with.
+pub struct BindStoreIndexChild<S>
+where
+    S: ParamBindingSet<usize>,
+{
+    set: S,
+}
+
+impl<T, G, S> BindStoreNode<T, G, S>
 where
     T: Send + Copy,
     G: ParamBindingGet<T>,
@@ -30,7 +38,16 @@ where
     }
 }
 
-impl<T, G, S> GraphNodeExec for BindStore<T, G, S>
+impl<S> BindStoreIndexChild<S>
+where
+    S: ParamBindingSet<usize>,
+{
+    pub fn new(set: S) -> Self {
+        Self { set }
+    }
+}
+
+impl<T, G, S> GraphNodeExec for BindStoreNode<T, G, S>
 where
     T: Send + Copy,
     G: ParamBindingGet<T>,
@@ -43,5 +60,14 @@ where
     ) {
         self.set.set(self.get.get());
         children.child_exec_all(context);
+    }
+}
+
+impl<S> GraphIndexExec for BindStoreIndexChild<S>
+where
+    S: ParamBindingSet<usize>,
+{
+    fn exec_index(&mut self, index: usize, _context: &mut dyn EventEvalContext) {
+        self.set.set(index);
     }
 }
