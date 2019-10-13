@@ -1,5 +1,7 @@
 use core::ops::Deref;
 
+mod atomic;
+
 pub trait ParamBindingGet<T>: Send {
     fn get(&self) -> T;
 }
@@ -34,15 +36,3 @@ where
         *self.deref()
     }
 }
-
-/*
-impl<U, T> ParamBindingSet<T> for U
-where
-    U: Sync + Send + DerefMut<Target = T>,
-    T: Copy + Send,
-{
-    fn set(&self, value: T) {
-        *(self.deref_mut()) = value;
-    }
-}
-*/

@@ -1,4 +1,5 @@
 use crate::event::EventEvalContext;
+extern crate alloc;
 
 pub mod bindstore;
 pub mod children;
@@ -21,7 +22,6 @@ pub enum ChildCount {
     Inf,
 }
 
-extern crate alloc;
 pub struct GraphNodeContainer(alloc::sync::Arc<spin::Mutex<dyn GraphNode>>);
 pub struct IndexChildContainer(alloc::sync::Arc<spin::Mutex<dyn GraphIndexExec>>);
 

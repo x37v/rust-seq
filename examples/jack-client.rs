@@ -1,6 +1,8 @@
 use jack;
 use std::io;
 
+extern crate alloc;
+
 use sched::event::ticked_value_queue::TickedValueQueueEvent;
 use sched::event::*;
 use sched::item_sink::ItemSink;
@@ -15,6 +17,8 @@ use sched::graph::{
 use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
 use heapless::mpmc::Q64;
+
+use core::sync::atomic::AtomicU8;
 
 struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
 struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
@@ -123,6 +127,7 @@ fn main() {
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
+    let num = alloc::sync::Arc::new(AtomicU8::new(64));
     let note_on = EventContainer::new(TickedValueQueueEvent::new(
         MidiValue::NoteOn {
             chan: 0,
