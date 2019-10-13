@@ -8,6 +8,7 @@ use crate::item_source::ItemSource;
 use crate::midi::MidiValue;
 use crate::pqueue::TickPriorityEnqueue;
 
+/// Graph leaf that schedules a midi note at context 'now' with the duration given.
 pub struct MidiNote<Chan, Note, Dur, OnVel, OffVel, MidiValueQueue, Source>
 where
     Chan: ParamBindingGet<u8>,
