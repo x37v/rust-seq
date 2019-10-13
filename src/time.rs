@@ -53,7 +53,7 @@ pub fn offset_tick(tick: usize, offset: isize) -> usize {
 }
 
 impl TimeSched {
-    pub fn add(&self, d: TimeResched, now: usize, ratio: (usize, usize)) -> Self {
+    pub fn add<'a>(&self, d: TimeResched, context: &'a dyn TickContext) -> Self {
         let offset = match d {
             TimeResched::Relative(offset) => offset,
             TimeResched::ContextRelative(offset) => offset, //TODO context math?
@@ -64,7 +64,10 @@ impl TimeSched {
             TimeSched::Absolute(tick) => TimeSched::Absolute(offset_tick(tick, offset)),
             TimeSched::ContextAbsolute(tick) => TimeSched::Absolute(offset_tick(tick, offset)),
             TimeSched::Relative(now_offset) | TimeSched::ContextRelative(now_offset) => {
-                TimeSched::Absolute(offset_tick(now, now_offset.saturating_add(offset)))
+                TimeSched::Absolute(offset_tick(
+                    context.tick_now(),
+                    now_offset.saturating_add(offset),
+                ))
             }
         }
     }
