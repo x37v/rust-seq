@@ -53,22 +53,28 @@ pub fn offset_tick(tick: usize, offset: isize) -> usize {
 }
 
 impl TimeSched {
-    pub fn add<'a>(&self, d: TimeResched, context: &'a dyn TickContext) -> Self {
-        let offset = match d {
-            TimeResched::Relative(offset) => offset,
-            TimeResched::ContextRelative(offset) => offset, //TODO context math?
-            TimeResched::None => 0usize,
-        } as isize;
-        //TODO context math?
-        match *self {
-            TimeSched::Absolute(tick) => TimeSched::Absolute(offset_tick(tick, offset)),
-            TimeSched::ContextAbsolute(tick) => TimeSched::Absolute(offset_tick(tick, offset)),
-            TimeSched::Relative(now_offset) | TimeSched::ContextRelative(now_offset) => {
-                TimeSched::Absolute(offset_tick(
-                    context.tick_now(),
-                    now_offset.saturating_add(offset),
-                ))
-            }
+    pub fn add<'a>(&self, d: TimeResched, _context: &'a dyn TickContext) -> Self {
+        //XXX update with context math
+        match d {
+            TimeResched::Relative(offset) => match *self {
+                TimeSched::Absolute(tick) => {
+                    TimeSched::Absolute(offset_tick(tick, offset as isize))
+                }
+                TimeSched::ContextAbsolute(_tick) => unimplemented!(),
+                TimeSched::Relative(aoffset) => TimeSched::Relative(offset as isize + aoffset),
+                TimeSched::ContextRelative(_offset) => unimplemented!(),
+            },
+            TimeResched::ContextRelative(offset) => match *self {
+                TimeSched::Absolute(_tick) => unimplemented!(),
+                TimeSched::ContextAbsolute(tick) => {
+                    TimeSched::ContextAbsolute(offset_tick(tick, offset as isize))
+                }
+                TimeSched::Relative(_offset) => unimplemented!(),
+                TimeSched::ContextRelative(coffset) => {
+                    TimeSched::ContextRelative(offset_tick(offset, coffset) as isize)
+                }
+            },
+            TimeResched::None => *self,
         }
     }
 
