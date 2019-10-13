@@ -107,10 +107,17 @@ where
             if let Ok(on) = on {
                 let t = TimeSched::ContextRelative(0);
                 let ot = t.add(dur, context.as_tick_context());
-                //XXX dispose if schedule error?
+                //schedule off first
                 let s = context.event_schedule(ot, EventContainer::new_from_box(off));
-                if s.is_ok() {
-                    let _s = context.event_schedule(t, EventContainer::new_from_box(on));
+                if let Err(_b) = s {
+                    //dispose
+                    //XXX report
+                } else {
+                    let s = context.event_schedule(t, EventContainer::new_from_box(on));
+                    if let Err(_b) = s {
+                        //dispose
+                        //XXX report
+                    }
                 }
             } else {
                 //XXX report
