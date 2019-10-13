@@ -50,6 +50,12 @@ impl EventContainer {
     }
 }
 
+impl core::convert::From<BoxEventEval> for EventContainer {
+    fn from(b: BoxEventEval) -> Self {
+        Self(b)
+    }
+}
+
 impl core::convert::Into<BoxEventEval> for EventContainer {
     fn into(self) -> BoxEventEval {
         self.0
