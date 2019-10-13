@@ -2,7 +2,7 @@ use super::*;
 use core::cell::Cell;
 use spin::Mutex;
 
-/// Wrap any `Copy` type in a `spinlock::Mutex` so it can be shared across threads.
+/// Wrap any `Copy` type in a `spin::Mutex` so it can be shared across threads.
 ///
 /// *Note*: `Atomic.*` types automatically implement `ParamBindingGet` and `ParamBindingSet`
 /// so you probably want to use those when you can.
