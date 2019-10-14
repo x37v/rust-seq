@@ -3,6 +3,8 @@ use std::io;
 
 extern crate alloc;
 
+use core::convert::Into;
+
 use sched::event::ticked_value_queue::TickedValueQueueEvent;
 use sched::event::*;
 use sched::item_sink::ItemSink;
@@ -10,15 +12,22 @@ use sched::midi::*;
 use sched::pqueue::*;
 use sched::schedule::ScheduleExecutor;
 
+use alloc::sync::Arc;
+use spin::Mutex;
+
+use sched::graph::*;
 use sched::graph::{
-    node_wrapper::GraphNodeWrapper, root_clock::RootClock, GraphLeafExec, GraphNodeContainer,
+    clock_ratio::ClockRatio, node_wrapper::GraphNodeWrapper, root_clock::RootClock,
+    step_seq::StepSeq,
 };
+
+use sched::binding::*;
 
 use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
 use heapless::mpmc::Q64;
 
-use core::sync::atomic::AtomicU8;
+use core::sync::atomic::{AtomicU8, AtomicUsize};
 
 struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
 struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
@@ -91,6 +100,7 @@ impl DisposeSink {
     }
 }
 
+/*
 struct GraphPrinter;
 
 impl GraphLeafExec for GraphPrinter {
@@ -102,12 +112,30 @@ impl GraphLeafExec for GraphPrinter {
         );
     }
 }
+*/
 
 static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 static MIDI_QUEUE: spin::Mutex<MidiQueue> =
     spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
+
+pub trait IntoPtrs {
+    fn into_arc(self) -> Arc<Self>;
+    fn into_alock(self) -> Arc<Mutex<Self>>;
+}
+
+impl<T> IntoPtrs for T
+where
+    T: Sized,
+{
+    fn into_arc(self) -> Arc<Self> {
+        Arc::new(self)
+    }
+    fn into_alock(self) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(self))
+    }
+}
 
 fn main() {
     let (client, _status) =
@@ -155,11 +183,27 @@ fn main() {
         .enqueue(off + 44100usize, note_on)
         .is_ok());
 
-    let root = GraphNodeContainer::new(GraphNodeWrapper::new(
-        GraphPrinter,
-        sched::graph::children::empty::Children,
-    ));
-    let root = EventContainer::new(RootClock::new(&2_000_000f32, root));
+    let mul = AtomicU8::new(1).into_arc();
+    let div = AtomicU8::new(1).into_arc();
+    let steps = AtomicUsize::new(16).into_arc();
+    let step_ticks = AtomicUsize::new(960usize / 4usize).into_arc();
+
+    let ratio = ClockRatio::new(
+        mul as Arc<dyn ParamBindingGet<_>>,
+        div as Arc<dyn ParamBindingGet<_>>,
+    );
+
+    let seq = StepSeq::new(
+        step_ticks as Arc<dyn ParamBindingGet<_>>,
+        steps as Arc<dyn ParamBindingGet<_>>,
+    );
+
+    let seq: GraphNodeContainer = GraphNodeWrapper::new(seq, children::empty::Children).into();
+
+    let ratio: GraphNodeContainer =
+        GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
+
+    let root = EventContainer::new(RootClock::new(&2_000_000f32, ratio));
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
     //dispose thread, simply ditching
