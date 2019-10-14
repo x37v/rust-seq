@@ -172,8 +172,8 @@ pub mod nchild {
             range: core::ops::Range<usize>,
         ) {
             for i in range {
-                self.child.node_exec(context);
                 self.index_children.exec_index(i, context);
+                self.child.node_exec(context);
             }
         }
     }
