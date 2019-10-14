@@ -18,23 +18,36 @@ pub trait Clock: Send {
 
 #[derive(Debug, Copy, Clone)]
 pub struct ClockData {
-    bpm: f32,
-    period_micros: f32,
-    ppq: usize,
+    pub bpm: f32,
+    pub period_micros: f32,
+    pub ppq: usize,
 }
 
-/*
-pub struct ClockPeriodMicroBinding<T: Deref<Target = Mutex<dyn Clock>> + Send>(T);
-pub struct ClockBPMBinding<T: Deref<Target = Mutex<dyn Clock>> + Send>(T);
-pub struct ClockPPQBinding<T: Deref<Target = Mutex<dyn Clock>> + Send>(T);
-*/
-pub struct ClockPeriodMicroBinding(Arc<Mutex<dyn Clock>>);
-pub struct ClockBPMBinding(Arc<Mutex<dyn Clock>>);
-pub struct ClockPPQBinding(Arc<Mutex<dyn Clock>>);
+macro_rules! period_micro {
+    ($bpm:expr, $ppq:expr) => {
+        60e6f32 / ($bpm * $ppq as f32)
+    };
+}
+
+/// A builder for ClockData that can happen in a static context.
+#[macro_export]
+macro_rules! make_clock {
+    ($bpm:expr, $ppq:expr) => {
+        crate::binding::bpm::ClockData {
+            bpm: $bpm,
+            period_micros: period_micro!($bpm, $ppq),
+            ppq: $ppq,
+        }
+    };
+}
+
+pub struct ClockPeriodMicroBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(T);
+pub struct ClockBPMBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(T);
+pub struct ClockPPQBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(T);
 
 impl ClockData {
     pub fn period_micro(bpm: f32, ppq: usize) -> f32 {
-        60e6f32 / (bpm * ppq as f32)
+        period_micro!(bpm, ppq)
     }
 
     pub fn new(bpm: f32, ppq: usize) -> Self {
@@ -79,55 +92,82 @@ impl Clock for ClockData {
     }
 }
 
-impl Clone for ClockPeriodMicroBinding {
+impl<T> Clone for ClockPeriodMicroBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl Clone for ClockBPMBinding {
+impl<T> Clone for ClockBPMBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl Clone for ClockPPQBinding {
+impl<T> Clone for ClockPPQBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl ParamBindingSet<f32> for ClockPeriodMicroBinding {
+impl<T> ParamBindingSet<f32> for ClockPeriodMicroBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn set(&self, value: f32) {
         self.0.lock().set_period_micros(value);
     }
 }
 
-impl ParamBindingGet<f32> for ClockPeriodMicroBinding {
+impl<T> ParamBindingGet<f32> for ClockPeriodMicroBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn get(&self) -> f32 {
         self.0.lock().period_micros()
     }
 }
 
-impl ParamBindingSet<f32> for ClockBPMBinding {
+impl<T> ParamBindingSet<f32> for ClockBPMBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn set(&self, value: f32) {
         self.0.lock().set_bpm(value);
     }
 }
 
-impl ParamBindingGet<f32> for ClockBPMBinding {
+impl<T> ParamBindingGet<f32> for ClockBPMBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn get(&self) -> f32 {
         self.0.lock().bpm()
     }
 }
 
-impl ParamBindingSet<usize> for ClockPPQBinding {
+impl<T> ParamBindingSet<usize> for ClockPPQBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn set(&self, value: usize) {
         self.0.lock().set_ppq(value);
     }
 }
 
-impl ParamBindingGet<usize> for ClockPPQBinding {
+impl<T> ParamBindingGet<usize> for ClockPPQBinding<T>
+where
+    T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone,
+{
     fn get(&self) -> usize {
         self.0.lock().ppq()
     }
@@ -172,6 +212,49 @@ mod tests {
     fn bpm_binding_test() {
         let b: Arc<Mutex<dyn Clock>> = Arc::new(Mutex::new(bpm::ClockData::new(120.0, 96)));
 
+        let bpm = bpm::ClockBPMBinding(b.clone());
+        let ppq = bpm::ClockPPQBinding(b.clone());
+        let micros = bpm::ClockPeriodMicroBinding(b.clone());
+        let micros2 = micros.clone();
+
+        let c = b.clone();
+        assert_eq!(5208f32, c.lock().period_micros().floor());
+        assert_eq!(5208f32, micros.get().floor());
+        assert_eq!(120f32, c.lock().bpm());
+        assert_eq!(120f32, bpm.get());
+        assert_eq!(96, c.lock().ppq());
+        assert_eq!(96, ppq.get());
+
+        ppq.set(24);
+        assert_eq!(20833f32, c.lock().period_micros().floor());
+        assert_eq!(20833f32, micros.get().floor());
+        assert_eq!(120f32, c.lock().bpm());
+        assert_eq!(120f32, bpm.get());
+        assert_eq!(24, c.lock().ppq());
+        assert_eq!(24, ppq.get());
+
+        bpm.set(2.0);
+        ppq.set(96);
+        assert_eq!(2f32, c.lock().bpm());
+        assert_eq!(2f32, bpm.get());
+        assert_eq!(96, c.lock().ppq());
+        assert_eq!(96, ppq.get());
+        assert_ne!(5208f32, c.lock().period_micros().floor());
+        assert_ne!(5208f32, micros.get().floor());
+
+        micros2.set(5_208.333333f32);
+        assert_eq!(120f32, c.lock().bpm().floor());
+        assert_eq!(120f32, bpm.get().floor());
+        assert_eq!(96, c.lock().ppq());
+        assert_eq!(96, ppq.get());
+        assert_eq!(5208f32, c.lock().period_micros().floor());
+        assert_eq!(5208f32, micros.get().floor());
+    }
+
+    static CLOCK: Mutex<bpm::ClockData> = Mutex::new(make_clock!(120f32, 96));
+    #[test]
+    fn bpm_binding_static_test() {
+        let b = &CLOCK as &'static Mutex<dyn Clock>;
         let bpm = bpm::ClockBPMBinding(b.clone());
         let ppq = bpm::ClockPPQBinding(b.clone());
         let micros = bpm::ClockPeriodMicroBinding(b.clone());
