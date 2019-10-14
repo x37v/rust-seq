@@ -1,5 +1,5 @@
 use crate::event::*;
-use crate::graph::{GraphChildExec, GraphNode, GraphNodeExec};
+use crate::graph::{GraphChildExec, GraphNode, GraphNodeContainer, GraphNodeExec};
 
 pub struct GraphNodeWrapper<E, C>
 where
@@ -17,6 +17,16 @@ where
 {
     pub fn new(exec: E, children: C) -> Self {
         Self { exec, children }
+    }
+}
+
+impl<E, C> core::convert::Into<GraphNodeContainer> for GraphNodeWrapper<E, C>
+where
+    E: GraphNodeExec + 'static,
+    C: GraphChildExec + 'static,
+{
+    fn into(self) -> GraphNodeContainer {
+        GraphNodeContainer::new(self)
     }
 }
 
