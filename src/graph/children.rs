@@ -30,12 +30,19 @@ pub mod boxed {
         ChildCount, GraphChildExec, GraphIndexExec, GraphNode, GraphNodeContainer,
         IndexChildContainer,
     };
+    use core::convert::From;
 
     pub struct Children(Box<[GraphNodeContainer]>);
     pub struct IndexChildren(Box<[IndexChildContainer]>);
 
     impl Children {
         pub fn new(children: Box<[GraphNodeContainer]>) -> Self {
+            Self(children)
+        }
+    }
+
+    impl From<Box<[GraphNodeContainer]>> for Children {
+        fn from(children: Box<[GraphNodeContainer]>) -> Self {
             Self(children)
         }
     }
