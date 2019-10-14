@@ -1,7 +1,11 @@
-use super::*;
-use crate::ptr::SShrPtr;
+extern crate alloc;
 
-pub trait Clock {
+use super::*;
+use alloc::sync::Arc;
+use core::ops::Deref;
+use spin::Mutex;
+
+pub trait Clock: Send {
     fn bpm(&self) -> f32;
     fn set_bpm(&mut self, bpm: f32);
 
@@ -19,9 +23,14 @@ pub struct ClockData {
     ppq: usize,
 }
 
-pub struct ClockPeriodMicroBinding(pub SShrPtr<dyn Clock>);
-pub struct ClockBPMBinding(pub SShrPtr<dyn Clock>);
-pub struct ClockPPQBinding(pub SShrPtr<dyn Clock>);
+/*
+pub struct ClockPeriodMicroBinding<T: Deref<Target = Mutex<dyn Clock>> + Send>(T);
+pub struct ClockBPMBinding<T: Deref<Target = Mutex<dyn Clock>> + Send>(T);
+pub struct ClockPPQBinding<T: Deref<Target = Mutex<dyn Clock>> + Send>(T);
+*/
+pub struct ClockPeriodMicroBinding(Arc<Mutex<dyn Clock>>);
+pub struct ClockBPMBinding(Arc<Mutex<dyn Clock>>);
+pub struct ClockPPQBinding(Arc<Mutex<dyn Clock>>);
 
 impl ClockData {
     pub fn period_micro(bpm: f32, ppq: usize) -> f32 {
@@ -70,6 +79,24 @@ impl Clock for ClockData {
     }
 }
 
+impl Clone for ClockPeriodMicroBinding {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl Clone for ClockBPMBinding {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl Clone for ClockPPQBinding {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl ParamBindingSet<f32> for ClockPeriodMicroBinding {
     fn set(&self, value: f32) {
         self.0.lock().set_period_micros(value);
@@ -109,6 +136,10 @@ impl ParamBindingGet<usize> for ClockPPQBinding {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::binding::ParamBindingGet;
+    use alloc::sync::Arc;
+    use core::ops::Deref;
+    use spin::Mutex;
 
     #[test]
     fn bpm_value_test() {
@@ -139,11 +170,11 @@ mod tests {
 
     #[test]
     fn bpm_binding_test() {
-        let b = new_sshrptr!(bpm::ClockData::new(120.0, 96));
+        let b: Arc<Mutex<dyn Clock>> = Arc::new(Mutex::new(bpm::ClockData::new(120.0, 96)));
 
-        let bpm = new_shrptr!(bpm::ClockBPMBinding(b.clone()));
-        let ppq = new_shrptr!(bpm::ClockPPQBinding(b.clone()));
-        let micros = new_shrptr!(bpm::ClockPeriodMicroBinding(b.clone()));
+        let bpm = bpm::ClockBPMBinding(b.clone());
+        let ppq = bpm::ClockPPQBinding(b.clone());
+        let micros = bpm::ClockPeriodMicroBinding(b.clone());
         let micros2 = micros.clone();
 
         let c = b.clone();

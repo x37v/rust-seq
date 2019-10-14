@@ -1,6 +1,6 @@
 extern crate alloc;
 
-//pub mod bpm;
+pub mod bpm;
 pub mod generators;
 pub mod ops;
 pub mod spinlock;
@@ -98,5 +98,14 @@ where
 {
     fn set(&self, value: T) {
         self.deref().set(value)
+    }
+}
+
+impl<T> ParamBindingSet<T> for alloc::sync::Arc<spin::Mutex<dyn ParamBindingSet<T>>>
+where
+    T: Copy + Send,
+{
+    fn set(&self, value: T) {
+        self.lock().set(value)
     }
 }
