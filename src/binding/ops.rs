@@ -1,5 +1,9 @@
+extern crate alloc;
 use crate::binding::ParamBindingGet;
 use core::marker::PhantomData;
+
+use alloc::sync::Arc;
+use spin::Mutex;
 
 /// Clamp a numeric binding between [min, max], inclusive.
 pub struct GetClamp<T, B, Min, Max> {
@@ -70,6 +74,13 @@ pub struct GetCast<I, O, B> {
     binding: B,
     _iphantom: PhantomData<fn() -> I>,
     _ophantom: PhantomData<fn() -> O>,
+}
+
+/// Get a value from a boxed slice of bindings, based on an index binding.
+/// *Note*: if index is out of range, this returns `Default::default()` of the destination value.
+pub struct GetIndexed<T, Index> {
+    bindings: Box<[Arc<dyn ParamBindingGet<T>>]>,
+    index: Index,
 }
 
 pub enum CmpOp {
@@ -471,11 +482,59 @@ where
     }
 }
 
+impl<T, Index> GetIndexed<T, Index>
+where
+    T: Send,
+    Index: ParamBindingGet<usize>,
+{
+    pub fn new(bindings: Box<[Arc<dyn ParamBindingGet<T>>]>, index: Index) -> Self {
+        Self { bindings, index }
+    }
+}
+
+impl<T, Index> ParamBindingGet<T> for GetIndexed<T, Index>
+where
+    T: Copy + Send + Default,
+    Index: ParamBindingGet<usize>,
+{
+    fn get(&self) -> T {
+        let i = self.index.get();
+        if self.bindings.len() > i {
+            self.bindings.get(i).unwrap().get()
+        } else {
+            Default::default()
+        }
+    }
+}
+
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use crate::binding::ParamBindingGet;
+    use crate::binding::*;
+    use core::ops::Index;
+    use core::sync::atomic::{AtomicUsize, Ordering};
+    use spin::Mutex;
     use std::sync::Arc;
+
+    #[test]
+    fn indexed() {
+        let index = Arc::new(AtomicUsize::new(0));
+        let indexed = GetIndexed::new(
+            Box::new([
+                Arc::new(AtomicUsize::new(10)),
+                Arc::new(AtomicUsize::new(11)),
+            ]),
+            index.clone() as Arc<dyn ParamBindingGet<usize>>,
+        );
+
+        assert_eq!(10, indexed.get());
+        index.store(1, Ordering::SeqCst);
+        assert_eq!(11, indexed.get());
+
+        //out of range, becomes default
+        index.store(2, Ordering::SeqCst);
+        assert_eq!(0, indexed.get());
+    }
 
     #[test]
     fn clamp() {
