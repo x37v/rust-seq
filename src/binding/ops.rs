@@ -1,6 +1,7 @@
 extern crate alloc;
 use crate::binding::ParamBindingGet;
 use core::marker::PhantomData;
+use core::ops::Deref;
 
 use alloc::sync::Arc;
 use spin::Mutex;
@@ -78,9 +79,10 @@ pub struct GetCast<I, O, B> {
 
 /// Get a value from a boxed slice of bindings, based on an index binding.
 /// *Note*: if index is out of range, this returns `Default::default()` of the destination value.
-pub struct GetIndexed<T, Index> {
-    bindings: Box<[Arc<dyn ParamBindingGet<T>>]>,
+pub struct GetIndexed<T, C, CT, Index> {
+    bindings: C,
     index: Index,
+    _phantom: PhantomData<fn() -> (T, CT)>,
 }
 
 pub enum CmpOp {
@@ -482,19 +484,27 @@ where
     }
 }
 
-impl<T, Index> GetIndexed<T, Index>
+impl<T, C, CT, Index> GetIndexed<T, C, CT, Index>
 where
     T: Send,
+    C: Deref<Target = [CT]> + Send + Sync,
+    CT: Deref<Target = dyn ParamBindingGet<T>> + Send,
     Index: ParamBindingGet<usize>,
 {
-    pub fn new(bindings: Box<[Arc<dyn ParamBindingGet<T>>]>, index: Index) -> Self {
-        Self { bindings, index }
+    pub fn new(bindings: C, index: Index) -> Self {
+        Self {
+            bindings,
+            index,
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<T, Index> ParamBindingGet<T> for GetIndexed<T, Index>
+impl<T, C, CT, Index> ParamBindingGet<T> for GetIndexed<T, C, CT, Index>
 where
-    T: Copy + Send + Default,
+    T: Send + Default,
+    C: Deref<Target = [CT]> + Send + Sync,
+    CT: Deref<Target = dyn ParamBindingGet<T>> + Send,
     Index: ParamBindingGet<usize>,
 {
     fn get(&self) -> T {
@@ -516,20 +526,55 @@ mod tests {
     use spin::Mutex;
     use std::sync::Arc;
 
+    static C1: &usize = &20;
+    static C2: &usize = &22;
+
+    static COLLECTION1: [&dyn ParamBindingGet<usize>; 2] = [C1, C2];
+
+    static C3: Mutex<AtomicUsize> = Mutex::new(AtomicUsize::new(20));
+    static C4: Mutex<AtomicUsize> = Mutex::new(AtomicUsize::new(22));
+
+    static COLLECTION2: [&Mutex<dyn ParamBindingGet<usize>>; 2] = [&C3, &C4];
+
     #[test]
     fn indexed() {
         let index = Arc::new(AtomicUsize::new(0));
-        let indexed = GetIndexed::new(
-            Box::new([
-                Arc::new(AtomicUsize::new(10)),
-                Arc::new(AtomicUsize::new(11)),
-            ]),
-            index.clone() as Arc<dyn ParamBindingGet<usize>>,
-        );
+        let collection: Box<[Arc<dyn ParamBindingGet<usize>>]> = Box::new([
+            Arc::new(AtomicUsize::new(10)),
+            Arc::new(AtomicUsize::new(11)),
+        ]);
+        let indexed = GetIndexed::new(collection, index.clone() as Arc<dyn ParamBindingGet<usize>>);
 
         assert_eq!(10, indexed.get());
         index.store(1, Ordering::SeqCst);
         assert_eq!(11, indexed.get());
+
+        //out of range, becomes default
+        index.store(2, Ordering::SeqCst);
+        assert_eq!(0, indexed.get());
+
+        let index = Arc::new(AtomicUsize::new(0));
+        let collection: Arc<[Arc<dyn ParamBindingGet<usize>>]> = Arc::new([
+            Arc::new(AtomicUsize::new(10)),
+            Arc::new(AtomicUsize::new(11)),
+        ]);
+        let indexed = GetIndexed::new(collection, index.clone() as Arc<dyn ParamBindingGet<usize>>);
+
+        assert_eq!(10, indexed.get());
+        index.store(1, Ordering::SeqCst);
+        assert_eq!(11, indexed.get());
+
+        //out of range, becomes default
+        index.store(2, Ordering::SeqCst);
+        assert_eq!(0, indexed.get());
+
+        let collection = &COLLECTION1 as &[&dyn ParamBindingGet<usize>];
+        let indexed = GetIndexed::new(collection, index.clone() as Arc<dyn ParamBindingGet<usize>>);
+
+        index.store(0, Ordering::SeqCst);
+        assert_eq!(20, indexed.get());
+        index.store(1, Ordering::SeqCst);
+        assert_eq!(22, indexed.get());
 
         //out of range, becomes default
         index.store(2, Ordering::SeqCst);
