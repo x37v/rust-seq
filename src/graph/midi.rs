@@ -17,10 +17,11 @@ where
     OnVel: ParamBindingGet<u8>,
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
-    Source: ItemSource<
-        TickedValueQueueEvent<MidiValue, MidiValueQueue>,
-        Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
-    >,
+    Source: 'static
+        + ItemSource<
+            TickedValueQueueEvent<MidiValue, MidiValueQueue>,
+            Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
+        >,
 {
     chan: Chan,
     note: Note,
@@ -40,10 +41,11 @@ where
     OnVel: ParamBindingGet<u8>,
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
-    Source: ItemSource<
-        TickedValueQueueEvent<MidiValue, MidiValueQueue>,
-        Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
-    >,
+    Source: 'static
+        + ItemSource<
+            TickedValueQueueEvent<MidiValue, MidiValueQueue>,
+            Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
+        >,
 {
     pub fn new(
         chan: Chan,
@@ -75,10 +77,11 @@ where
     OnVel: ParamBindingGet<u8>,
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
-    Source: ItemSource<
-        TickedValueQueueEvent<MidiValue, MidiValueQueue>,
-        Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
-    >,
+    Source: 'static
+        + ItemSource<
+            TickedValueQueueEvent<MidiValue, MidiValueQueue>,
+            Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
+        >,
 {
     fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
         let chan = self.chan.get();
