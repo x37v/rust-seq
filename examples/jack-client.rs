@@ -5,9 +5,12 @@ extern crate alloc;
 
 use core::convert::Into;
 
+use sched::time::*;
+
 use sched::event::ticked_value_queue::TickedValueQueueEvent;
 use sched::event::*;
 use sched::item_sink::ItemSink;
+use sched::item_source::ItemSource;
 use sched::midi::*;
 use sched::pqueue::*;
 use sched::schedule::ScheduleExecutor;
@@ -27,13 +30,18 @@ use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
 use heapless::mpmc::Q64;
 
-use core::sync::atomic::{AtomicU8, AtomicUsize};
+use core::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize};
 
 struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
 struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
 struct DisposeSink(Q64<EventContainer>);
 
+struct MidiItemSource;
+
 type MidiEnqueue = &'static spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>;
+type TickedMidiValueEvent = TickedValueQueueEvent<MidiValue, MidiEnqueue>;
+type TickedMidiValueEventSource =
+    &'static spin::Mutex<dyn ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>>>;
 
 impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
     fn enqueue(&mut self, tick: usize, value: EventContainer) -> Result<(), EventContainer> {
@@ -100,6 +108,15 @@ impl DisposeSink {
     }
 }
 
+impl ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>> for MidiItemSource {
+    fn try_get(
+        &mut self,
+        init: TickedMidiValueEvent,
+    ) -> Result<Box<TickedMidiValueEvent>, TickedMidiValueEvent> {
+        Ok(Box::new(init)) //XXX unsafe
+    }
+}
+
 /*
 struct GraphPrinter;
 
@@ -119,6 +136,8 @@ static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 static MIDI_QUEUE: spin::Mutex<MidiQueue> =
     spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
+
+static MIDI_VALUE_SOURCE: spin::Mutex<MidiItemSource> = spin::Mutex::new(MidiItemSource);
 
 pub trait IntoPtrs {
     fn into_arc(self) -> Arc<Self>;
@@ -155,7 +174,6 @@ fn main() {
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
-    let num = alloc::sync::Arc::new(AtomicU8::new(64));
     let note_on = EventContainer::new(TickedValueQueueEvent::new(
         MidiValue::NoteOn {
             chan: 0,
@@ -187,6 +205,47 @@ fn main() {
     let div = AtomicU8::new(1).into_arc();
     let steps = AtomicUsize::new(16).into_arc();
     let step_ticks = AtomicUsize::new(960usize / 4usize).into_arc();
+    let step_cur = AtomicUsize::new(16).into_arc();
+
+    //XXX could try `arr_macro` for this
+    let gates: Arc<[Arc<AtomicBool>]> = Arc::new([
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
+    ]);
+    let gatesg: Arc<[Arc<dyn ParamBindingGet<bool>>]> = Arc::new([
+        gates[0].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[1].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[2].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[3].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[4].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[5].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[6].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[7].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[8].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[9].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[10].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[11].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[12].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[13].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[14].clone() as Arc<dyn ParamBindingGet<bool>>,
+        gates[15].clone() as Arc<dyn ParamBindingGet<bool>>,
+    ]);
+
+    //root -> ratio -> step_seq ---(nchild index bind)--> step_gate -> note
 
     let ratio = ClockRatio::new(
         mul as Arc<dyn ParamBindingGet<_>>,
@@ -198,7 +257,37 @@ fn main() {
         steps as Arc<dyn ParamBindingGet<_>>,
     );
 
-    let seq: GraphNodeContainer = GraphNodeWrapper::new(seq, children::empty::Children).into();
+    let step_cur_bind = IndexChildContainer::new(bindstore::BindStoreIndexChild::new(
+        step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
+    ));
+
+    let step_gate = ops::GetIndexed::new(
+        gatesg.clone(),
+        step_cur.clone() as Arc<dyn ParamBindingGet<usize>>,
+    )
+    .into_alock();
+
+    let step_gate = gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
+
+    let note = midi::MidiNote::new(
+        &0,
+        &64,
+        &TimeResched::Relative(100),
+        &127,
+        &127,
+        &MIDI_VALUE_SOURCE as TickedMidiValueEventSource,
+        &MIDI_QUEUE as MidiEnqueue,
+    );
+
+    let note: GraphNodeContainer = GraphNodeWrapper::new(note, children::empty::Children).into();
+
+    let step_gate: GraphNodeContainer =
+        GraphNodeWrapper::new(step_gate, children::boxed::Children::new(Box::new([note]))).into();
+
+    let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
+
+    let seq: GraphNodeContainer =
+        GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild)).into();
 
     let ratio: GraphNodeContainer =
         GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
