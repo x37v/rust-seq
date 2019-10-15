@@ -103,9 +103,9 @@ pub struct GetCmp<T, L, R> {
 impl<T, B, Min, Max> GetClamp<T, B, Min, Max>
 where
     T: Send + Copy + PartialOrd,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Min: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Max: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
+    Min: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
 {
     /// Construct a new `GetClamp`
     ///
@@ -127,9 +127,9 @@ where
 impl<T, B, Min, Max> ParamBindingGet<T> for GetClamp<T, B, Min, Max>
 where
     T: PartialOrd,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Min: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Max: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
+    Min: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         let b = self.binding.get();
@@ -148,8 +148,8 @@ where
 impl<T, B, Min> GetClampAbove<T, B, Min>
 where
     T: Send + Copy + PartialOrd,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Min: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
+    Min: ParamBindingGet<T>,
 {
     /// Construct a new `GetClampAbove`
     ///
@@ -169,8 +169,8 @@ where
 impl<T, B, Min> ParamBindingGet<T> for GetClampAbove<T, B, Min>
 where
     T: PartialOrd,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Min: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
+    Min: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         let b = self.binding.get();
@@ -186,8 +186,8 @@ where
 impl<T, B, Max> GetClampBelow<T, B, Max>
 where
     T: Send + Copy + PartialOrd,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Max: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
 {
     /// Construct a new `GetClampBelow`
     ///
@@ -207,8 +207,8 @@ where
 impl<T, B, Max> ParamBindingGet<T> for GetClampBelow<T, B, Max>
 where
     T: PartialOrd,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    Max: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
+    Max: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         let b = self.binding.get();
@@ -224,8 +224,8 @@ where
 impl<T, L, R> GetSum<T, L, R>
 where
     T: Send,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     /// Construct a new `GetSum`
     ///
@@ -245,8 +245,8 @@ where
 impl<T, L, R> ParamBindingGet<T> for GetSum<T, L, R>
 where
     T: core::ops::Add + num::Num,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         self.left.get().add(self.right.get())
@@ -256,8 +256,8 @@ where
 impl<T, L, R> GetMul<T, L, R>
 where
     T: Send,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     /// Construct a new `GetMul`
     ///
@@ -277,8 +277,8 @@ where
 impl<T, L, R> ParamBindingGet<T> for GetMul<T, L, R>
 where
     T: core::ops::Mul + num::Num,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         self.left.get().mul(self.right.get())
@@ -288,8 +288,8 @@ where
 impl<T, N, D> GetDiv<T, N, D>
 where
     T: Send,
-    N: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    D: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    N: ParamBindingGet<T>,
+    D: ParamBindingGet<T>,
 {
     /// Construct a new `GetDiv`
     ///
@@ -309,8 +309,8 @@ where
 impl<T, N, D> ParamBindingGet<T> for GetDiv<T, N, D>
 where
     T: core::ops::Div + num::Num + num::Zero + Default,
-    N: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    D: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    N: ParamBindingGet<T>,
+    D: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         let d = self.den.get();
@@ -325,8 +325,8 @@ where
 impl<T, L, R> GetRem<T, L, R>
 where
     T: Send,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     /// Construct a new `GetRem`
     ///
@@ -346,8 +346,8 @@ where
 impl<T, L, R> ParamBindingGet<T> for GetRem<T, L, R>
 where
     T: core::ops::Rem + num::Num + num::Zero + Default,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         let right = self.right.get();
@@ -362,7 +362,7 @@ where
 impl<T, B> GetNegate<T, B>
 where
     T: Send,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
 {
     /// Construct a new `GetNegate`
     ///
@@ -380,7 +380,7 @@ where
 impl<T, B> ParamBindingGet<T> for GetNegate<T, B>
 where
     T: num::Signed,
-    B: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    B: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         -self.binding.get()
@@ -391,7 +391,7 @@ impl<I, O, B> GetCast<I, O, B>
 where
     I: Send,
     O: Send,
-    B: Deref<Target = dyn ParamBindingGet<I>> + Send + Sync,
+    B: ParamBindingGet<I>,
 {
     /// Construct a new `GetCast`
     ///
@@ -407,20 +407,14 @@ where
     ///
     /// ```
     /// extern crate alloc;
-    /// use sched::binding::*;
+    /// use sched::binding::ParamBindingGet;
     /// use sched::binding::ops::GetCast;
     /// use alloc::sync::Arc;
     /// use spin::Mutex;
     ///
-    /// let f = Arc::new(23f32);
-    /// let c = GetCast::new(f.clone() as Arc<dyn ParamBindingGet<f32>>);
-    ///
+    /// let f: f32 = 23f32.into();
+    /// let c : Arc<Mutex<dyn ParamBindingGet<u8>>> = Arc::new(Mutex::new(GetCast::new(f.clone())));
     /// assert_eq!(23f32, f.get());
-    /// assert_eq!(23u8, c.get());
-    ///
-    /// let c: Arc<Mutex<dyn ParamBindingGet<u8>>> = Arc::new(Mutex::new(GetCast::new(
-    ///     f.clone() as Arc<dyn ParamBindingGet<f32>>
-    /// )));
     /// assert_eq!(23u8, c.get());
     /// ```
     pub fn new(binding: B) -> Self {
@@ -435,7 +429,7 @@ impl<I, O, B> ParamBindingGet<O> for GetCast<I, O, B>
 where
     I: num::NumCast,
     O: num::NumCast + Default,
-    B: Deref<Target = dyn ParamBindingGet<I>> + Send + Sync,
+    B: ParamBindingGet<I>,
 {
     fn get(&self) -> O {
         if let Some(v) = O::from(self.binding.get()) {
@@ -449,8 +443,8 @@ where
 impl<T, L, R> GetCmp<T, L, R>
 where
     T: Send,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     /// Construct a new `GetCmp`
     ///
@@ -472,8 +466,8 @@ where
 impl<T, L, R> ParamBindingGet<bool> for GetCmp<T, L, R>
 where
     T: PartialOrd + PartialEq,
-    L: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
-    R: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    L: ParamBindingGet<T>,
+    R: ParamBindingGet<T>,
 {
     fn get(&self) -> bool {
         let left = self.left.get();
@@ -493,7 +487,7 @@ where
     T: Send,
     C: Deref<Target = [CT]> + Send + Sync,
     CT: Deref<Target = dyn ParamBindingGet<T>> + Send,
-    Index: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
+    Index: ParamBindingGet<usize>,
 {
     pub fn new(bindings: C, index: Index) -> Self {
         Self {
@@ -509,7 +503,7 @@ where
     T: Send + Default,
     C: Deref<Target = [CT]> + Send + Sync,
     CT: Deref<Target = dyn ParamBindingGet<T>> + Send,
-    Index: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
+    Index: ParamBindingGet<usize>,
 {
     fn get(&self) -> T {
         let i = self.index.get();
@@ -525,7 +519,7 @@ where
 mod tests {
     use super::*;
     use crate::binding::*;
-    use core::ops::Deref;
+    use core::ops::Index;
     use core::sync::atomic::{AtomicUsize, Ordering};
     use spin::Mutex;
     use std::sync::Arc;
@@ -587,13 +581,12 @@ mod tests {
 
     #[test]
     fn clamp() {
-        let min = &20;
-        let max = &23 as &dyn ParamBindingGet<_>;
-        let v = &1 as &dyn ParamBindingGet<_>;
-        let c = GetClamp::new(v, min as &dyn ParamBindingGet<_>, max);
-        assert_eq!(*min, c.get());
+        let min: i32 = 20;
+        let max: i32 = 23;
+        let mut v: i32 = 1;
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(min, c.get());
 
-        /*
         v = 234;
         let c = GetClamp::new(v, min, max);
         assert_eq!(max, c.get());
@@ -619,20 +612,5 @@ mod tests {
         //incorrect input but we want to keep going, will return max
         let c = GetClamp::new(1000isize, 100isize, -100isize);
         assert_eq!(-100isize, c.get());
-        */
-    }
-
-    #[test]
-    fn cast() {
-        let f = Arc::new(23f32);
-        let c = GetCast::new(f.clone() as Arc<dyn ParamBindingGet<f32>>);
-
-        assert_eq!(23f32, f.get());
-        assert_eq!(23u8, c.get());
-
-        let c: Arc<Mutex<dyn ParamBindingGet<u8>>> = Arc::new(Mutex::new(GetCast::new(
-            f.clone() as Arc<dyn ParamBindingGet<f32>>
-        )));
-        assert_eq!(23u8, c.get());
     }
 }
