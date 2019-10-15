@@ -556,6 +556,15 @@ mod tests {
             Arc::new(AtomicUsize::new(10)),
             Arc::new(AtomicUsize::new(11)),
         ]);
+
+        //can index with an op
+        let index = Arc::new(Mutex::new(GetClamp::new(&0usize, &1usize, &2usize)));
+        let indexed = GetIndexed::new(
+            collection.clone(),
+            index.clone() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
+        );
+
+        let index = Arc::new(AtomicUsize::new(0));
         let indexed = GetIndexed::new(collection, index.clone() as Arc<dyn ParamBindingGet<usize>>);
 
         assert_eq!(10, indexed.get());
