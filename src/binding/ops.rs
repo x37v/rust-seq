@@ -73,8 +73,7 @@ pub struct GetNegate<T, B> {
 /// *Note*: if the cast fails, this returns `Default::default()` of the destination value.
 pub struct GetCast<I, O, B> {
     binding: B,
-    _iphantom: PhantomData<fn() -> I>,
-    _ophantom: PhantomData<fn() -> O>,
+    _phantom: PhantomData<fn() -> (I, O)>,
 }
 
 /// Get a value from a boxed slice of bindings, based on an index binding.
@@ -421,8 +420,7 @@ where
     pub fn new(binding: B) -> Self {
         Self {
             binding,
-            _iphantom: Default::default(),
-            _ophantom: Default::default(),
+            _phantom: PhantomData,
         }
     }
 }
