@@ -8,6 +8,8 @@ use crate::item_source::ItemSource;
 use crate::midi::MidiValue;
 use crate::pqueue::TickPriorityEnqueue;
 
+pub type TickedMidiValueEvent<Enqueue> = TickedValueQueueEvent<MidiValue, Enqueue>;
+
 /// Graph leaf that schedules a midi note at context 'now' with the duration given.
 pub struct MidiNote<Chan, Note, Dur, OnVel, OffVel, MidiValueQueue, Source>
 where
@@ -19,8 +21,8 @@ where
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
     Source: 'static
         + ItemSource<
-            TickedValueQueueEvent<MidiValue, MidiValueQueue>,
-            Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
+            TickedMidiValueEvent<MidiValueQueue>,
+            Box<TickedMidiValueEvent<MidiValueQueue>>,
         >,
 {
     chan: Chan,
@@ -43,8 +45,8 @@ where
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
     Source: 'static
         + ItemSource<
-            TickedValueQueueEvent<MidiValue, MidiValueQueue>,
-            Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
+            TickedMidiValueEvent<MidiValueQueue>,
+            Box<TickedMidiValueEvent<MidiValueQueue>>,
         >,
 {
     pub fn new(
@@ -79,8 +81,8 @@ where
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
     Source: 'static
         + ItemSource<
-            TickedValueQueueEvent<MidiValue, MidiValueQueue>,
-            Box<TickedValueQueueEvent<MidiValue, MidiValueQueue>>,
+            TickedMidiValueEvent<MidiValueQueue>,
+            Box<TickedMidiValueEvent<MidiValueQueue>>,
         >,
 {
     fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {

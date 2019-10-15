@@ -39,7 +39,7 @@ struct DisposeSink(Q64<EventContainer>);
 struct MidiItemSource;
 
 type MidiEnqueue = &'static spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>;
-type TickedMidiValueEvent = TickedValueQueueEvent<MidiValue, MidiEnqueue>;
+type TickedMidiValueEvent = midi::TickedMidiValueEvent<MidiEnqueue>;
 type TickedMidiValueEventSource =
     &'static spin::Mutex<dyn ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>>>;
 
