@@ -203,7 +203,10 @@ fn main() {
     let ratio: GraphNodeContainer =
         GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
 
-    let root = EventContainer::new(RootClock::new(&2_000_000f32, ratio));
+    let root = EventContainer::new(RootClock::new(
+        &2_000_000f32 as &'static dyn ParamBindingGet<f32>,
+        ratio,
+    ));
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
     //dispose thread, simply ditching

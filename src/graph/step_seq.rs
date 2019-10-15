@@ -1,11 +1,12 @@
 use crate::binding::ParamBindingGet;
 use crate::event::EventEvalContext;
 use crate::graph::{GraphChildExec, GraphNodeExec};
+use core::ops::Deref;
 
 pub struct StepSeq<StepTicks, Steps>
 where
-    StepTicks: ParamBindingGet<usize>,
-    Steps: ParamBindingGet<usize>,
+    StepTicks: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
+    Steps: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
 {
     step_ticks: StepTicks,
     steps: Steps,
@@ -13,8 +14,8 @@ where
 
 impl<StepTicks, Steps> StepSeq<StepTicks, Steps>
 where
-    StepTicks: ParamBindingGet<usize>,
-    Steps: ParamBindingGet<usize>,
+    StepTicks: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
+    Steps: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
 {
     pub fn new(step_ticks: StepTicks, steps: Steps) -> Self {
         Self { step_ticks, steps }
@@ -25,8 +26,8 @@ where
 //at step_ticks context ticks
 impl<StepTicks, Steps> GraphNodeExec for StepSeq<StepTicks, Steps>
 where
-    StepTicks: ParamBindingGet<usize>,
-    Steps: ParamBindingGet<usize>,
+    StepTicks: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
+    Steps: Deref<Target = dyn ParamBindingGet<usize>> + Send + Sync,
 {
     fn graph_exec(
         &mut self,

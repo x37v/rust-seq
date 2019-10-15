@@ -3,6 +3,7 @@ use crate::context::ChildContext;
 use crate::event::EventEvalContext;
 use crate::graph::{ChildCount, GraphChildExec, GraphNodeExec};
 use core::marker::PhantomData;
+use core::ops::Deref;
 use num::cast::NumCast;
 
 pub struct ClockRatio<T, Mul, Div> {
@@ -13,8 +14,8 @@ pub struct ClockRatio<T, Mul, Div> {
 
 impl<T, Mul, Div> ClockRatio<T, Mul, Div>
 where
-    Mul: ParamBindingGet<T>,
-    Div: ParamBindingGet<T>,
+    Mul: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    Div: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
     T: num::Unsigned + NumCast + Send,
 {
     pub fn new(mul: Mul, div: Div) -> Self {
@@ -28,8 +29,8 @@ where
 
 impl<T, Mul, Div> GraphNodeExec for ClockRatio<T, Mul, Div>
 where
-    Mul: ParamBindingGet<T>,
-    Div: ParamBindingGet<T>,
+    Mul: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
+    Div: Deref<Target = dyn ParamBindingGet<T>> + Send + Sync,
     T: num::Unsigned + NumCast + Send,
 {
     fn graph_exec(
