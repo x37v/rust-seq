@@ -3,9 +3,9 @@ extern crate alloc;
 /*
 pub mod bpm;
 pub mod generators;
+*/
 pub mod ops;
 pub mod spinlock;
-*/
 
 use core::ops::Deref;
 
@@ -46,19 +46,16 @@ where
     }
 }
 
-impl<T> ParamBindingGet<T> for spin::Mutex<T>
+impl<T> ParamBindingGet<T> for spin::Mutex<dyn ParamBindingGet<T>>
 where
-    T: ParamBindingGet<T>,
+    T: Copy + Send + Sync,
 {
     fn get(&self) -> T {
         self.lock().get()
     }
 }
 
-impl<T> ParamBindingSet<T> for spin::Mutex<T>
-where
-    T: ParamBindingSet<T>,
-{
+impl<T> ParamBindingSet<T> for spin::Mutex<dyn ParamBindingSet<T>> {
     fn set(&self, value: T) {
         self.lock().set(value)
     }
