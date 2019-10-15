@@ -3,14 +3,13 @@ use crate::context::ChildContext;
 use crate::event::{EventEval, EventEvalContext};
 use crate::graph::GraphNode;
 use crate::time::TimeResched;
-use core::ops::Deref;
 
 pub type Micro = f32;
 
 /// A event_eval schedulable item that holds and executes a graph tree root.
 pub struct RootClock<PeriodMicros, T>
 where
-    PeriodMicros: Deref<Target = dyn ParamBindingGet<Micro>> + Send + Sync,
+    PeriodMicros: ParamBindingGet<Micro>,
     T: GraphNode,
 {
     tick: usize,
@@ -21,7 +20,7 @@ where
 
 impl<PeriodMicros, T> RootClock<PeriodMicros, T>
 where
-    PeriodMicros: Deref<Target = dyn ParamBindingGet<Micro>> + Send + Sync,
+    PeriodMicros: ParamBindingGet<Micro>,
     T: GraphNode,
 {
     pub fn new(period_micros: PeriodMicros, root: T) -> Self {
@@ -36,7 +35,7 @@ where
 
 impl<PeriodMicros, T> EventEval for RootClock<PeriodMicros, T>
 where
-    PeriodMicros: Deref<Target = dyn ParamBindingGet<Micro>> + Send + Sync,
+    PeriodMicros: ParamBindingGet<Micro>,
     T: GraphNode,
 {
     fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched {
