@@ -587,53 +587,30 @@ mod tests {
 
     #[test]
     fn clamp() {
-        let min = Arc::new(AtomicUsize::new(20));
-        let max = Arc::new(AtomicUsize::new(23));
-        let minc = min.clone() as Arc<dyn ParamBindingGet<usize>>;
-        let maxc = max.clone() as Arc<dyn ParamBindingGet<usize>>;
-        let v = Arc::new(AtomicUsize::new(1usize));
-        let vc = v.clone() as Arc<dyn ParamBindingGet<usize>>;
-
-        let c: Arc<Mutex<dyn ParamBindingGet<usize>>> = Arc::new(Mutex::new(GetClamp::new(
-            vc.clone(),
-            minc.clone(),
-            maxc.clone(),
-        )));
-        assert_eq!(min.load(Ordering::SeqCst), c.get());
-
-        v.store(234, Ordering::SeqCst);
-        let c: Arc<Mutex<dyn ParamBindingGet<usize>>> = Arc::new(Mutex::new(GetClamp::new(
-            vc.clone(),
-            minc.clone(),
-            maxc.clone(),
-        )));
-        assert_eq!(maxc.get(), c.get());
-
-        let c: Arc<Mutex<dyn ParamBindingGet<usize>>> = Arc::new(Mutex::new(GetClamp::new(
-            &22usize as &dyn ParamBindingGet<usize>,
-            minc.clone(),
-            maxc.clone(),
-        )));
-        assert_eq!(22, c.get());
-
-        let min = &-23isize;
-        let max = &43isize;
-        let v = &24isize;
-
-        let c: Arc<Mutex<dyn ParamBindingGet<isize>>> = Arc::new(Mutex::new(GetClamp::new(
-            v as &dyn ParamBindingGet<isize>,
-            min as &dyn ParamBindingGet<isize>,
-            max as &dyn ParamBindingGet<isize>,
-        )));
-        assert_eq!(*v, c.get());
+        let min = &20;
+        let max = &23 as &dyn ParamBindingGet<_>;
+        let v = &1 as &dyn ParamBindingGet<_>;
+        let c = GetClamp::new(v, min as &dyn ParamBindingGet<_>, max);
+        assert_eq!(*min, c.get());
 
         /*
-        let c2 = Arc::new(Mutex::new(GetClamp::new(
-            c.clone() as Arc<dyn ParamBindingGet<_>>,
-            &34isize as &dyn ParamBindingGet<isize>,
-            &49isize as &dyn ParamBindingGet<isize>,
-        )));
-        assert_eq!(34isize, c2.get());
+        v = 234;
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(max, c.get());
+
+        v = 22;
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(v, c.get());
+
+        let min = Arc::new(-23);
+        let max = &43;
+        let v = &24;
+
+        let c = GetClamp::new(v, min, max);
+        assert_eq!(*v, c.get());
+
+        let c2 = GetClamp::new(c, &34, &49);
+        assert_eq!(34, c2.get());
 
         let c3: Arc<dyn ParamBindingGet<i32>> = Arc::new(GetClamp::new(30, 0, 100));
         let c4 = Arc::new(GetClamp::new(c3.clone(), -100, 100));
@@ -656,9 +633,6 @@ mod tests {
         let c: Arc<Mutex<dyn ParamBindingGet<u8>>> = Arc::new(Mutex::new(GetCast::new(
             f.clone() as Arc<dyn ParamBindingGet<f32>>
         )));
-        assert_eq!(23u8, c.get());
-
-        let c: Arc<dyn ParamBindingGet<u8>> = Arc::new(Mutex::new(GetCast::new(c.clone())));
         assert_eq!(23u8, c.get());
     }
 }
