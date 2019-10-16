@@ -41,9 +41,11 @@ macro_rules! make_clock {
     };
 }
 
-pub struct ClockPeriodMicroBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(T);
-pub struct ClockBPMBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(T);
-pub struct ClockPPQBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(T);
+pub struct ClockPeriodMicroBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(
+    pub T,
+);
+pub struct ClockBPMBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(pub T);
+pub struct ClockPPQBinding<T: Deref<Target = Mutex<dyn Clock>> + Sync + Send + Clone>(pub T);
 
 impl ClockData {
     pub fn period_micro(bpm: f32, ppq: usize) -> f32 {
