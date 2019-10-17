@@ -174,6 +174,7 @@ fn main() {
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
+    /*
     let note_on = EventContainer::new(TickedValueQueueEvent::new(
         MidiValue::NoteOn {
             chan: 0,
@@ -200,28 +201,36 @@ fn main() {
         .lock()
         .enqueue(off + 44100usize, note_on)
         .is_ok());
+        */
 
+    let ppq = 980usize;
     let mul = AtomicU8::new(1).into_arc();
     let div = AtomicU8::new(1).into_arc();
     let steps = AtomicUsize::new(16).into_arc();
-    let step_ticks = AtomicUsize::new(960usize / 4usize).into_arc();
+    let step_ticks = AtomicUsize::new(ppq / 4usize).into_arc();
     let step_cur = AtomicUsize::new(16).into_arc();
+
+    let clock_binding: Arc<Mutex<dyn bpm::Clock>> = bpm::ClockData::new(100.0, ppq).into_alock();
+    let _bpm = bpm::ClockBPMBinding(clock_binding.clone()).into_arc();
+    let _ppq = bpm::ClockPPQBinding(clock_binding.clone()).into_arc();
+    let micros: Arc<dyn ParamBindingGet<f32>> =
+        bpm::ClockPeriodMicroBinding(clock_binding.clone()).into_arc();
 
     //XXX could try `arr_macro` for this
     let gates: Arc<[Arc<AtomicBool>]> = Arc::new([
+        Arc::new(AtomicBool::new(true)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(true)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(true)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(true)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
@@ -272,7 +281,7 @@ fn main() {
     let note = midi::MidiNote::new(
         &0,
         &64,
-        &TimeResched::Relative(100),
+        &TimeResched::ContextRelative(1),
         &127,
         &127,
         &MIDI_VALUE_SOURCE as TickedMidiValueEventSource,
@@ -292,7 +301,7 @@ fn main() {
     let ratio: GraphNodeContainer =
         GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
 
-    let root = EventContainer::new(RootClock::new(&2_000_000f32, ratio));
+    let root = EventContainer::new(RootClock::new(micros, ratio));
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
     //dispose thread, simply ditching
