@@ -29,6 +29,10 @@ pub trait TickContext {
         self.tick_now()
     }
 
+    fn context_ticks_per_second(&self) -> usize {
+        self.ticks_per_second()
+    }
+
     fn context_tick_period_micros(&self) -> f32 {
         self.tick_period_micros()
     }
@@ -60,9 +64,9 @@ impl TimeSched {
                 TimeSched::Absolute(tick) => {
                     TimeSched::Absolute(offset_tick(tick, offset as isize))
                 }
-                TimeSched::ContextAbsolute(_tick) => unimplemented!(),
+                TimeSched::ContextAbsolute(_ctick) => unimplemented!(),
                 TimeSched::Relative(aoffset) => TimeSched::Relative(offset as isize + aoffset),
-                TimeSched::ContextRelative(_offset) => unimplemented!(),
+                TimeSched::ContextRelative(_coffset) => unimplemented!(),
             },
             TimeResched::ContextRelative(offset) => match *self {
                 TimeSched::Absolute(_tick) => unimplemented!(),
