@@ -313,7 +313,7 @@ fn main() {
                 println!("is TickedValueQueueEvent<MidiValue, ..>");
             }
         } else {
-            std::thread::sleep(std::tick::Duration::from_millis(10));
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     });
 
@@ -326,7 +326,7 @@ fn main() {
 
         let mut out_p = midi_out.writer(ps);
         let mut write_midi = |tick: u32, bytes: &[u8]| {
-            let _ = out_p.write(&jack::RawMidi { tick, bytes });
+            let _ = out_p.write(&jack::RawMidi { time: tick, bytes });
         };
         let mut write_midi_value = |tick: u32, value: &MidiValue| {
             let mut iter = value.iter();
