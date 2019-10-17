@@ -34,7 +34,8 @@ pub trait TickContext {
     }
 
     fn context_tick_period_micros(&self) -> f32 {
-        self.tick_period_micros()
+        //XXX likely want to cache this
+        1e6f32 / (self.context_ticks_per_second() as f32)
     }
 
     /// Which absolute tick does context 0 happen
@@ -44,7 +45,7 @@ pub trait TickContext {
 
     /// context ticks, base ticks
     fn context_tick_ratio(&self) -> (usize, usize) {
-        (1usize, 1usize)
+        (self.context_ticks_per_second(), self.ticks_per_second())
     }
 }
 
@@ -105,6 +106,83 @@ impl TickSched {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct TestContext {
+        pub tick_now: usize,
+        pub ticks_per_second: usize,
+        pub context_tick_now: usize,
+        pub context_ticks_per_second: usize,
+        pub context_tick_offset: isize,
+    }
+
+    impl TestContext {
+        pub fn new() -> Self {
+            Self {
+                tick_now: 0,
+                ticks_per_second: 44100,
+                context_tick_now: 0,
+                context_ticks_per_second: 44100,
+                context_tick_offset: 0,
+            }
+        }
+    }
+
+    impl TickContext for TestContext {
+        /// Absolute
+        fn tick_now(&self) -> usize {
+            self.tick_now
+        }
+        fn ticks_per_second(&self) -> usize {
+            self.ticks_per_second
+        }
+
+        /// Context
+        fn context_tick_now(&self) -> usize {
+            self.context_tick_now
+        }
+
+        fn context_ticks_per_second(&self) -> usize {
+            self.context_ticks_per_second
+        }
+
+        fn context_tick_offset(&self) -> isize {
+            self.context_tick_offset
+        }
+    }
+
+    #[test]
+    fn assert_add_identity() {
+        let mut context = TestContext::new();
+
+        let mut tick = TickSched::Absolute(0);
+        assert_eq!(tick, tick.add(TickResched::None, &context));
+        assert_eq!(tick, tick.add(TickResched::Relative(0), &context));
+
+        tick = TickSched::Absolute(2084);
+        assert_eq!(tick, tick.add(TickResched::None, &context));
+        assert_eq!(tick, tick.add(TickResched::Relative(0), &context));
+
+        tick = TickSched::ContextAbsolute(0);
+        assert_eq!(tick, tick.add(TickResched::None, &context));
+        assert_eq!(tick, tick.add(TickResched::ContextRelative(0), &context));
+
+        //offset should have no effect for pure context
+        context.context_tick_offset = 1234;
+        assert_eq!(tick, tick.add(TickResched::None, &context));
+        assert_eq!(tick, tick.add(TickResched::ContextRelative(0), &context));
+
+        tick = TickSched::ContextAbsolute(323);
+        assert_eq!(tick, tick.add(TickResched::None, &context));
+        assert_eq!(tick, tick.add(TickResched::ContextRelative(0), &context));
+
+        tick = TickSched::ContextRelative(323);
+        assert_eq!(tick, tick.add(TickResched::None, &context));
+        assert_eq!(tick, tick.add(TickResched::ContextRelative(0), &context));
+
+        tick = TickSched::Relative(32323);
+        assert_eq!(tick, tick.add(TickResched::None, &context));
+        assert_eq!(tick, tick.add(TickResched::Relative(0), &context));
+    }
 
     #[test]
     fn assert_offset_tick() {
