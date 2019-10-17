@@ -27,8 +27,8 @@ pub trait GraphChildExec: Send {
                 self.child_exec_range(
                     context,
                     core::ops::Range {
-                        start: 0usize,
-                        end: 1usize,
+                        start: index,
+                        end: index + 1,
                     },
                 );
             }
