@@ -74,8 +74,10 @@ impl TickSched {
                 TickSched::Absolute(tick) => {
                     let tick = offset_tick(
                         tick,
-                        context.context_tick_offset()
-                            + (offset * bratio) as isize / (cratio as isize),
+                        context.context_tick_offset().saturating_add(
+                            //XXX conversion to isize could overflow.. figure this out
+                            offset.saturating_mul(bratio) as isize / (cratio as isize),
+                        ),
                     );
                     TickSched::Absolute(tick)
                 }
@@ -92,14 +94,13 @@ impl TickSched {
     }
 
     pub fn to_absolute<'a>(&self, context: &'a dyn TickContext) -> usize {
+        let (cratio, bratio) = context.context_tick_ratio();
         match *self {
             TickSched::Absolute(tick) => tick,
             TickSched::Relative(offset) => offset_tick(context.tick_now(), offset),
-            TickSched::ContextAbsolute(_tick) => {
-                unimplemented!();
-                //context.tick_now()
-                //.saturating_add(tick.saturating_mul(ratio.0) / div)
-                //.saturating_add(context_tick_offset)
+            TickSched::ContextAbsolute(tick) => {
+                offset_tick(context.tick_now(), context.context_tick_offset())
+                    .saturating_add(tick.saturating_mul(bratio) / cratio)
             }
             TickSched::ContextRelative(_offset) => {
                 unimplemented!();
@@ -282,6 +283,11 @@ mod tests {
             TickSched::Absolute(102),
             tick.add(TickResched::ContextRelative(2), &context)
         );
+    }
+
+    #[test]
+    fn to_absolute() {
+        //TODO
     }
 
     #[test]
