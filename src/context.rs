@@ -12,6 +12,7 @@ pub struct ChildContext<'a> {
     parent: &'a mut dyn EventEvalContext,
     parent_tick_offset: isize,
     context_tick: usize,
+    context_ticks_per_second: usize,
     context_tick_period_micros: f32,
 }
 
@@ -64,10 +65,13 @@ impl<'a> ChildContext<'a> {
         context_tick: usize,
         context_tick_period_micros: f32,
     ) -> Self {
+        //XXX TEST
+        let ps = 1e6f32 / context_tick_period_micros;
         Self {
             parent,
             parent_tick_offset,
             context_tick,
+            context_ticks_per_second: ps as usize,
             context_tick_period_micros,
         }
     }
@@ -101,6 +105,9 @@ impl<'a> TickContext for ChildContext<'a> {
     }
     fn context_tick_now(&self) -> usize {
         self.context_tick
+    }
+    fn context_ticks_per_second(&self) -> usize {
+        self.context_ticks_per_second
     }
     fn tick_period_micros(&self) -> f32 {
         self.parent.tick_period_micros()
