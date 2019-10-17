@@ -2,7 +2,7 @@ use crate::binding::ParamBindingGet;
 use crate::context::ChildContext;
 use crate::event::{EventEval, EventEvalContext};
 use crate::graph::GraphNode;
-use crate::time::TimeResched;
+use crate::tick::TickResched;
 
 pub type Micro = f32;
 
@@ -38,14 +38,14 @@ where
     PeriodMicros: ParamBindingGet<Micro>,
     T: GraphNode,
 {
-    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched {
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TickResched {
         let period_micros = self.period_micros.get();
         let mut ccontext = ChildContext::new(context, 0, self.tick, period_micros);
         self.root.node_exec(&mut ccontext);
 
         let ctp = context.context_tick_period_micros();
         if period_micros <= 0f32 || ctp <= 0f32 {
-            TimeResched::ContextRelative(1)
+            TickResched::ContextRelative(1)
         } else {
             let next = self.tick_sub + (period_micros / ctp);
             self.tick_sub = next.fract();
@@ -54,7 +54,7 @@ where
             //XXX what if next is less than 1?
             //XXX could move root.node_exec in here execute multiple times..
             assert!(next >= 1f32, "tick less than sample size not supported");
-            TimeResched::ContextRelative(core::cmp::max(1, next.floor() as usize))
+            TickResched::ContextRelative(core::cmp::max(1, next.floor() as usize))
         }
     }
 }

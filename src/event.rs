@@ -1,4 +1,4 @@
-use crate::time::*;
+use crate::tick::*;
 use core::cmp::Ordering;
 
 pub mod ticked_value_queue;
@@ -14,7 +14,7 @@ pub struct EventContainer(BoxEventEval);
 
 /// trait for evaluating Events
 pub trait EventEval: Send {
-    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched;
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TickResched;
 }
 
 /// helper trait that we use so we can downcast
@@ -35,7 +35,7 @@ where
 pub trait EventSchedule {
     fn event_schedule(
         &mut self,
-        time: TimeSched,
+        tick: TickSched,
         event: EventContainer,
     ) -> Result<(), EventContainer>;
 }
@@ -76,7 +76,7 @@ impl core::convert::Into<BoxEventEval> for EventContainer {
 }
 
 impl EventEval for EventContainer {
-    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched {
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TickResched {
         self.0.event_eval(context)
     }
 }
@@ -126,8 +126,8 @@ mod tests {
 
     struct Test;
     impl EventEval for Test {
-        fn event_eval(&mut self, _context: &mut dyn EventEvalContext) -> TimeResched {
-            TimeResched::None
+        fn event_eval(&mut self, _context: &mut dyn EventEvalContext) -> TickResched {
+            TickResched::None
         }
     }
 }

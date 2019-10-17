@@ -1,7 +1,7 @@
 use crate::binding::ParamBindingGet;
 use crate::event::{EventContainer, EventEvalContext};
 use crate::graph::GraphLeafExec;
-use crate::time::{TimeResched, TimeSched};
+use crate::tick::{TickResched, TickSched};
 
 use crate::event::ticked_value_queue::TickedValueQueueEvent;
 use crate::item_source::ItemSource;
@@ -15,7 +15,7 @@ pub struct MidiNote<Chan, Note, Dur, OnVel, OffVel, MidiValueQueue, Source>
 where
     Chan: ParamBindingGet<u8>,
     Note: ParamBindingGet<u8>,
-    Dur: ParamBindingGet<TimeResched>,
+    Dur: ParamBindingGet<TickResched>,
     OnVel: ParamBindingGet<u8>,
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
@@ -39,7 +39,7 @@ impl<Chan, Note, Dur, OnVel, OffVel, MidiValueQueue, Source>
 where
     Chan: ParamBindingGet<u8>,
     Note: ParamBindingGet<u8>,
-    Dur: ParamBindingGet<TimeResched>,
+    Dur: ParamBindingGet<TickResched>,
     OnVel: ParamBindingGet<u8>,
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
@@ -75,7 +75,7 @@ impl<Chan, Note, Dur, OnVel, OffVel, MidiValueQueue, Source> GraphLeafExec
 where
     Chan: ParamBindingGet<u8>,
     Note: ParamBindingGet<u8>,
-    Dur: ParamBindingGet<TimeResched>,
+    Dur: ParamBindingGet<TickResched>,
     OnVel: ParamBindingGet<u8>,
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
@@ -111,7 +111,7 @@ where
 
         if let Ok(off) = off {
             if let Ok(on) = on {
-                let t = TimeSched::ContextRelative(0);
+                let t = TickSched::ContextRelative(0);
                 let ot = t.add(dur, context.as_tick_context());
                 //schedule off first
                 let s = context.event_schedule(ot, EventContainer::new_from_box(off));

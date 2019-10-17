@@ -5,7 +5,7 @@ extern crate alloc;
 
 use core::convert::Into;
 
-use sched::time::*;
+use sched::tick::*;
 
 use sched::event::ticked_value_queue::TickedValueQueueEvent;
 use sched::event::*;
@@ -281,7 +281,7 @@ fn main() {
     let note = midi::MidiNote::new(
         &0,
         &64,
-        &TimeResched::ContextRelative(1),
+        &TickResched::ContextRelative(1),
         &127,
         &127,
         &MIDI_VALUE_SOURCE as TickedMidiValueEventSource,
@@ -313,7 +313,7 @@ fn main() {
                 println!("is TickedValueQueueEvent<MidiValue, ..>");
             }
         } else {
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            std::thread::sleep(std::tick::Duration::from_millis(10));
         }
     });
 
@@ -325,22 +325,22 @@ fn main() {
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
 
         let mut out_p = midi_out.writer(ps);
-        let mut write_midi = |time: u32, bytes: &[u8]| {
-            let _ = out_p.write(&jack::RawMidi { time, bytes });
+        let mut write_midi = |tick: u32, bytes: &[u8]| {
+            let _ = out_p.write(&jack::RawMidi { tick, bytes });
         };
-        let mut write_midi_value = |time: u32, value: &MidiValue| {
+        let mut write_midi_value = |tick: u32, value: &MidiValue| {
             let mut iter = value.iter();
             match iter.len() {
                 3 => write_midi(
-                    time,
+                    tick,
                     &[
                         iter.next().unwrap(),
                         iter.next().unwrap(),
                         iter.next().unwrap(),
                     ],
                 ),
-                2 => write_midi(time, &[iter.next().unwrap(), iter.next().unwrap()]),
-                1 => write_midi(time, &[iter.next().unwrap()]),
+                2 => write_midi(tick, &[iter.next().unwrap(), iter.next().unwrap()]),
+                1 => write_midi(tick, &[iter.next().unwrap()]),
                 _ => (),
             };
         };
@@ -349,8 +349,8 @@ fn main() {
             let mut q = MIDI_QUEUE.lock();
             let next = ex.tick_next();
             while let Some((t, midi)) = q.dequeue_lt(next) {
-                let time = (if t < now { now } else { t } - now) as u32;
-                write_midi_value(time, &midi);
+                let tick = (if t < now { now } else { t } - now) as u32;
+                write_midi_value(tick, &midi);
             }
         }
 

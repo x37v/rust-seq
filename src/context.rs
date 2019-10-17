@@ -1,6 +1,6 @@
 use crate::event::*;
 use crate::pqueue::TickPriorityEnqueue;
-use crate::time::*;
+use crate::tick::*;
 
 pub struct RootContext<'a> {
     tick: usize,
@@ -37,13 +37,13 @@ impl<'a> RootContext<'a> {
 impl<'a> EventSchedule for RootContext<'a> {
     fn event_schedule(
         &mut self,
-        time: TimeSched,
+        tick: TickSched,
         event: EventContainer,
     ) -> Result<(), EventContainer> {
         //in the root, context and absolute are the same
-        let tick = match time {
-            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
-            TimeSched::Relative(o) | TimeSched::ContextRelative(o) => offset_tick(self.tick, o),
+        let tick = match tick {
+            TickSched::Absolute(t) | TickSched::ContextAbsolute(t) => t,
+            TickSched::Relative(o) | TickSched::ContextRelative(o) => offset_tick(self.tick, o),
         };
         self.schedule.enqueue(tick, event)
     }
@@ -88,11 +88,11 @@ impl<'a> ChildContext<'a> {
 impl<'a> EventSchedule for ChildContext<'a> {
     fn event_schedule(
         &mut self,
-        time: TimeSched,
+        tick: TickSched,
         event: EventContainer,
     ) -> Result<(), EventContainer> {
         //XXX TODO TRANSLATE TO CONTEXT TIME IF NEEDED
-        self.parent.event_schedule(time, event)
+        self.parent.event_schedule(tick, event)
     }
 }
 
@@ -136,7 +136,7 @@ pub(crate) mod tests {
     impl EventSchedule for TestContext {
         fn event_schedule(
             &mut self,
-            _time: TimeSched,
+            _tick: TickSched,
             _event: EventContainer,
         ) -> Result<(), EventContainer> {
             Ok(())

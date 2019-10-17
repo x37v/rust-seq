@@ -1,8 +1,8 @@
 use crate::event::{EventEval, EventEvalContext};
 use crate::pqueue::TickPriorityEnqueue;
-use crate::time::TimeResched;
+use crate::tick::TickResched;
 
-/// An event that pushes a value into a queue with tick = context.time_now()
+/// An event that pushes a value into a queue with tick = context.tick_now()
 ///
 /// This is most likely to be used for output events like, Midi::NoteOn(_,_,_),
 /// Trigger(index) etc..
@@ -30,13 +30,13 @@ where
     T: 'static + Send + Copy,
     Q: 'static + TickPriorityEnqueue<T>,
 {
-    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TimeResched {
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TickResched {
         let t = context.tick_now();
         let r = self.queue.enqueue(t, self.value);
         if r.is_err() {
             //XXX report
         }
-        TimeResched::None
+        TickResched::None
     }
 }
 

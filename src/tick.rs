@@ -1,6 +1,6 @@
-//XXX maybe context times should have an isize absolute offset?
+//XXX maybe context ticks should have an isize absolute offset?
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TimeSched {
+pub enum TickSched {
     Absolute(usize),
     Relative(isize),
     ContextAbsolute(usize), /* ContextAbsolute(usize, isize) */
@@ -8,7 +8,7 @@ pub enum TimeSched {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TimeResched {
+pub enum TickResched {
     Relative(usize),
     ContextRelative(usize), /*ContextRelative(usize, isize) */
     None,
@@ -56,43 +56,43 @@ pub fn offset_tick(tick: usize, offset: isize) -> usize {
     }
 }
 
-impl TimeSched {
-    pub fn add<'a>(&self, d: TimeResched, _context: &'a dyn TickContext) -> Self {
+impl TickSched {
+    pub fn add<'a>(&self, d: TickResched, _context: &'a dyn TickContext) -> Self {
         //XXX update with context math
         match d {
-            TimeResched::Relative(offset) => match *self {
-                TimeSched::Absolute(tick) => {
-                    TimeSched::Absolute(offset_tick(tick, offset as isize))
+            TickResched::Relative(offset) => match *self {
+                TickSched::Absolute(tick) => {
+                    TickSched::Absolute(offset_tick(tick, offset as isize))
                 }
-                TimeSched::ContextAbsolute(_ctick) => unimplemented!(),
-                TimeSched::Relative(aoffset) => TimeSched::Relative(offset as isize + aoffset),
-                TimeSched::ContextRelative(_coffset) => unimplemented!(),
+                TickSched::ContextAbsolute(_ctick) => unimplemented!(),
+                TickSched::Relative(aoffset) => TickSched::Relative(offset as isize + aoffset),
+                TickSched::ContextRelative(_coffset) => unimplemented!(),
             },
-            TimeResched::ContextRelative(offset) => match *self {
-                TimeSched::Absolute(_tick) => unimplemented!(),
-                TimeSched::ContextAbsolute(tick) => {
-                    TimeSched::ContextAbsolute(offset_tick(tick, offset as isize))
+            TickResched::ContextRelative(offset) => match *self {
+                TickSched::Absolute(_tick) => unimplemented!(),
+                TickSched::ContextAbsolute(tick) => {
+                    TickSched::ContextAbsolute(offset_tick(tick, offset as isize))
                 }
-                TimeSched::Relative(_offset) => unimplemented!(),
-                TimeSched::ContextRelative(coffset) => {
-                    TimeSched::ContextRelative(offset_tick(offset, coffset) as isize)
+                TickSched::Relative(_offset) => unimplemented!(),
+                TickSched::ContextRelative(coffset) => {
+                    TickSched::ContextRelative(offset_tick(offset, coffset) as isize)
                 }
             },
-            TimeResched::None => *self,
+            TickResched::None => *self,
         }
     }
 
     pub fn to_absolute<'a>(&self, context: &'a dyn TickContext) -> usize {
         match *self {
-            TimeSched::Absolute(tick) => tick,
-            TimeSched::Relative(offset) => offset_tick(context.tick_now(), offset),
-            TimeSched::ContextAbsolute(_tick) => {
+            TickSched::Absolute(tick) => tick,
+            TickSched::Relative(offset) => offset_tick(context.tick_now(), offset),
+            TickSched::ContextAbsolute(_tick) => {
                 unimplemented!();
-                //context.time_now()
+                //context.tick_now()
                 //.saturating_add(tick.saturating_mul(ratio.0) / div)
                 //.saturating_add(context_offset)
             }
-            TimeSched::ContextRelative(_offset) => {
+            TickSched::ContextRelative(_offset) => {
                 unimplemented!();
                 //convert relative to absolute
                 //let offset = offset.saturating_mul(ratio.0 as isize) / (div as isize);

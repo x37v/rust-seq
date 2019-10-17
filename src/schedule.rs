@@ -2,7 +2,7 @@ use crate::context::RootContext;
 use crate::event::*;
 use crate::item_sink::ItemSink;
 use crate::pqueue::{TickPriorityDequeue, TickPriorityEnqueue};
-use crate::time::*;
+use crate::tick::*;
 
 pub struct ScheduleExecutor<R, W, D>
 where
@@ -44,9 +44,9 @@ where
 
             //eval and see about rescheduling
             let r = match event.event_eval(&mut context) {
-                TimeResched::Relative(t) => Some(TimeSched::Relative(t as isize)),
-                TimeResched::ContextRelative(t) => Some(TimeSched::ContextRelative(t as isize)),
-                TimeResched::None => None,
+                TickResched::Relative(t) => Some(TickSched::Relative(t as isize)),
+                TickResched::ContextRelative(t) => Some(TickSched::ContextRelative(t as isize)),
+                TickResched::None => None,
             };
 
             //try to reschedule if we should, otherwise dispose

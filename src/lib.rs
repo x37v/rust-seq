@@ -9,7 +9,7 @@ pub mod item_source;
 pub mod midi;
 pub mod pqueue;
 pub mod schedule;
-pub mod time;
+pub mod tick;
 
 #[cfg(feature = "std")]
 pub mod std;
