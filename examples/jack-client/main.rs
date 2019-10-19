@@ -2,6 +2,7 @@ use jack;
 use std::io;
 
 extern crate alloc;
+mod page;
 mod quneo_display;
 
 use quneo_display::{DisplayType as QDisplayType, QuNeoDisplay, QuNeoDrawer};
@@ -23,7 +24,7 @@ use spin::Mutex;
 
 use sched::graph::*;
 use sched::graph::{
-    clock_ratio::ClockRatio, node_wrapper::GraphNodeWrapper, root_clock::RootClock,
+    clock_ratio::ClockRatio, fanout::FanOut, node_wrapper::GraphNodeWrapper, root_clock::RootClock,
     step_seq::StepSeq,
 };
 
@@ -37,7 +38,7 @@ use heapless::mpmc::Q64;
 
 use core::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize};
 
-pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
+pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U1024, Min>);
 pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U1024, Min>);
 pub struct DisposeSink(Q64<EventContainer>);
 pub struct MidiItemSource(Q64<Box<MaybeUninit<TickedMidiValueEvent>>>);
@@ -121,6 +122,7 @@ impl ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>> for &'static Mi
                 Ok(mem::transmute(item))
             }
         } else {
+            println!("failed to get from MidiItemSource");
             Err(init)
         }
     }
@@ -184,153 +186,110 @@ fn main() {
         .register_port("control", jack::MidiIn::default())
         .unwrap();
 
+    let mut pages: Vec<spin::Mutex<page::PageData>> = Vec::new();
+    let mut current_page: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
+
     let mut ex = ScheduleExecutor::new(
         &DISPOSE_SINK,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityDequeue<EventContainer>>,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
+    let cpage = current_page.clone();
+    /*
     let mut draw = QuNeoDrawer::new(
         &MIDI_QUEUE as MidiEnqueue,
         TickResched::Relative(4410),
         Box::new(
             move |display: &mut QuNeoDisplay, _context: &mut dyn EventEvalContext| {
-                display.update(QDisplayType::Button, 0, 127);
+                let page = cpage.get();
                 display.force_draw();
             },
         ),
     );
     let draw = EventContainer::new(draw);
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
-
-    /*
-    let note_on = EventContainer::new(TickedValueQueueEvent::new(
-        MidiValue::NoteOn {
-            chan: 0,
-            num: 64,
-            vel: 127,
-        },
-        &MIDI_QUEUE as MidiEnqueue,
-    ));
-    let note_off = EventContainer::new(TickedValueQueueEvent::new(
-        MidiValue::NoteOff {
-            chan: 0,
-            num: 64,
-            vel: 127,
-        },
-        &MIDI_QUEUE as MidiEnqueue,
-    ));
-
-    let off = 44100usize * 10usize;
-    assert!(SCHEDULE_QUEUE
-        .lock()
-        .enqueue(off + 44100usize * 2usize, note_off)
-        .is_ok());
-    assert!(SCHEDULE_QUEUE
-        .lock()
-        .enqueue(off + 44100usize, note_on)
-        .is_ok());
-        */
+    */
 
     let ppq = 980usize;
-    let mul = AtomicU8::new(1).into_arc();
-    let div = AtomicU8::new(1).into_arc();
-    let steps = AtomicUsize::new(16).into_arc();
     let step_ticks = AtomicUsize::new(ppq / 4usize).into_arc();
     let step_cur = AtomicUsize::new(16).into_arc();
 
-    let clock_binding: Arc<Mutex<dyn bpm::Clock>> = bpm::ClockData::new(100.0, ppq).into_alock();
+    let clock_binding: Arc<Mutex<dyn bpm::Clock>> = bpm::ClockData::new(120.0, ppq).into_alock();
     let _bpm = bpm::ClockBPMBinding(clock_binding.clone()).into_arc();
     let _ppq = bpm::ClockPPQBinding(clock_binding.clone()).into_arc();
     let micros: Arc<dyn ParamBindingGet<f32>> =
         bpm::ClockPeriodMicroBinding(clock_binding.clone()).into_arc();
 
-    //XXX could try `arr_macro` for this
-    let gates: Arc<[Arc<AtomicBool>]> = Arc::new([
-        Arc::new(AtomicBool::new(true)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(true)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(true)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(true)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(AtomicBool::new(false)),
-    ]);
-    let gatesg: Arc<[Arc<dyn ParamBindingGet<bool>>]> = Arc::new([
-        gates[0].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[1].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[2].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[3].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[4].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[5].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[6].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[7].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[8].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[9].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[10].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[11].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[12].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[13].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[14].clone() as Arc<dyn ParamBindingGet<bool>>,
-        gates[15].clone() as Arc<dyn ParamBindingGet<bool>>,
-    ]);
+    let mut voices = Vec::new();
+    for page_index in 0..32 {
+        let data = page::PageData::new();
+        let note = page_index;
 
-    //root -> ratio -> step_seq ---(nchild index bind)--> step_gate -> note
+        //root -> ratio -> step_seq ---(nchild index bind)--> step_gate -> note
 
-    let ratio = ClockRatio::new(
-        mul as Arc<dyn ParamBindingGet<_>>,
-        div as Arc<dyn ParamBindingGet<_>>,
-    );
+        let ratio = ClockRatio::new(
+            data.clock_mul.clone() as Arc<dyn ParamBindingGet<_>>,
+            data.clock_div.clone() as Arc<dyn ParamBindingGet<_>>,
+        );
 
-    let seq = StepSeq::new(
-        step_ticks as Arc<dyn ParamBindingGet<_>>,
-        steps as Arc<dyn ParamBindingGet<_>>,
-    );
+        let seq = StepSeq::new(
+            step_ticks.clone() as Arc<dyn ParamBindingGet<_>>,
+            data.length.clone() as Arc<dyn ParamBindingGet<_>>,
+        );
 
-    let step_cur_bind = IndexChildContainer::new(bindstore::BindStoreIndexChild::new(
-        step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
-    ));
+        let step_cur_bind = IndexChildContainer::new(bindstore::BindStoreIndexChild::new(
+            step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
+        ));
 
-    let step_gate = ops::GetIndexed::new(
-        gatesg.clone(),
-        step_cur.clone() as Arc<dyn ParamBindingGet<usize>>,
+        let gates: Vec<Arc<dyn ParamBindingGet<bool>>> = data
+            .gates
+            .iter()
+            .map(|g| g.clone() as Arc<dyn ParamBindingGet<bool>>)
+            .collect();
+        let step_gate =
+            ops::GetIndexed::new(gates, step_cur.clone() as Arc<dyn ParamBindingGet<usize>>)
+                .into_alock();
+
+        let step_gate = gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
+
+        let note = midi::MidiNote::new(
+            &0,
+            note,
+            &TickResched::ContextRelative(1),
+            &127,
+            &127,
+            &MIDI_VALUE_SOURCE,
+            &MIDI_QUEUE as MidiEnqueue,
+        );
+
+        let note: GraphNodeContainer =
+            GraphNodeWrapper::new(note, children::empty::Children).into();
+
+        let step_gate: GraphNodeContainer =
+            GraphNodeWrapper::new(step_gate, children::boxed::Children::new(Box::new([note])))
+                .into();
+
+        let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
+
+        let seq: GraphNodeContainer =
+            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild))
+                .into();
+
+        let ratio: GraphNodeContainer =
+            GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
+
+        pages.push(Mutex::new(data));
+        voices.push(ratio);
+    }
+
+    let fanout: GraphNodeContainer = GraphNodeWrapper::new(
+        FanOut::new(),
+        children::boxed::Children::new(voices.into_boxed_slice()),
     )
-    .into_alock();
+    .into();
 
-    let step_gate = gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
-
-    let note = midi::MidiNote::new(
-        &0,
-        &64,
-        &TickResched::ContextRelative(1),
-        &127,
-        &127,
-        &MIDI_VALUE_SOURCE,
-        &MIDI_QUEUE as MidiEnqueue,
-    );
-
-    let note: GraphNodeContainer = GraphNodeWrapper::new(note, children::empty::Children).into();
-
-    let step_gate: GraphNodeContainer =
-        GraphNodeWrapper::new(step_gate, children::boxed::Children::new(Box::new([note]))).into();
-
-    let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
-
-    let seq: GraphNodeContainer =
-        GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild)).into();
-
-    let ratio: GraphNodeContainer =
-        GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
-
-    let root = EventContainer::new(RootClock::new(micros, ratio));
+    let root = EventContainer::new(RootClock::new(micros, fanout));
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
     MIDI_VALUE_SOURCE.fill();
