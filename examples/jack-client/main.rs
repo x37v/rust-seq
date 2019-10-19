@@ -298,7 +298,7 @@ fn main() {
         //midi value queue filling
         MIDI_VALUE_SOURCE.fill();
         //dispose thread, simply ditching
-        if let Some(_item) = DISPOSE_SINK.dequeue() {
+        while let Some(_item) = DISPOSE_SINK.dequeue() {
             /*
             println!("got dispose");
             let a = Into::<BoxEventEval>::into(item).into_any();
@@ -306,9 +306,8 @@ fn main() {
                 println!("is TickedValueQueueEvent<MidiValue, ..>");
             }
             */
-        } else {
-            std::thread::sleep(std::time::Duration::from_millis(1));
         }
+        std::thread::sleep(std::time::Duration::from_millis(1));
     });
 
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
