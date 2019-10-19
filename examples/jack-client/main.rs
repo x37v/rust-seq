@@ -4,6 +4,8 @@ use std::io;
 extern crate alloc;
 mod quneo_display;
 
+use quneo_display::{DisplayType as QDisplayType, QuNeoDisplay, QuNeoDrawer};
+
 use core::convert::Into;
 
 use sched::tick::*;
@@ -36,7 +38,7 @@ use heapless::mpmc::Q64;
 use core::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize};
 
 pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
-pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
+pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U1024, Min>);
 pub struct DisposeSink(Q64<EventContainer>);
 pub struct MidiItemSource(Q64<Box<MaybeUninit<TickedMidiValueEvent>>>);
 
@@ -188,6 +190,19 @@ fn main() {
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
+    let mut draw = QuNeoDrawer::new(
+        &MIDI_QUEUE as MidiEnqueue,
+        TickResched::Relative(4410),
+        Box::new(
+            move |display: &mut QuNeoDisplay, _context: &mut dyn EventEvalContext| {
+                display.update(QDisplayType::Button, 0, 127);
+                display.force_draw();
+            },
+        ),
+    );
+    let draw = EventContainer::new(draw);
+    assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
+
     /*
     let note_on = EventContainer::new(TickedValueQueueEvent::new(
         MidiValue::NoteOn {
@@ -319,6 +334,7 @@ fn main() {
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
     MIDI_VALUE_SOURCE.fill();
+    println!("starting dispose thread");
     std::thread::spawn(|| loop {
         //midi value queue filling
         MIDI_VALUE_SOURCE.fill();
