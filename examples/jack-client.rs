@@ -316,6 +316,7 @@ fn main() {
     let root = EventContainer::new(RootClock::new(micros, ratio));
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
+    MIDI_VALUE_SOURCE.fill();
     std::thread::spawn(|| loop {
         //midi value queue filling
         MIDI_VALUE_SOURCE.fill();
