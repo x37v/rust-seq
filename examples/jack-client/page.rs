@@ -27,7 +27,7 @@ impl PageData {
                 Arc::new(AtomicBool::new(false)),
                 Arc::new(AtomicBool::new(false)),
                 Arc::new(AtomicBool::new(false)),
-                Arc::new(AtomicBool::new(true)),
+                Arc::new(AtomicBool::new(false)),
                 Arc::new(AtomicBool::new(false)),
                 Arc::new(AtomicBool::new(false)),
                 Arc::new(AtomicBool::new(false)),
