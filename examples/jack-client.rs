@@ -150,6 +150,7 @@ static MIDI_QUEUE: spin::Mutex<MidiQueue> =
     spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 
 static MIDI_VALUE_SOURCE: MidiItemSource = MidiItemSource(Q64::new());
+static JACK_CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 pub trait IntoPtrs {
     fn into_arc(self) -> Arc<Self>;
@@ -467,26 +468,14 @@ impl jack::NotificationHandler for Notifications {
         _: &jack::Client,
         _port_id_a: jack::PortId,
         _port_id_b: jack::PortId,
-        _are_connected: bool,
+        are_connected: bool,
     ) {
-        /*
-        let c = self.connection_count.get();
+        let c = JACK_CONNECTION_COUNT.get();
         if are_connected {
-            self.connection_count.set(1 + c);
+            JACK_CONNECTION_COUNT.set(c + 1);
         } else if c > 0 {
-            self.connection_count.set(c - 1);
+            JACK_CONNECTION_COUNT.set(c - 1);
         }
-        println!(
-            "JACK: ports with id {} and {} are {}",
-            port_id_a,
-            port_id_b,
-            if are_connected {
-                "connected"
-            } else {
-                "disconnected"
-            }
-        );
-        */
     }
 
     fn graph_reorder(&mut self, _: &jack::Client) -> jack::Control {
