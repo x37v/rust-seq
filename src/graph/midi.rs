@@ -118,18 +118,22 @@ where
                 if let Err(_b) = s {
                     //dispose
                     //XXX report
+                    println!("should dispose");
                 } else {
                     let s = context.event_schedule(t, EventContainer::new_from_box(on));
                     if let Err(_b) = s {
                         //dispose
+                        println!("should dispose 2");
                         //XXX report
                     }
                 }
             } else {
                 //XXX report
+                println!("cannot get on");
             }
         } else {
             //XXX report
+            println!("cannot get off");
         }
     }
 }
