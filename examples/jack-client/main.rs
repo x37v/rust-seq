@@ -36,7 +36,7 @@ use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
 use heapless::mpmc::Q64;
 
-use core::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize};
+use core::sync::atomic::{AtomicBool, AtomicUsize};
 
 pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U1024, Min>);
 pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U1024, Min>);
@@ -186,30 +186,14 @@ fn main() {
         .register_port("control", jack::MidiIn::default())
         .unwrap();
 
-    let mut page_data: Vec<spin::Mutex<page::PageData>> = Vec::new();
-    let mut current_page: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
+    let mut page_data: Vec<Arc<spin::Mutex<page::PageData>>> = Vec::new();
+    let current_page: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
 
     let mut ex = ScheduleExecutor::new(
         &DISPOSE_SINK,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityDequeue<EventContainer>>,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
-
-    let cpage = current_page.clone();
-    /*
-    let mut draw = QuNeoDrawer::new(
-        &MIDI_QUEUE as MidiEnqueue,
-        TickResched::Relative(4410),
-        Box::new(
-            move |display: &mut QuNeoDisplay, _context: &mut dyn EventEvalContext| {
-                let page = cpage.get();
-                display.force_draw();
-            },
-        ),
-    );
-    let draw = EventContainer::new(draw);
-    assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
-    */
 
     let ppq = 980usize;
     let step_ticks = AtomicUsize::new(ppq / 4usize).into_arc();
@@ -283,7 +267,7 @@ fn main() {
         let ratio: GraphNodeContainer =
             GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
 
-        page_data.push(Mutex::new(data));
+        page_data.push(Arc::new(Mutex::new(data)));
         voices.push(ratio);
     }
 
@@ -295,6 +279,121 @@ fn main() {
 
     let root = EventContainer::new(RootClock::new(micros, fanout));
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
+
+    //draw
+    {
+        let cpage = current_page.clone();
+        let draw_data: Vec<_> = page_data.iter().cloned().collect();
+        let mul_select_shiftc = mul_select_shift.clone();
+        let div_select_shiftc = div_select_shift.clone();
+        let len_select_shiftc = len_select_shift.clone();
+
+        let draw_one =
+            |display: &mut QuNeoDisplay, index: usize, value: u8, start: usize, end: usize| {
+                for i in start..end {
+                    display.update(QDisplayType::Pad, i, 0u8);
+                }
+                display.update(QDisplayType::Pad, index, value);
+            };
+
+        let connections = Arc::new(AtomicUsize::new(0));
+        let draw = Box::new(
+            move |display: &mut QuNeoDisplay, _context: &mut dyn EventEvalContext| {
+                let page = cpage.get();
+                //display.force_draw();
+                let pages = draw_data.len();
+
+                for p in 0..pages {
+                    //indicate the current page
+                    display.update(QDisplayType::Pad, p, if p == page { 127u8 } else { 0 });
+                    //flash page buttons for off page sequences when they are triggered
+                    /*
+                    if p != page {
+                        let data = draw_data[p].lock();
+                        if data.triggered.get() {
+                            data.triggered.set(false);
+                            display.update(QDisplayType::Pad, p, 64u8);
+                            context.schedule_value(
+                                TimeSched::Relative(4410),
+                                &BindingSet::Bool(true, data.triggered_off.clone()),
+                            );
+                        }
+                        if data.triggered_off.get() {
+                            data.triggered_off.set(false);
+                            display.update(QDisplayType::Pad, p, 0);
+                        }
+                    }
+                    */
+                }
+
+                if page < pages {
+                    let offset = pages;
+                    let page = draw_data[page].lock();
+                    if len_select_shiftc.get() {
+                        draw_one(display, offset + page.length.get() - 1, 64u8, offset, 64);
+                    } else if div_select_shiftc.get() {
+                        draw_one(
+                            display,
+                            offset + page.clock_div.get() as usize - 1,
+                            127u8,
+                            offset,
+                            64,
+                        );
+                    } else if mul_select_shiftc.get() {
+                        draw_one(
+                            display,
+                            offset + page.clock_mul.get() as usize - 1,
+                            127u8,
+                            offset,
+                            64,
+                        );
+                    } else {
+                        for i in 0..page.gates.len() {
+                            display.update(
+                                QDisplayType::Pad,
+                                offset + i,
+                                if page.gates[i].get() { 127u8 } else { 0u8 },
+                            );
+                        }
+                        /*
+                        let index = page.index.get();
+                        if index < 64 {
+                            display.update(QDisplayType::Pad, offset + index, 32);
+                        }
+                        */
+                        display.update(QDisplayType::Slider, 4, (127f32 * page.volume.get()) as u8);
+                        display.update(
+                            QDisplayType::Slider,
+                            5,
+                            (127f32 * page.volume_rand.get()) as u8,
+                        );
+                        display.update(
+                            QDisplayType::Slider,
+                            7,
+                            (127f32 * page.probability.get()) as u8,
+                        );
+                    }
+                }
+
+                //force a redraw if connection count changes
+                {
+                    let last = connections.get();
+                    let cur = JACK_CONNECTION_COUNT.get();
+                    if last != cur {
+                        connections.set(cur);
+                        display.force_draw();
+                    }
+                }
+            },
+        );
+        let draw = QuNeoDrawer::new(
+            &MIDI_QUEUE as MidiEnqueue,
+            TickResched::Relative(4410),
+            draw,
+        );
+        let draw = EventContainer::new(draw);
+        assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
+    }
 
     MIDI_VALUE_SOURCE.fill();
     println!("starting dispose thread");
