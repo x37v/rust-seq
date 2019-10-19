@@ -7,7 +7,7 @@ use core::convert::Into;
 
 use sched::tick::*;
 
-use sched::event::ticked_value_queue::TickedValueQueueEvent;
+//use sched::event::ticked_value_queue::TickedValueQueueEvent;
 use sched::event::*;
 use sched::item_sink::ItemSink;
 use sched::item_source::ItemSource;
@@ -26,22 +26,21 @@ use sched::graph::{
 
 use sched::binding::*;
 
+use core::mem::{self, MaybeUninit};
+
 use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
 use heapless::mpmc::Q64;
 
 use core::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize};
 
-struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
-struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
-struct DisposeSink(Q64<EventContainer>);
-
-struct MidiItemSource;
+pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U8, Min>);
+pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U8, Min>);
+pub struct DisposeSink(Q64<EventContainer>);
+pub struct MidiItemSource(Q64<Box<MaybeUninit<TickedMidiValueEvent>>>);
 
 type MidiEnqueue = &'static spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>;
 type TickedMidiValueEvent = midi::TickedMidiValueEvent<MidiEnqueue>;
-type TickedMidiValueEventSource =
-    &'static spin::Mutex<dyn ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>>>;
 
 impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
     fn enqueue(&mut self, tick: usize, value: EventContainer) -> Result<(), EventContainer> {
@@ -108,12 +107,25 @@ impl DisposeSink {
     }
 }
 
-impl ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>> for MidiItemSource {
+impl ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>> for &'static MidiItemSource {
     fn try_get(
         &mut self,
         init: TickedMidiValueEvent,
     ) -> Result<Box<TickedMidiValueEvent>, TickedMidiValueEvent> {
-        Ok(Box::new(init)) //XXX unsafe
+        if let Some(mut item) = self.0.dequeue() {
+            unsafe {
+                item.as_mut_ptr().write(init);
+                Ok(mem::transmute(item))
+            }
+        } else {
+            Err(init)
+        }
+    }
+}
+
+impl MidiItemSource {
+    pub fn fill(&self) {
+        while let Ok(()) = self.0.enqueue(Box::new(MaybeUninit::uninit())) {}
     }
 }
 
@@ -137,7 +149,7 @@ static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
 static MIDI_QUEUE: spin::Mutex<MidiQueue> =
     spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 
-static MIDI_VALUE_SOURCE: spin::Mutex<MidiItemSource> = spin::Mutex::new(MidiItemSource);
+static MIDI_VALUE_SOURCE: MidiItemSource = MidiItemSource(Q64::new());
 
 pub trait IntoPtrs {
     fn into_arc(self) -> Arc<Self>;
@@ -284,7 +296,7 @@ fn main() {
         &TickResched::ContextRelative(1),
         &127,
         &127,
-        &MIDI_VALUE_SOURCE as TickedMidiValueEventSource,
+        &MIDI_VALUE_SOURCE,
         &MIDI_QUEUE as MidiEnqueue,
     );
 
@@ -304,16 +316,20 @@ fn main() {
     let root = EventContainer::new(RootClock::new(micros, ratio));
     assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
 
-    //dispose thread, simply ditching
     std::thread::spawn(|| loop {
-        if let Some(item) = DISPOSE_SINK.dequeue() {
+        //midi value queue filling
+        MIDI_VALUE_SOURCE.fill();
+        //dispose thread, simply ditching
+        if let Some(_item) = DISPOSE_SINK.dequeue() {
+            /*
             println!("got dispose");
             let a = Into::<BoxEventEval>::into(item).into_any();
             if a.is::<TickedValueQueueEvent<MidiValue, MidiEnqueue>>() {
                 println!("is TickedValueQueueEvent<MidiValue, ..>");
             }
+            */
         } else {
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
     });
 
