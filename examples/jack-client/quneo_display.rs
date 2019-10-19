@@ -1,10 +1,8 @@
-use crate::context::SchedContext;
-use crate::midi::{MidiTrigger, MidiValue};
-use crate::ptr::{SShrPtr, UniqPtr};
-use crate::time::{TimeResched, TimeSched};
+use sched::event::EventEvalContext;
+use sched::midi::MidiValue;
+//use crate::ptr::{SShrPtr, UniqPtr};
 use crate::SchedCall;
-
-//XXX move to its own crate
+use sched::tick::{TickResched, TickSched};
 
 const PAD_BYTES: usize = 64;
 const SLIDER_BYTES: usize = 9;
@@ -36,7 +34,7 @@ pub struct QuNeoDrawer<F> {
     display: QuNeoDisplay,
     func: UniqPtr<F>,
     midi_trigger: SShrPtr<MidiTrigger>,
-    period: TimeResched,
+    period: TickResched,
 }
 
 pub struct QuNeoDisplayIter<'a> {
@@ -48,7 +46,7 @@ impl<F> QuNeoDrawer<F>
 where
     F: Fn(&mut QuNeoDisplay, &mut dyn SchedContext) + Send,
 {
-    pub fn new(midi_trigger: SShrPtr<MidiTrigger>, period: TimeResched, func: UniqPtr<F>) -> Self {
+    pub fn new(midi_trigger: SShrPtr<MidiTrigger>, period: TickResched, func: UniqPtr<F>) -> Self {
         Self {
             display: QuNeoDisplay::new(),
             func,
@@ -210,12 +208,12 @@ impl<F> SchedCall for QuNeoDrawer<F>
 where
     F: Fn(&mut QuNeoDisplay, &mut dyn SchedContext) + Send,
 {
-    fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
+    fn sched_call(&mut self, context: &mut dyn SchedContext) -> TickResched {
         (*self.func)(&mut self.display, context);
         for d in self.display.draw_iter() {
             self.midi_trigger.lock().add(
                 context.as_schedule_trigger_mut(),
-                TimeSched::Relative(0),
+                TickSched::Relative(0),
                 d,
             );
         }
