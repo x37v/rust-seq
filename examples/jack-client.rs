@@ -341,33 +341,29 @@ fn main() {
         let now = ex.tick_next();
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
 
-        let mut out_p = midi_out.writer(ps);
-        let mut write_midi = |tick: u32, bytes: &[u8]| {
-            let _ = out_p.write(&jack::RawMidi { time: tick, bytes });
-        };
-        let mut write_midi_value = |tick: u32, value: &MidiValue| {
-            let mut iter = value.iter();
-            match iter.len() {
-                3 => write_midi(
-                    tick,
-                    &[
-                        iter.next().unwrap(),
-                        iter.next().unwrap(),
-                        iter.next().unwrap(),
-                    ],
-                ),
-                2 => write_midi(tick, &[iter.next().unwrap(), iter.next().unwrap()]),
-                1 => write_midi(tick, &[iter.next().unwrap()]),
-                _ => (),
-            };
-        };
-
         {
+            let mut out_p = midi_out.writer(ps);
+            let mut write_midi = |tick: u32, bytes: &[u8]| {
+                let _ = out_p.write(&jack::RawMidi { time: tick, bytes });
+            };
             let mut q = MIDI_QUEUE.lock();
             let next = ex.tick_next();
             while let Some((t, midi)) = q.dequeue_lt(next) {
                 let tick = (if t < now { now } else { t } - now) as u32;
-                write_midi_value(tick, &midi);
+                let iter = &mut midi.iter();
+                match iter.len() {
+                    3 => write_midi(
+                        tick,
+                        &[
+                            iter.next().unwrap(),
+                            iter.next().unwrap(),
+                            iter.next().unwrap(),
+                        ],
+                    ),
+                    2 => write_midi(tick, &[iter.next().unwrap(), iter.next().unwrap()]),
+                    1 => write_midi(tick, &[iter.next().unwrap()]),
+                    _ => (),
+                };
             }
         }
 
