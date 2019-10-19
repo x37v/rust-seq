@@ -2,6 +2,7 @@ use jack;
 use std::io;
 
 extern crate alloc;
+mod quneo_display;
 
 use core::convert::Into;
 
