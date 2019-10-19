@@ -186,7 +186,7 @@ fn main() {
         .register_port("control", jack::MidiIn::default())
         .unwrap();
 
-    let mut pages: Vec<spin::Mutex<page::PageData>> = Vec::new();
+    let mut page_data: Vec<spin::Mutex<page::PageData>> = Vec::new();
     let mut current_page: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
 
     let mut ex = ScheduleExecutor::new(
@@ -215,8 +215,12 @@ fn main() {
     let step_ticks = AtomicUsize::new(ppq / 4usize).into_arc();
     let step_cur = AtomicUsize::new(16).into_arc();
 
+    let mul_select_shift = AtomicBool::new(false).into_arc();
+    let div_select_shift = AtomicBool::new(false).into_arc();
+    let len_select_shift = AtomicBool::new(false).into_arc();
+
     let clock_binding: Arc<Mutex<dyn bpm::Clock>> = bpm::ClockData::new(120.0, ppq).into_alock();
-    let _bpm = bpm::ClockBPMBinding(clock_binding.clone()).into_arc();
+    let bpm = bpm::ClockBPMBinding(clock_binding.clone()).into_arc();
     let _ppq = bpm::ClockPPQBinding(clock_binding.clone()).into_arc();
     let micros: Arc<dyn ParamBindingGet<f32>> =
         bpm::ClockPeriodMicroBinding(clock_binding.clone()).into_arc();
@@ -279,7 +283,7 @@ fn main() {
         let ratio: GraphNodeContainer =
             GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
 
-        pages.push(Mutex::new(data));
+        page_data.push(Mutex::new(data));
         voices.push(ratio);
     }
 
@@ -310,9 +314,97 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_millis(1));
     });
 
+    let update_bpm = move |offset: f32, vel: u8| {
+        let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f32) / 127f32);
+        bpm.set(c);
+    };
+
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
+        let process_note = |on: bool, chan: u8, num: u8, vel: u8| {
+            match chan {
+                15 => {
+                    let pages = page_data.len();
+                    let page = current_page.get();
+                    if page < pages {
+                        let page = page_data[page].lock();
+                        let mut index = num as usize;
+                        if index < pages {
+                            if on {
+                                current_page.set(index);
+                            }
+                        } else if index - pages < page.gates.len() {
+                            index -= pages;
+                            if on {
+                                if len_select_shift.get() {
+                                    page.length.set(index + 1);
+                                } else if div_select_shift.get() {
+                                    page.clock_div.set(index + 1);
+                                } else if mul_select_shift.get() {
+                                    page.clock_mul.set(index + 1);
+                                } else {
+                                    let v = !page.gates[index].get();
+                                    page.gates[index].set(v);
+                                }
+                            }
+                        } else {
+                            match index {
+                                67 => len_select_shift.set(on),
+                                76 => mul_select_shift.set(on),
+                                77 => div_select_shift.set(on),
+                                78 => {
+                                    if on {
+                                        update_bpm(1f32, vel);
+                                    }
+                                }
+                                79 => {
+                                    if on {
+                                        update_bpm(-1f32, vel);
+                                    }
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+                }
+                /*
+                8 => {
+                    if let Some(offset) = match num {
+                        48 => Some(1.0f32),
+                        49 => Some(-1.0f32),
+                        _ => None,
+                    } {
+                        let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f32) / 127f32);
+                        bpm.set(c);
+                        println!("BPM {}", c);
+                    }
+                }
+                */
+                _ => (),
+            }
+        };
+
         //read in midi
-        for _m in midi_in.iter(ps) {}
+        for m in midi_in.iter(ps) {
+            if let Some(val) = MidiValue::try_from(m.bytes) {
+                match val {
+                    MidiValue::NoteOn { chan, num, vel } => process_note(true, chan, num, vel),
+                    MidiValue::NoteOff { chan, num, vel } => process_note(false, chan, num, vel),
+                    MidiValue::ContCtrl { chan: 15, num, val } => {
+                        let page = current_page.get();
+                        if page < page_data.len() {
+                            let page = page_data[page].lock();
+                            match num {
+                                102 => page.volume.set(val as f32 / 127f32),
+                                103 => page.volume_rand.set(val as f32 / 127f32),
+                                105 => page.probability.set(val as f32 / 127f32),
+                                _ => (),
+                            }
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
 
         let now = ex.tick_next();
         ex.run(ps.n_frames() as usize, client.sample_rate() as usize);
