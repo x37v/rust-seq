@@ -197,7 +197,6 @@ fn main() {
 
     let ppq = 980usize;
     let step_ticks = AtomicUsize::new(ppq / 4usize).into_arc();
-    let step_cur = AtomicUsize::new(16).into_arc();
 
     let mul_select_shift = AtomicBool::new(false).into_arc();
     let div_select_shift = AtomicBool::new(false).into_arc();
@@ -227,7 +226,7 @@ fn main() {
         );
 
         let step_cur_bind = IndexChildContainer::new(BindStoreIndexChild::new(
-            step_cur.clone() as Arc<dyn ParamBindingSet<usize>>
+            data.step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
         ));
 
         let gates: Vec<Arc<dyn ParamBindingGet<bool>>> = data
@@ -235,9 +234,11 @@ fn main() {
             .iter()
             .map(|g| g.clone() as Arc<dyn ParamBindingGet<bool>>)
             .collect();
-        let step_gate =
-            ops::GetIndexed::new(gates, step_cur.clone() as Arc<dyn ParamBindingGet<usize>>)
-                .into_alock();
+        let step_gate = ops::GetIndexed::new(
+            gates,
+            data.step_cur.clone() as Arc<dyn ParamBindingGet<usize>>,
+        )
+        .into_alock();
 
         let step_gate = gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
 
@@ -307,9 +308,16 @@ fn main() {
                     //indicate the current page
                     display.update(QDisplayType::Pad, p, if p == page { 127u8 } else { 0 });
                     //flash page buttons for off page sequences when they are triggered
-                    /*
+                    //
+                    //really just need these states:
+                    //Off,
+                    //TriggerOn (draw, schedule TriggerOff, set Off),
+                    //TriggerOff (draw, set Off)
+                    //
+                    //could use a one shot
+                    //
                     if p != page {
-                        let data = draw_data[p].lock();
+                        /*
                         if data.triggered.get() {
                             data.triggered.set(false);
                             display.update(QDisplayType::Pad, p, 64u8);
@@ -322,8 +330,8 @@ fn main() {
                             data.triggered_off.set(false);
                             display.update(QDisplayType::Pad, p, 0);
                         }
+                        */
                     }
-                    */
                 }
 
                 if page < pages {
@@ -349,20 +357,21 @@ fn main() {
                         );
                     } else {
                         //display the state of the gates
+                        let step = page.step_cur.get();
                         for i in 0..page.gates.len() {
-                            display.update(
-                                QDisplayType::Pad,
-                                offset + i,
-                                if page.gates[i].get() { 127u8 } else { 0u8 },
-                            );
+                            let v = if page.gates[i].get() {
+                                if i == step {
+                                    127u8 //on and current
+                                } else {
+                                    64u8 //on not current
+                                }
+                            } else if i == step {
+                                32u8 // off current
+                            } else {
+                                0u8 // off
+                            };
+                            display.update(QDisplayType::Pad, offset + i, v);
                         }
-                        /*
-                        //display the current location
-                        let index = page.index.get();
-                        if index < 64 {
-                            display.update(QDisplayType::Pad, offset + index, 32);
-                        }
-                        */
                         display.update(QDisplayType::Slider, 4, (127f32 * page.volume.get()) as u8);
                         display.update(
                             QDisplayType::Slider,

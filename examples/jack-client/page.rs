@@ -5,6 +5,7 @@ use std::sync::Arc;
 pub struct PageData {
     pub length: Arc<AtomicUsize>,
     pub gates: Arc<[Arc<AtomicBool>]>,
+    pub step_cur: Arc<AtomicUsize>,
     pub clock_mul: Arc<AtomicUsize>,
     pub clock_div: Arc<AtomicUsize>,
     pub probability: Arc<SpinlockParamBinding<f32>>,
@@ -22,6 +23,7 @@ impl PageData {
     pub fn new() -> Self {
         Self {
             length: Arc::new(AtomicUsize::new(16)),
+            step_cur: Arc::new(AtomicUsize::new(0)),
             gates: Arc::new([
                 Arc::new(AtomicBool::new(false)),
                 Arc::new(AtomicBool::new(false)),
