@@ -1,5 +1,6 @@
 extern crate alloc;
-use crate::binding::ParamBindingGet;
+use crate::binding::{ParamBindingGet, ParamBindingSet};
+use core::cell::Cell;
 use core::marker::PhantomData;
 use core::ops::Deref;
 
@@ -98,6 +99,18 @@ pub struct GetCmp<T, L, R> {
     left: L,
     right: R,
     _phantom: PhantomData<fn() -> T>,
+}
+
+struct OneShotInner<T> {
+    pub value: T,
+    pub state: Option<()>,
+}
+
+/// Returns the value set to it only once after it is set, then returns a default value.
+/// Resets state every time it is set.
+pub struct OneShot<T, D> {
+    default: D,
+    inner: Mutex<Cell<OneShotInner<T>>>,
 }
 
 impl<T, B, Min, Max> GetClamp<T, B, Min, Max>
@@ -512,6 +525,70 @@ where
         } else {
             Default::default()
         }
+    }
+}
+
+impl<T> OneShotInner<T>
+where
+    T: Send + Sync + Copy,
+{
+    pub fn new(initial: T) -> Self {
+        Self {
+            value: initial,
+            state: Some(()),
+        }
+    }
+
+    pub fn value_once(&mut self) -> Option<T> {
+        if self.state.is_some() {
+            self.state = None;
+            Some(self.value)
+        } else {
+            None
+        }
+    }
+
+    pub fn value_set(&mut self, value: T) {
+        self.state = Some(());
+        self.value = value;
+    }
+}
+
+impl<T, D> OneShot<T, D>
+where
+    T: Send + Sync + Copy,
+    D: ParamBindingGet<T>,
+{
+    pub fn new(initial: T, default: D) -> Self {
+        Self {
+            default,
+            inner: Mutex::new(Cell::new(OneShotInner::new(initial))),
+        }
+    }
+}
+
+impl<T, D> ParamBindingGet<T> for OneShot<T, D>
+where
+    T: Send + Sync + Copy,
+    D: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        let mut l = self.inner.lock();
+        if let Some(v) = l.get_mut().value_once() {
+            v
+        } else {
+            self.default.get()
+        }
+    }
+}
+
+impl<T, D> ParamBindingSet<T> for OneShot<T, D>
+where
+    T: Send + Sync + Copy,
+    D: ParamBindingGet<T>,
+{
+    fn set(&self, value: T) {
+        self.inner.lock().get_mut().value_set(value);
     }
 }
 
