@@ -24,8 +24,8 @@ use spin::Mutex;
 
 use sched::graph::*;
 use sched::graph::{
-    clock_ratio::ClockRatio, fanout::FanOut, node_wrapper::GraphNodeWrapper, root_clock::RootClock,
-    step_seq::StepSeq,
+    bindstore::BindStoreIndexChild, clock_ratio::ClockRatio, fanout::FanOut,
+    node_wrapper::GraphNodeWrapper, root_clock::RootClock, step_seq::StepSeq,
 };
 
 use sched::binding::*;
@@ -226,8 +226,8 @@ fn main() {
             data.length.clone() as Arc<dyn ParamBindingGet<_>>,
         );
 
-        let step_cur_bind = IndexChildContainer::new(bindstore::BindStoreIndexChild::new(
-            step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
+        let step_cur_bind = IndexChildContainer::new(BindStoreIndexChild::new(
+            step_cur.clone() as Arc<dyn ParamBindingSet<usize>>
         ));
 
         let gates: Vec<Arc<dyn ParamBindingGet<bool>>> = data
@@ -348,6 +348,7 @@ fn main() {
                             64,
                         );
                     } else {
+                        //display the state of the gates
                         for i in 0..page.gates.len() {
                             display.update(
                                 QDisplayType::Pad,
@@ -356,6 +357,7 @@ fn main() {
                             );
                         }
                         /*
+                        //display the current location
                         let index = page.index.get();
                         if index < 64 {
                             display.update(QDisplayType::Pad, offset + index, 32);
