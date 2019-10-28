@@ -4,7 +4,6 @@ use core::cell::Cell;
 use core::marker::PhantomData;
 use core::ops::Deref;
 
-use alloc::sync::Arc;
 use spin::Mutex;
 
 /// Clamp a numeric binding between [min, max], inclusive.

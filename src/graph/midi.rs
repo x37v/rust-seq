@@ -7,6 +7,8 @@ use crate::event::ticked_value_queue::TickedValueQueueEvent;
 use crate::item_source::ItemSource;
 use crate::midi::MidiValue;
 use crate::pqueue::TickPriorityEnqueue;
+extern crate alloc;
+use alloc::boxed::Box;
 
 pub type TickedMidiValueEvent<Enqueue> = TickedValueQueueEvent<MidiValue, Enqueue>;
 
@@ -118,21 +120,25 @@ where
                 if let Err(_b) = s {
                     //dispose
                     //XXX report
+                    #[cfg(feature = "std")]
                     println!("should dispose");
                 } else {
                     let s = context.event_schedule(t, EventContainer::new_from_box(on));
                     if let Err(_b) = s {
                         //dispose
+                        #[cfg(feature = "std")]
                         println!("should dispose 2");
                         //XXX report
                     }
                 }
             } else {
                 //XXX report
+                #[cfg(feature = "std")]
                 println!("cannot get on");
             }
         } else {
             //XXX report
+            #[cfg(feature = "std")]
             println!("cannot get off");
         }
     }

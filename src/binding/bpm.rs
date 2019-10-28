@@ -1,7 +1,6 @@
 extern crate alloc;
 
 use super::*;
-use alloc::sync::Arc;
 use core::ops::Deref;
 use spin::Mutex;
 

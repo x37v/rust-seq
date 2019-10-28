@@ -25,11 +25,13 @@ pub mod empty {
 }
 
 pub mod boxed {
+    extern crate alloc;
     use crate::event::*;
     use crate::graph::{
         ChildCount, GraphChildExec, GraphIndexExec, GraphNode, GraphNodeContainer,
         IndexChildContainer,
     };
+    use alloc::boxed::Box;
     use core::convert::From;
 
     pub struct Children(Box<[GraphNodeContainer]>);

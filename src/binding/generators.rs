@@ -1,6 +1,8 @@
 use crate::binding::{ParamBindingGet, ParamBindingSet};
 use core::marker::PhantomData;
 use core::sync::atomic::AtomicBool;
+
+#[cfg(feature = "std")]
 use rand::prelude::*;
 
 /// Get an uniform random numeric value [min, max(.
