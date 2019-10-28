@@ -1,36 +1,46 @@
-use crate::binding::BindingGetP;
-use crate::context::SchedContext;
-use crate::graph::{ChildCount, ChildExec, GraphExec};
+use crate::binding::ParamBindingGet;
+use crate::event::EventEvalContext;
+use crate::graph::{GraphChildExec, GraphNodeExec};
 
-pub struct StepSeq {
-    step_ticks: BindingGetP<usize>,
-    steps: BindingGetP<usize>,
+pub struct StepSeq<StepTicks, Steps>
+where
+    StepTicks: ParamBindingGet<usize>,
+    Steps: ParamBindingGet<usize>,
+{
+    step_ticks: StepTicks,
+    steps: Steps,
 }
 
-impl StepSeq {
-    pub fn new(step_ticks: BindingGetP<usize>, steps: BindingGetP<usize>) -> Self {
+impl<StepTicks, Steps> StepSeq<StepTicks, Steps>
+where
+    StepTicks: ParamBindingGet<usize>,
+    Steps: ParamBindingGet<usize>,
+{
+    pub fn new(step_ticks: StepTicks, steps: Steps) -> Self {
         Self { step_ticks, steps }
     }
 }
 
 //step sequencer acts as a gate, triggering its appropriate child with the context passed in only
 //at step_ticks context ticks
-impl GraphExec for StepSeq {
-    fn exec(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) -> bool {
+impl<StepTicks, Steps> GraphNodeExec for StepSeq<StepTicks, Steps>
+where
+    StepTicks: ParamBindingGet<usize>,
+    Steps: ParamBindingGet<usize>,
+{
+    fn graph_exec(
+        &mut self,
+        context: &mut dyn EventEvalContext,
+        children: &mut dyn GraphChildExec,
+    ) {
         let step_ticks = self.step_ticks.get();
 
-        if step_ticks > 0 && context.context_tick() % step_ticks == 0 {
+        if step_ticks > 0 && context.context_tick_now() % step_ticks == 0 {
             let steps = self.steps.get();
             if steps > 0 {
-                let index = (context.context_tick() / step_ticks) % steps as usize;
-                children.exec(context, index);
+                let index = (context.context_tick_now() / step_ticks) % steps as usize;
+                children.child_exec(context, index);
             }
         }
-        //remove self if we have no children
-        children.has_children()
-    }
-
-    fn children_max(&self) -> ChildCount {
-        ChildCount::Inf
     }
 }

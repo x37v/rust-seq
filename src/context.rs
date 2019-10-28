@@ -1,274 +1,154 @@
-use crate::base::{
-    InsertTimeSorted, LList, SchedFn, SrcSink, TimeResched, TimeSched, TimedFn, TimedNodeData,
-    TimedTrig,
-};
-use crate::binding::set::BindingSet;
-use crate::trigger::{ScheduleTrigger, TriggerId};
-use crate::util::add_clamped;
-
-pub trait SchedContext: ScheduleTrigger {
-    fn base_tick(&self) -> usize;
-    fn context_tick(&self) -> usize;
-    fn base_tick_period_micros(&self) -> f32;
-    fn context_tick_period_micros(&self) -> f32;
-    fn schedule(&mut self, t: TimeSched, func: SchedFn);
-    fn as_schedule_trigger_mut(&mut self) -> &mut dyn ScheduleTrigger;
-}
+use crate::event::*;
+use crate::pqueue::TickPriorityEnqueue;
+use crate::tick::*;
 
 pub struct RootContext<'a> {
-    base_tick: usize,
-    base_tick_period_micros: f32,
-    list: &'a mut LList<TimedFn>,
-    trig_list: &'a mut LList<TimedTrig>,
-    src_sink: &'a mut SrcSink,
+    tick: usize,
+    ticks_per_second: usize,
+    schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
 }
 
 pub struct ChildContext<'a> {
-    parent: &'a mut dyn SchedContext,
+    parent: &'a mut dyn EventEvalContext,
     parent_tick_offset: isize,
     context_tick: usize,
+    context_ticks_per_second: usize,
     context_tick_period_micros: f32,
-}
-
-fn translate_tick(dest_micros_per_tick: f32, src_micros_per_tick: f32, src_tick: isize) -> isize {
-    if dest_micros_per_tick <= 0f32 {
-        0isize
-    } else {
-        (src_tick as f32 * src_micros_per_tick / dest_micros_per_tick) as isize
-    }
 }
 
 impl<'a> RootContext<'a> {
     pub fn new(
         tick: usize,
         ticks_per_second: usize,
-        list: &'a mut LList<TimedFn>,
-        trig_list: &'a mut LList<TimedTrig>,
-        src_sink: &'a mut SrcSink,
+        schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
     ) -> Self {
-        let tpm = 1e6f32 / (ticks_per_second as f32);
         Self {
-            base_tick: tick,
-            base_tick_period_micros: tpm,
-            list,
-            trig_list,
-            src_sink,
+            tick,
+            ticks_per_second,
+            schedule,
         }
     }
 
-    fn to_tick(&self, time: &TimeSched) -> usize {
-        match *time {
-            TimeSched::Absolute(t) | TimeSched::ContextAbsolute(t) => t,
-            TimeSched::Relative(t) | TimeSched::ContextRelative(t) => {
-                add_clamped(self.base_tick, t)
-            }
-        }
+    pub fn update_tick(&mut self, tick: usize) {
+        self.tick = tick;
     }
 }
 
-impl<'a> SchedContext for RootContext<'a> {
-    fn base_tick(&self) -> usize {
-        self.base_tick
-    }
-    fn context_tick(&self) -> usize {
-        self.base_tick
-    }
-    fn base_tick_period_micros(&self) -> f32 {
-        self.base_tick_period_micros
-    }
-    fn context_tick_period_micros(&self) -> f32 {
-        self.base_tick_period_micros
-    }
-    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        if let Some(mut n) = self.src_sink.pop_node() {
-            n.set_func(Some(func));
-            n.set_time(self.to_tick(&time));
-            self.list.insert_time_sorted(n);
-        } else {
-            println!("OOPS");
-        }
-    }
-    fn as_schedule_trigger_mut(&mut self) -> &mut dyn ScheduleTrigger {
-        self
-    }
-}
-
-impl<'a> ScheduleTrigger for RootContext<'a> {
-    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId) {
-        if let Some(mut n) = self.src_sink.pop_trig() {
-            n.set_index(Some(index));
-            n.set_time(self.to_tick(&time));
-            self.trig_list.insert_time_sorted(n);
-        } else {
-            println!("OOPS");
-        }
-    }
-    fn schedule_valued_trigger(
+impl<'a> EventSchedule for RootContext<'a> {
+    fn event_schedule(
         &mut self,
-        time: TimeSched,
-        index: TriggerId,
-        values: &[BindingSet],
-    ) {
-        if let Some(mut n) = self.src_sink.pop_trig() {
-            n.set_index(Some(index));
-            n.set_time(self.to_tick(&time));
-            for v in values {
-                if let Some(mut vn) = self.src_sink.pop_value_set() {
-                    **vn = v.clone();
-                    n.add_value(vn);
-                } else {
-                    println!("OOPS");
-                    return;
-                }
-            }
-            self.trig_list.insert_time_sorted(n);
-        } else {
-            println!("OOPS");
-        }
+        tick: TickSched,
+        event: EventContainer,
+    ) -> Result<(), EventContainer> {
+        //in the root, context and absolute are the same
+        let tick = match tick {
+            TickSched::Absolute(t) | TickSched::ContextAbsolute(t) => t,
+            TickSched::Relative(o) | TickSched::ContextRelative(o) => offset_tick(self.tick, o),
+        };
+        self.schedule.enqueue(tick, event)
     }
-    fn schedule_value(&mut self, time: TimeSched, value: &BindingSet) {
-        if let Some(mut n) = self.src_sink.pop_trig() {
-            n.set_index(None);
-            n.set_time(self.to_tick(&time));
-            if let Some(mut vn) = self.src_sink.pop_value_set() {
-                **vn = value.clone();
-                n.add_value(vn);
-                self.trig_list.insert_time_sorted(n);
-            } else {
-                println!("OOPS");
-            }
-        } else {
-            println!("OOPS");
-        }
-    }
+}
 
-    //at the root, context and non context are the same
-    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched {
-        let mut offset: usize = 0;
-        match dur {
-            TimeResched::None => (),
-            TimeResched::Relative(ref t) => offset = *t,
-            TimeResched::ContextRelative(ref t) => offset = *t,
-        }
-        match time {
-            TimeSched::Absolute(ref t) => TimeSched::Absolute(t + offset),
-            TimeSched::Relative(ref t) => TimeSched::Relative(t + offset as isize),
-            TimeSched::ContextAbsolute(ref t) => TimeSched::ContextAbsolute(t + offset),
-            TimeSched::ContextRelative(ref t) => TimeSched::ContextRelative(t + offset as isize),
-        }
+impl<'a> TickContext for RootContext<'a> {
+    fn tick_now(&self) -> usize {
+        self.tick
+    }
+    fn ticks_per_second(&self) -> usize {
+        self.ticks_per_second
     }
 }
 
 impl<'a> ChildContext<'a> {
     pub fn new(
-        parent: &'a mut dyn SchedContext,
+        parent: &'a mut dyn EventEvalContext,
         parent_tick_offset: isize,
         context_tick: usize,
         context_tick_period_micros: f32,
     ) -> Self {
+        //XXX TEST
+        let ps = 1e6f32 / context_tick_period_micros;
         Self {
             parent,
             parent_tick_offset,
             context_tick,
+            context_ticks_per_second: ps as usize,
             context_tick_period_micros,
         }
     }
 
-    pub fn translate_time(&self, time: &TimeSched) -> TimeSched {
-        match *time {
-            TimeSched::Absolute(t) => TimeSched::Absolute(t),
-            TimeSched::Relative(t) => TimeSched::Absolute(add_clamped(self.base_tick(), t)),
-            TimeSched::ContextAbsolute(t) => {
-                let offset = translate_tick(
-                    self.base_tick_period_micros(),
-                    self.context_tick_period_micros(),
-                    t as isize - self.context_tick() as isize,
-                );
-                TimeSched::Absolute(add_clamped(self.base_tick(), offset))
-            }
-            TimeSched::ContextRelative(t) => {
-                //convert to base ticks, absolute from our base tick
-                let offset = translate_tick(
-                    self.base_tick_period_micros(),
-                    self.context_tick_period_micros(),
-                    t,
-                );
-                TimeSched::Absolute(add_clamped(self.base_tick(), offset))
-            }
-        }
+    pub fn update_parent_offset(&mut self, offset: isize) {
+        self.parent_tick_offset = offset;
+    }
+
+    pub fn update_context_tick(&mut self, tick: usize) {
+        self.context_tick = tick;
     }
 }
 
-impl<'a> SchedContext for ChildContext<'a> {
-    fn base_tick(&self) -> usize {
-        add_clamped(self.parent.base_tick(), self.parent_tick_offset)
+impl<'a> EventSchedule for ChildContext<'a> {
+    fn event_schedule(
+        &mut self,
+        tick: TickSched,
+        event: EventContainer,
+    ) -> Result<(), EventContainer> {
+        //XXX TODO TRANSLATE TO CONTEXT TIME IF NEEDED
+        self.parent.event_schedule(tick, event)
     }
-    fn context_tick(&self) -> usize {
+}
+
+impl<'a> TickContext for ChildContext<'a> {
+    fn tick_now(&self) -> usize {
+        offset_tick(self.parent.tick_now(), self.parent_tick_offset)
+    }
+    fn ticks_per_second(&self) -> usize {
+        self.parent.ticks_per_second()
+    }
+    fn context_tick_now(&self) -> usize {
         self.context_tick
     }
-    fn base_tick_period_micros(&self) -> f32 {
-        self.parent.base_tick_period_micros()
+    fn context_ticks_per_second(&self) -> usize {
+        self.context_ticks_per_second
+    }
+    fn tick_period_micros(&self) -> f32 {
+        self.parent.tick_period_micros()
     }
     fn context_tick_period_micros(&self) -> f32 {
         self.context_tick_period_micros
     }
-    fn schedule(&mut self, time: TimeSched, func: SchedFn) {
-        let time = self.translate_time(&time);
-        self.parent.schedule(time, func);
-    }
-
-    fn as_schedule_trigger_mut(&mut self) -> &mut dyn ScheduleTrigger {
-        self
-    }
-}
-
-impl<'a> ScheduleTrigger for ChildContext<'a> {
-    fn schedule_trigger(&mut self, time: TimeSched, index: TriggerId) {
-        self.parent
-            .schedule_trigger(self.translate_time(&time), index);
-    }
-    fn schedule_valued_trigger(
-        &mut self,
-        time: TimeSched,
-        index: TriggerId,
-        values: &[BindingSet],
-    ) {
-        self.parent
-            .schedule_valued_trigger(self.translate_time(&time), index, values);
-    }
-    fn schedule_value(&mut self, time: TimeSched, value: &BindingSet) {
-        self.parent
-            .schedule_value(self.translate_time(&time), value);
-    }
-
-    fn add_time(&self, time: &TimeSched, dur: &TimeResched) -> TimeSched {
-        self.parent.add_time(&self.translate_time(&time), dur)
-    }
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    use crate::base::{LList, SrcSink, TimeSched};
-    use crate::binding::spinlock::SpinlockParamBinding;
-    use crate::context::RootContext;
-    #[test]
-    fn works() {
-        let mut src_sink = SrcSink::new();
-        let mut list = LList::new();
-        let mut trig_list = LList::new();
+    pub struct TestContext {
+        tick: usize,
+        ticks_per_second: usize,
+    }
 
-        let mut c = RootContext::new(0, 0, &mut list, &mut trig_list, &mut src_sink);
-        let fbinding = new_shrptr!(SpinlockParamBinding::new(0f32));
-        let ibinding = new_shrptr!(SpinlockParamBinding::new(0));
-        let trig = TriggerId::new();
-        c.schedule_valued_trigger(
-            TimeSched::Relative(0),
-            trig,
-            &[
-                BindingSet::F32(3.0, fbinding),
-                BindingSet::I32(2084, ibinding),
-            ],
-        );
+    impl TestContext {
+        pub fn new(tick: usize, ticks_per_second: usize) -> Self {
+            Self {
+                tick,
+                ticks_per_second,
+            }
+        }
+    }
+    impl EventSchedule for TestContext {
+        fn event_schedule(
+            &mut self,
+            _tick: TickSched,
+            _event: EventContainer,
+        ) -> Result<(), EventContainer> {
+            Ok(())
+        }
+    }
+
+    impl TickContext for TestContext {
+        fn tick_now(&self) -> usize {
+            self.tick
+        }
+        fn ticks_per_second(&self) -> usize {
+            self.ticks_per_second
+        }
     }
 }

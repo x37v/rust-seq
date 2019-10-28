@@ -1,43 +1,30 @@
 use super::*;
-use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 
-/// Implementations of `ParamBindingGet` and `ParamBindingSet` for `AtomicBool`, `AtomicUsize`,
-/// and `AtomicIsize`
+use core::sync::atomic::*;
 
-const GET_ORDERING: Ordering = Ordering::SeqCst;
-const SET_ORDERING: Ordering = Ordering::SeqCst;
-
-impl ParamBindingGet<usize> for AtomicUsize {
-    fn get(&self) -> usize {
-        self.load(GET_ORDERING)
-    }
+macro_rules! impl_get_set {
+    ($t:ty, $a:ty) => {
+        impl ParamBindingGet<$t> for $a {
+            fn get(&self) -> $t {
+                self.load(Ordering::SeqCst)
+            }
+        }
+        impl ParamBindingSet<$t> for $a {
+            fn set(&self, value: $t) {
+                self.store(value, Ordering::SeqCst);
+            }
+        }
+    };
 }
 
-impl ParamBindingGet<isize> for AtomicIsize {
-    fn get(&self) -> isize {
-        self.load(GET_ORDERING)
-    }
-}
-
-impl ParamBindingGet<bool> for AtomicBool {
-    fn get(&self) -> bool {
-        self.load(GET_ORDERING)
-    }
-}
-
-impl ParamBindingSet<usize> for AtomicUsize {
-    fn set(&self, value: usize) {
-        self.store(value, SET_ORDERING);
-    }
-}
-impl ParamBindingSet<isize> for AtomicIsize {
-    fn set(&self, value: isize) {
-        self.store(value, SET_ORDERING);
-    }
-}
-
-impl ParamBindingSet<bool> for AtomicBool {
-    fn set(&self, value: bool) {
-        self.store(value, SET_ORDERING);
-    }
-}
+impl_get_set!(bool, AtomicBool);
+impl_get_set!(i8, AtomicI8);
+impl_get_set!(i16, AtomicI16);
+impl_get_set!(i32, AtomicI32);
+impl_get_set!(i64, AtomicI64);
+impl_get_set!(isize, AtomicIsize);
+impl_get_set!(u8, AtomicU8);
+impl_get_set!(u16, AtomicU16);
+impl_get_set!(u32, AtomicU32);
+impl_get_set!(u64, AtomicU64);
+impl_get_set!(usize, AtomicUsize);

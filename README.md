@@ -1,6 +1,16 @@
 # rust-sched
 a work in progress scheduled executor, built in rust
 
+## external deps
+
+* cargo make: `cargo install cargo-make`
+
+```
+cargo make test
+```
+
+The info below is likely outdated.
+
 ## Terminology
 
 ### Scheduler

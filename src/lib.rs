@@ -1,23 +1,15 @@
-pub use spinlock;
-pub use xnor_llist;
-
-#[macro_use]
-extern crate sched_macros;
-
-pub mod macros;
-
-mod base;
-pub mod context;
-pub mod executor;
-pub mod graph;
-pub mod ptr;
-pub mod trigger;
-pub mod util;
+#![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod binding;
+pub mod context;
+pub mod event;
+pub mod graph;
+pub mod item_sink;
+pub mod item_source;
 pub mod midi;
+pub mod pqueue;
+pub mod schedule;
+pub mod tick;
 
-//XXX move to its own crate?
-pub mod quneo_display;
-
-pub use crate::base::*;
+#[cfg(feature = "std")]
+pub mod std;

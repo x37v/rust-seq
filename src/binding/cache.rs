@@ -1,7 +1,8 @@
 use super::spinlock::SpinlockParamBinding;
 use super::*;
-use failure::Fail;
+use crate::ptr::ShrPtr;
 use crate::ptr::UniqPtr;
+use failure::Fail;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
@@ -140,7 +141,7 @@ mod tests {
             "bpm".to_string(),
             ::binding::bpm::ClockData::new(110f32, 990),
         );
-    
+
         assert!(f.is_ok());
         assert!(b.is_ok());
         let f = f.unwrap();
@@ -148,11 +149,11 @@ mod tests {
         assert_eq!(43f32, f.get());
         assert_eq!(110f32, b.get().bpm());
         assert_eq!(990, b.get().ppq());
-    
+
         let b2 = c.get::<ClockData>("bpm".to_string(), ClockData::new(1f32, 10));
         assert!(b2.is_ok());
         let b2 = b2.unwrap();
-    
+
         let bpm = new_shrptr!(ClockBPMBinding(b2.clone()));
         let ppq = new_shrptr!(ClockPPQBinding(b2.clone()));
         let micros = new_shrptr!(ClockPeriodMicroBinding(b2.clone()));

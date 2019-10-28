@@ -10,7 +10,7 @@ use sched::binding::observable::{new_observer_node, Observable, ObservableBindin
 use sched::binding::ops::*;
 use sched::binding::set::BindingSet;
 use sched::binding::spinlock::SpinlockParamBinding;
-use sched::binding::{BindingLatchP, BindingP, ParamBinding, ParamBindingGet, ParamBindingSet};
+use sched::binding::{ParamBinding, ParamBindingGet, ParamBindingLatch, ParamBindingSet};
 use sched::context::SchedContext;
 
 use sched::graph::clock_ratio::ClockRatio;
@@ -22,12 +22,15 @@ use sched::graph::midi::MidiNote;
 use sched::graph::node_wrapper::{GraphNodeWrapper, NChildGraphNodeWrapper};
 use sched::graph::root_clock::RootClock;
 use sched::graph::step_seq::StepSeq;
-use sched::graph::{ChildCount, ChildExec, GraphNode};
+use sched::graph::{
+    AIndexNodeP, ANodeP, ChildCount, ChildExec, ChildListT, GraphNode, IndexChildListT,
+};
 use sched::ptr::{SShrPtr, ShrPtr, UniqPtr};
 
 use sched::midi::{MidiTrigger, MidiValue};
 
-use sched::{LNode, Sched, Scheduler, TimeResched, TimeSched};
+use sched::time::{TimeResched, TimeSched};
+use sched::{Sched, Scheduler};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::mpsc::sync_channel;
@@ -36,6 +39,19 @@ use std::io;
 
 use sched::quneo_display::DisplayType as QDisplayType;
 use sched::quneo_display::{QuNeoDisplay, QuNeoDrawer};
+
+use std::sync::Arc;
+
+pub type BindingP<T> = Arc<dyn ParamBinding<T>>;
+pub type BindingLatchP<'a> = Arc<dyn ParamBindingLatch + 'a>;
+
+struct VecChildList {
+    children: Vec<ANodeP>,
+}
+
+struct VecIndexChildList {
+    children: Vec<AIndexNodeP>,
+}
 
 struct PageData {
     index: ShrPtr<ObservableBinding<usize, AtomicUsize>>,
@@ -74,6 +90,52 @@ impl PageData {
             triggered,
             triggered_off: SpinlockParamBinding::new(false).into_shared(),
         }
+    }
+}
+
+impl VecChildList {
+    pub fn new() -> Self {
+        Self {
+            children: Vec::new(),
+        }
+    }
+}
+
+impl VecIndexChildList {
+    pub fn new() -> Self {
+        Self {
+            children: Vec::new(),
+        }
+    }
+}
+
+impl ChildListT for VecChildList {
+    fn count(&self) -> usize {
+        self.children.len()
+    }
+
+    /// execute `func` on children in the range given,
+    /// if func returns true, return them to the list
+    fn in_range<'a>(
+        &mut self,
+        range: core::ops::Range<usize>,
+        func: &'a dyn FnMut(ANodeP) -> bool,
+    ) {
+        //TODO
+    }
+
+    fn push_back(&mut self, child: ANodeP) {
+        self.children.push(child);
+    }
+}
+
+impl IndexChildListT for VecIndexChildList {
+    fn each<'a>(&mut self, func: &'a dyn FnMut(AIndexNodeP)) {
+        //XXX TODO
+    }
+
+    fn push_back(&mut self, child: AIndexNodeP) {
+        self.children.push(child);
     }
 }
 
@@ -120,13 +182,15 @@ fn main() {
     let midi_trig = MidiTrigger::new(msender).into_sshared();
 
     let bpm_binding = bpm::ClockData::new(120.0, 960).into_sshared();
-    let bpm = bpm::ClockBPMBinding(bpm_binding.clone()).into_shared();
+    let bpm: ShrPtr<dyn ParamBinding<f32>> =
+        bpm::ClockBPMBinding(bpm_binding.clone()).into_shared();
     let _ppq = bpm::ClockPPQBinding(bpm_binding.clone()).into_shared();
-    let micros = bpm::ClockPeriodMicroBinding(bpm_binding.clone()).into_shared();
-    let mut clock = RootClock::new(micros.clone()).into_unique();
+    let micros: ShrPtr<dyn ParamBindingGet<f32>> =
+        bpm::ClockPeriodMicroBinding(bpm_binding.clone()).into_shared();
+    let mut clock = RootClock::new(micros.clone(), VecChildList::new()).into_unique();
 
     let _pulses = SpinlockParamBinding::new(2).into_shared();
-    let step_ticks = SpinlockParamBinding::new(960 / 4).into_shared();
+    let step_ticks = SpinlockParamBinding::new(960usize / 4usize).into_shared();
     let _step_index = SpinlockParamBinding::new(0usize).into_shared();
 
     /*
@@ -185,17 +249,29 @@ fn main() {
 
         let volume = SpinlockParamBinding::new(1.0f32).into_shared();
         let volume_rand = SpinlockParamBinding::new(0f32).into_shared();
-        let volume_rand_offset = GetUniformRand::new(
-            GetNegate::new(volume_rand.clone()).into_shared(),
-            volume_rand.clone(),
+        let volume_rand_offset: ShrPtr<dyn ParamBindingGet<f32>> = GetUniformRand::new(
+            GetNegate::new(volume_rand.clone() as ShrPtr<dyn ParamBindingGet<f32>>),
+            volume_rand.clone() as ShrPtr<dyn ParamBindingGet<f32>>,
         )
         .into_shared();
 
-        let velocity = GetSum::new(volume.clone(), volume_rand_offset).into_shared();
-        let velocity = GetMul::new(velocity.clone(), midi_maxf.clone()).into_shared();
+        let velocity = GetSum::new(
+            volume.clone() as ShrPtr<dyn ParamBindingGet<f32>>,
+            volume_rand_offset as ShrPtr<dyn ParamBindingGet<f32>>,
+        )
+        .into_shared();
+        let velocity: ShrPtr<dyn ParamBindingGet<f32>> = GetMul::new(
+            velocity.clone() as ShrPtr<dyn ParamBindingGet<f32>>,
+            midi_maxf.clone() as ShrPtr<dyn ParamBindingGet<f32>>,
+        )
+        .into_shared();
         let velocity: ShrPtr<GetCast<f32, u8, _>> = GetCast::new(velocity).into_shared();
-        let velocity =
-            GetClamp::new(velocity, midi_notev_min.clone(), midi_max.clone()).into_shared();
+        let velocity = GetClamp::new(
+            velocity as ShrPtr<dyn ParamBindingGet<u8>>,
+            midi_notev_min.clone(),
+            midi_max.clone(),
+        )
+        .into_shared();
 
         let steps = ObservableBinding::new(AtomicUsize::new(16)).into_shared();
         let note = (page as u8).into_shared();
@@ -213,61 +289,82 @@ fn main() {
         let latches: Vec<BindingLatchP<'_>> = gates
             .iter()
             .map(|g| {
-                (BindingLatch::new(g.clone(), step_gate.clone())).into_shared() as BindingLatchP<'_>
+                (BindingLatch::new(
+                    g.clone() as ShrPtr<dyn ParamBindingGet<bool>>,
+                    step_gate.clone() as ShrPtr<dyn ParamBindingSet<bool>>,
+                ))
+                .into_shared() as ShrPtr<dyn ParamBindingLatch>
             })
             .collect();
 
         let trig = GraphNodeWrapper::new(
             MidiNote::new(
                 midi_trig.clone(),
-                9u8.into_shared(),
-                note.clone(),
+                9u8,
+                note.clone() as ShrPtr<ParamBindingGet<u8>>,
                 TimeResched::Relative(1).into_shared(),
-                velocity.clone(),
-                127u8.into_shared(),
+                velocity.clone() as ShrPtr<ParamBindingGet<u8>>,
+                127u8,
             )
             .into_unique(),
+            VecChildList::new(),
         )
         .into_sshared();
 
-        let gate = GraphNodeWrapper::new(Gate::new(step_gate.clone()).into_unique()).into_sshared();
+        let gate = GraphNodeWrapper::new(
+            Gate::new(step_gate.clone() as ShrPtr<dyn ParamBindingGet<bool>>).into_unique(),
+            VecChildList::new(),
+        )
+        .into_sshared();
         let step_seq = NChildGraphNodeWrapper::new(
-            StepSeq::new(step_ticks.clone(), steps.clone()).into_unique(),
+            StepSeq::new(
+                step_ticks.clone() as ShrPtr<dyn ParamBindingGet<usize>>,
+                steps.clone() as ShrPtr<dyn ParamBindingGet<usize>>,
+            )
+            .into_unique(),
+            VecChildList::new(),
+            VecIndexChildList::new(),
         )
         .into_sshared();
 
         let index_binding = ObservableBinding::new(AtomicUsize::new(0)).into_shared();
         let index_latch = IndexLatch::new(latches).into_sshared();
-        step_seq
-            .lock()
-            .index_child_append(LNode::new_boxed(index_latch));
+        step_seq.lock().index_child_append(index_latch.clone());
 
         let index_report = IndexReporter::new(index_binding.clone()).into_sshared();
-        step_seq
-            .lock()
-            .index_child_append(LNode::new_boxed(index_report));
+        step_seq.lock().index_child_append(index_report.clone());
 
-        let uniform = GetUniformRand::new(0f32.into_shared(), 1f32.into_shared()).into_shared();
-        let cmp = GetCmp::new(CmpOp::Greater, probability.clone(), uniform).into_shared();
-        let prob = GraphNodeWrapper::new(Gate::new(cmp.clone()).into_unique()).into_sshared();
-        prob.lock().child_append(LNode::new_boxed(trig));
+        let uniform: ShrPtr<dyn ParamBindingGet<f32>> =
+            GetUniformRand::new(0f32, 1f32).into_shared();
+        let cmp: ShrPtr<dyn ParamBindingGet<bool>> = GetCmp::new(
+            CmpOp::Greater,
+            probability.clone() as ShrPtr<ParamBindingGet<f32>>,
+            uniform,
+        )
+        .into_shared();
+        let prob = GraphNodeWrapper::new(Gate::new(cmp.clone()).into_unique(), VecChildList::new())
+            .into_sshared();
+        prob.lock().child_append(trig.clone());
 
         let triggeredc = triggered.clone();
-        let trig_report = GraphNodeWrapper::new(FuncWrapper::new_boxed(
-            ChildCount::None,
-            move |context: &mut dyn SchedContext, _children: &mut dyn ChildExec| {
-                context.schedule_value(
-                    TimeSched::ContextRelative(0),
-                    &BindingSet::Bool(true, triggeredc.clone()),
-                );
-                true
-            },
-        ))
+        let trig_report = GraphNodeWrapper::new(
+            FuncWrapper::new_boxed(
+                ChildCount::None,
+                move |context: &mut dyn SchedContext, _children: &mut dyn ChildExec| {
+                    context.schedule_value(
+                        TimeSched::ContextRelative(0),
+                        &BindingSet::Bool(true, triggeredc.clone()),
+                    );
+                    true
+                },
+            ),
+            VecChildList::new(),
+        )
         .into_sshared();
 
-        prob.lock().child_append(LNode::new_boxed(trig_report));
-        gate.lock().child_append(LNode::new_boxed(prob));
-        step_seq.lock().child_append(LNode::new_boxed(gate));
+        prob.lock().child_append(trig_report.clone());
+        gate.lock().child_append(prob.clone());
+        step_seq.lock().child_append(gate.clone());
 
         let mul = SpinlockParamBinding::new(1).into_shared();
         let div = SpinlockParamBinding::new(1).into_shared();
@@ -289,9 +386,17 @@ fn main() {
 
         index_binding.add_observer(new_observer_node(notify_sender.clone()));
 
-        let ratio = GraphNodeWrapper::new(ClockRatio::new(mul, div).into_unique()).into_sshared();
-        ratio.lock().child_append(LNode::new_boxed(step_seq));
-        clock.child_append(LNode::new_boxed(ratio));
+        let ratio = GraphNodeWrapper::new(
+            ClockRatio::new(
+                mul as ShrPtr<dyn ParamBindingGet<u8>>,
+                div as ShrPtr<dyn ParamBindingGet<u8>>,
+            )
+            .into_unique(),
+            VecChildList::new(),
+        )
+        .into_sshared();
+        ratio.lock().child_append(step_seq.clone());
+        clock.child_append(ratio.clone());
     }
 
     sched.schedule(TimeSched::Relative(0), clock);
@@ -410,7 +515,7 @@ fn main() {
     };
 
     let mut ex = sched.executor().unwrap();
-    ex.add_trigger(LNode::new_boxed(midi_trig.clone()));
+    ex.add_trigger(midi_trig.clone());
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         //read in midi
         for m in midi_in.iter(ps) {

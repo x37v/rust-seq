@@ -1,26 +1,40 @@
-use super::*;
+use crate::binding::ParamBindingGet;
+use crate::event::EventEvalContext;
+use crate::graph::{GraphChildExec, GraphNodeExec};
 
 /// A graph node that executes its children only when its binding evaluates to true.
-#[derive(GraphNode)]
-pub struct Gate {
-    binding: BindingGetP<bool>,
+pub struct Gate<B>
+where
+    B: ParamBindingGet<bool>,
+{
+    binding: B,
 }
 
-impl Gate {
+impl<B> Gate<B>
+where
+    B: ParamBindingGet<bool>,
+{
     /// Construct a new `Gate`
     ///
     /// # Arguments
     ///
     /// * `binding` - the binding which determines if the gate is open or closed
-    pub fn new(binding: BindingGetP<bool>) -> Self {
+    pub fn new(binding: B) -> Self {
         Self { binding }
     }
 }
 
-impl GraphNodeExec for Gate {
-    fn exec_node(&mut self, context: &mut dyn SchedContext, children: &mut dyn ChildExec) {
+impl<B> GraphNodeExec for Gate<B>
+where
+    B: ParamBindingGet<bool>,
+{
+    fn graph_exec(
+        &mut self,
+        context: &mut dyn EventEvalContext,
+        children: &mut dyn GraphChildExec,
+    ) {
         if self.binding.get() {
-            children.exec_all(context);
+            children.child_exec_all(context);
         }
     }
 }

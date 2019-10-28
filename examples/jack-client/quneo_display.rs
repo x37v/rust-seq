@@ -1,11 +1,7 @@
-use crate::context::SchedContext;
-use crate::midi::{MidiTrigger, MidiValue};
-use crate::ptr::{SShrPtr, UniqPtr};
-use crate::SchedCall;
-use crate::TimeResched;
-use crate::TimeSched;
-
-//XXX move to its own crate
+use sched::event::{EventEval, EventEvalContext, EventSchedule};
+use sched::midi::MidiValue;
+use sched::pqueue::TickPriorityEnqueue;
+use sched::tick::{TickResched, TickSched};
 
 const PAD_BYTES: usize = 64;
 const SLIDER_BYTES: usize = 9;
@@ -33,11 +29,11 @@ pub enum DisplayType {
     Rhombus,
 }
 
-pub struct QuNeoDrawer<F> {
+pub struct QuNeoDrawer<F, Q> {
     display: QuNeoDisplay,
-    func: UniqPtr<F>,
-    midi_trigger: SShrPtr<MidiTrigger>,
-    period: TimeResched,
+    func: Box<F>,
+    period: TickResched,
+    midi_queue: Q,
 }
 
 pub struct QuNeoDisplayIter<'a> {
@@ -45,16 +41,17 @@ pub struct QuNeoDisplayIter<'a> {
     index: usize,
 }
 
-impl<F> QuNeoDrawer<F>
+impl<F, Q> QuNeoDrawer<F, Q>
 where
-    F: Fn(&mut QuNeoDisplay, &mut dyn SchedContext) + Send,
+    F: Fn(&mut QuNeoDisplay, &mut dyn EventEvalContext) + Send,
+    Q: 'static + TickPriorityEnqueue<MidiValue>,
 {
-    pub fn new(midi_trigger: SShrPtr<MidiTrigger>, period: TimeResched, func: UniqPtr<F>) -> Self {
+    pub fn new(midi_queue: Q, period: TickResched, func: Box<F>) -> Self {
         Self {
             display: QuNeoDisplay::new(),
             func,
-            midi_trigger,
             period,
+            midi_queue,
         }
     }
 }
@@ -151,8 +148,7 @@ impl QuNeoDisplay {
         match d {
             None => (),
             Some(DisplayType::Pad) => {
-                v = Some(MidiValue::Note {
-                    on: true,
+                v = Some(MidiValue::NoteOn {
                     chan: self.pad_channel,
                     vel: value,
                     num: remap_pad(display_index),
@@ -173,16 +169,14 @@ impl QuNeoDisplay {
                 });
             }
             Some(DisplayType::Button) => {
-                v = Some(MidiValue::Note {
-                    on: true,
+                v = Some(MidiValue::NoteOn {
                     chan: self.button_channel,
                     vel: value,
                     num: remap_button(display_index),
                 });
             }
             Some(DisplayType::Rhombus) => {
-                v = Some(MidiValue::Note {
-                    on: true,
+                v = Some(MidiValue::NoteOn {
                     chan: self.rhombus_channel,
                     vel: value,
                     num: remap_rhombus(display_index),
@@ -207,18 +201,18 @@ impl Default for QuNeoDisplay {
     }
 }
 
-impl<F> SchedCall for QuNeoDrawer<F>
+impl<F, Q> EventEval for QuNeoDrawer<F, Q>
 where
-    F: Fn(&mut QuNeoDisplay, &mut dyn SchedContext) + Send,
+    F: Fn(&mut QuNeoDisplay, &mut dyn EventEvalContext) + Send,
+    Q: 'static + TickPriorityEnqueue<MidiValue>,
 {
-    fn sched_call(&mut self, context: &mut dyn SchedContext) -> TimeResched {
+    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TickResched {
         (*self.func)(&mut self.display, context);
         for d in self.display.draw_iter() {
-            self.midi_trigger.lock().add(
-                context.as_schedule_trigger_mut(),
-                TimeSched::Relative(0),
-                d,
-            );
+            let r = self.midi_queue.enqueue(context.tick_now(), d);
+            if r.is_err() {
+                println!("error queueing midi!");
+            }
         }
         self.period
     }

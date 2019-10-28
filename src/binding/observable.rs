@@ -1,16 +1,16 @@
-use crate::base::{LList, LNode};
 use crate::binding::ParamBindingGet;
 use crate::binding::ParamBindingSet;
 use crate::ptr::UniqPtr;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use core::marker::PhantomData;
+use core::ops::Deref;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use xnor_llist::{List, Node};
 
 static ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
-pub type ObserverNode = UniqPtr<LNode<SyncSender<ObservableId>>>;
-pub type ObserverList = LList<SyncSender<ObservableId>>;
+pub type ObserverNode = UniqPtr<Node<SyncSender<ObservableId>>>;
+pub type ObserverList = List<SyncSender<ObservableId>>;
 
 pub trait Observable {
     fn id(&self) -> ObservableId;
@@ -38,7 +38,7 @@ pub struct ObservableBinding<B, T> {
 }
 
 pub fn new_observer_node(sender: SyncSender<ObservableId>) -> ObserverNode {
-    LNode::new_boxed(sender)
+    Node::new_boxed(sender)
 }
 
 impl ObservableId {
@@ -66,7 +66,7 @@ impl Observer {
     }
 
     pub fn new_observer_node(&self) -> ObserverNode {
-        LNode::new_boxed(self.sender())
+        Node::new_boxed(self.sender())
     }
 }
 
@@ -88,7 +88,7 @@ impl ObservableData {
     pub fn new() -> Self {
         Self {
             id: ObservableId::new(),
-            observers: spinlock::Mutex::new(LList::new()),
+            observers: spinlock::Mutex::new(List::new()),
         }
     }
 
