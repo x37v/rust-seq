@@ -27,8 +27,8 @@ impl_get_set!(u16, AtomicU16);
 impl_get_set!(u32, AtomicU32);
 impl_get_set!(usize, AtomicUsize);
 
-//requires 64bit pointer size, should be able to enable for other 64bit targets..
-#[cfg(target_arch = "x86_64")]
+//requires 64bit pointer size
+#[cfg(target_pointer_width = "64")]
 impl_get_set!(i64, AtomicI64);
-#[cfg(target_arch = "x86_64")]
+#[cfg(target_pointer_width = "64")]
 impl_get_set!(u64, AtomicU64);
