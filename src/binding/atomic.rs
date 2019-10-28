@@ -27,7 +27,7 @@ impl_get_set!(u16, AtomicU16);
 impl_get_set!(u32, AtomicU32);
 impl_get_set!(usize, AtomicUsize);
 
-//requires 64bit pointer size
+//requires 64bit pointer size, will not work on some thumb/arm targets
 #[cfg(target_pointer_width = "64")]
 impl_get_set!(i64, AtomicI64);
 #[cfg(target_pointer_width = "64")]
