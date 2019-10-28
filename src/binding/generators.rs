@@ -42,6 +42,7 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 impl<T, Min, Max> ParamBindingGet<T> for GetUniformRand<T, Min, Max>
 where
     T: rand::distributions::uniform::SampleUniform + PartialOrd,
