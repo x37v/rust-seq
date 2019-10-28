@@ -5,13 +5,13 @@ authors = ["Alex Norman <alex@x37v.info>"]
 edition = "2018"
 
 [features]
-std = ["lazy_static"]
+std = ["lazy_static", "rand"]
 euclidean = ["euclidian-rythms"]
 default = ["std", "euclidean"]
 
 [dependencies]
 sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
-rand = { version = "0.6.1", default-features = true }
+rand = { version = "0.6.1", default-features = true, optional = true }
 num = { version = "0.2.0", default-features = false }
 euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git", optional = true}
 libc = { version = "0.2.47" }
