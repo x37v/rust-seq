@@ -325,7 +325,6 @@ dependencies = [
  "rosc 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "sched_macros 0.1.1 (git+https://github.com/x37v/sched_macros.git)",
  "spin 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "xnor_llist 0.1.2 (git+https://github.com/x37v/rust-llist?branch=develop)",
 ]
 
 [[package]]
@@ -397,11 +396,6 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
-[[package]]
-name = "xnor_llist"
-version = "0.1.2"
-source = "git+https://github.com/x37v/rust-llist?branch=develop#855729557f1b5f08af0274f4cd0bc5e25201bb6b"
-
 [metadata]
 "checksum as-slice 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "293dac66b274fab06f95e7efb05ec439a6b70136081ea522d270bc351ae5bb27"
 "checksum autocfg 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a6d640bee2da49f60a4068a7fae53acde8982514ab7bae8b8cea9e88cbcfd799"
@@ -452,4 +446,3 @@ source = "git+https://github.com/x37v/rust-llist?branch=develop#855729557f1b5f08
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 "checksum winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-"checksum xnor_llist 0.1.2 (git+https://github.com/x37v/rust-llist?branch=develop)" = "<none>"
