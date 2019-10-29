@@ -160,20 +160,6 @@ impl BindStoreEventItemSource {
     }
 }
 
-/*
-struct GraphPrinter;
-
-impl GraphLeafExec for GraphPrinter {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
-        println!(
-            "graph_exec {} {}",
-            context.tick_now(),
-            context.context_tick_now()
-        );
-    }
-}
-*/
-
 static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
@@ -467,7 +453,7 @@ fn main() {
                 }
             },
         );
-        let draw = QuNeoDrawer::new(&MIDI_QUEUE as MidiEnqueue, TickResched::Relative(44), draw);
+        let draw = QuNeoDrawer::new(&MIDI_QUEUE as MidiEnqueue, TickResched::Relative(441), draw);
         let draw = EventContainer::new(draw);
         assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
     }
@@ -499,65 +485,49 @@ fn main() {
 
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let process_note = |on: bool, chan: u8, num: u8, vel: u8| {
-            match chan {
-                15 => {
-                    let pages = page_data.len();
-                    let page = current_page.get();
-                    if page < pages {
-                        let page = page_data[page].lock();
-                        let mut index = num as usize;
-                        if index < pages {
-                            if on {
-                                current_page.set(index);
+            if chan == 15 {
+                let pages = page_data.len();
+                let page = current_page.get();
+                if page < pages {
+                    let page = page_data[page].lock();
+                    let mut index = num as usize;
+                    if index < pages {
+                        if on {
+                            current_page.set(index);
+                        }
+                    } else if index - pages < page.gates.len() {
+                        index -= pages;
+                        if on {
+                            if len_select_shift.get() {
+                                page.length.set(index + 1);
+                            } else if div_select_shift.get() {
+                                page.clock_div.set(index + 1);
+                            } else if mul_select_shift.get() {
+                                page.clock_mul.set(index + 1);
+                            } else {
+                                let v = !page.gates[index].get();
+                                page.gates[index].set(v);
                             }
-                        } else if index - pages < page.gates.len() {
-                            index -= pages;
-                            if on {
-                                if len_select_shift.get() {
-                                    page.length.set(index + 1);
-                                } else if div_select_shift.get() {
-                                    page.clock_div.set(index + 1);
-                                } else if mul_select_shift.get() {
-                                    page.clock_mul.set(index + 1);
-                                } else {
-                                    let v = !page.gates[index].get();
-                                    page.gates[index].set(v);
+                        }
+                    } else {
+                        match index {
+                            67 => len_select_shift.set(on),
+                            76 => mul_select_shift.set(on),
+                            77 => div_select_shift.set(on),
+                            78 => {
+                                if on {
+                                    update_bpm(1f32, vel);
                                 }
                             }
-                        } else {
-                            match index {
-                                67 => len_select_shift.set(on),
-                                76 => mul_select_shift.set(on),
-                                77 => div_select_shift.set(on),
-                                78 => {
-                                    if on {
-                                        update_bpm(1f32, vel);
-                                    }
+                            79 => {
+                                if on {
+                                    update_bpm(-1f32, vel);
                                 }
-                                79 => {
-                                    if on {
-                                        update_bpm(-1f32, vel);
-                                    }
-                                }
-                                _ => (),
                             }
+                            _ => (),
                         }
                     }
                 }
-                /*
-                8 => {
-                    if let Some(offset) = match num {
-                        48 => Some(1.0f32),
-                        49 => Some(-1.0f32),
-                        _ => None,
-                    } {
-                        let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f32) / 127f32);
-                        bpm.set(c);
-                        println!("BPM {}", c);
-                    }
-                }
-                */
-                _ => (),
             }
         };
 
