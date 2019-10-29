@@ -101,77 +101,10 @@ impl TickPriorityDequeue<MidiValue> for MidiQueue {
     }
 }
 
-/*
-impl ItemSink<EventContainer> for &'static DisposeSink {
-    fn try_put(&mut self, item: EventContainer) -> Result<(), EventContainer> {
-        self.0.enqueue(item)
-    }
-}
-
-impl DisposeSink {
-    pub fn dequeue(&self) -> Option<EventContainer> {
-        self.0.dequeue()
-    }
-}
-
-pub struct MidiItemSource(Q64<Box<MaybeUninit<TickedMidiValueEvent>>>);
-impl ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>> for &'static MidiItemSource {
-    fn try_get(
-        &mut self,
-        init: TickedMidiValueEvent,
-    ) -> Result<Box<TickedMidiValueEvent>, TickedMidiValueEvent> {
-        if let Some(mut item) = self.0.dequeue() {
-            unsafe {
-                item.as_mut_ptr().write(init);
-                Ok(mem::transmute(item))
-            }
-        } else {
-            println!("failed to get from MidiItemSource");
-            Err(init)
-        }
-    }
-}
-
-impl ItemSource<BindStoreEventBool, Box<BindStoreEventBool>> for &'static BindStoreEventItemSource {
-    fn try_get(
-        &mut self,
-        init: BindStoreEventBool,
-    ) -> Result<Box<BindStoreEventBool>, BindStoreEventBool> {
-        if let Some(mut item) = self.0.dequeue() {
-            unsafe {
-                item.as_mut_ptr().write(init);
-                Ok(mem::transmute(item))
-            }
-        } else {
-            println!("failed to get from BindStoreEventItemSource");
-            Err(init)
-        }
-    }
-}
-
-impl MidiItemSource {
-    pub fn fill(&self) {
-        while let Ok(()) = self.0.enqueue(Box::new(MaybeUninit::uninit())) {}
-    }
-}
-
-impl BindStoreEventItemSource {
-    pub fn fill(&self) {
-        while let Ok(()) = self.0.enqueue(Box::new(MaybeUninit::uninit())) {}
-    }
-}
-*/
-
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 static MIDI_QUEUE: spin::Mutex<MidiQueue> =
     spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
-
-/*
-static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
-static MIDI_VALUE_SOURCE: MidiItemSource = MidiItemSource(Q64::new());
-static BOOL_BIND_STORE_SOURCE: BindStoreEventItemSource = BindStoreEventItemSource(Q64::new());
-*/
 
 static JACK_CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -452,7 +385,6 @@ fn main() {
 
     midi_creator.fill().expect("failed to fill midi");
     boolbind_creator.fill().expect("failed to fill boolbind");
-    //BOOL_BIND_STORE_SOURCE.fill();
     println!("starting dispose thread");
     std::thread::spawn(move || loop {
         //value queue filling
@@ -460,17 +392,6 @@ fn main() {
         boolbind_creator.fill().expect("failed to fill boolbind");
 
         dispose.dispose_all();
-        //BOOL_BIND_STORE_SOURCE.fill();
-        //dispose thread, simply ditching
-        /*
-        while let Some(_item) = DISPOSE_SINK.dequeue() {
-            println!("got dispose");
-            let a = Into::<BoxEventEval>::into(item).into_any();
-            if a.is::<TickedValueQueueEvent<MidiValue, MidiEnqueue>>() {
-                println!("is TickedValueQueueEvent<MidiValue, ..>");
-            }
-        }
-            */
         std::thread::sleep(std::time::Duration::from_millis(1));
     });
 
