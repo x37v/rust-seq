@@ -12,6 +12,7 @@ use core::convert::Into;
 use sched::tick::*;
 
 //use sched::event::ticked_value_queue::TickedValueQueueEvent;
+use sched::event::bindstore::BindStoreEvent;
 use sched::event::*;
 use sched::item_sink::ItemSink;
 use sched::item_source::ItemSource;
@@ -24,8 +25,8 @@ use spin::Mutex;
 
 use sched::graph::*;
 use sched::graph::{
-    bindstore::BindStoreIndexChild, clock_ratio::ClockRatio, fanout::FanOut,
-    node_wrapper::GraphNodeWrapper, root_clock::RootClock, step_seq::StepSeq,
+    bindstore::BindStoreIndexChild, bindstore::BindStoreNode, clock_ratio::ClockRatio,
+    fanout::FanOut, node_wrapper::GraphNodeWrapper, root_clock::RootClock, step_seq::StepSeq,
 };
 
 use sched::binding::*;
@@ -42,9 +43,11 @@ pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U1024, Min>);
 pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U1024, Min>);
 pub struct DisposeSink(Q64<EventContainer>);
 pub struct MidiItemSource(Q64<Box<MaybeUninit<TickedMidiValueEvent>>>);
+pub struct BindStoreEventItemSource(Q64<Box<MaybeUninit<BindStoreEventBool>>>);
 
 type MidiEnqueue = &'static spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>;
 type TickedMidiValueEvent = midi::TickedMidiValueEvent<MidiEnqueue>;
+type BindStoreEventBool = BindStoreEvent<bool, bool, Arc<Mutex<dyn ParamBindingSet<bool>>>>;
 
 impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
     fn enqueue(&mut self, tick: usize, value: EventContainer) -> Result<(), EventContainer> {
@@ -128,7 +131,30 @@ impl ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>> for &'static Mi
     }
 }
 
+impl ItemSource<BindStoreEventBool, Box<BindStoreEventBool>> for &'static BindStoreEventItemSource {
+    fn try_get(
+        &mut self,
+        init: BindStoreEventBool,
+    ) -> Result<Box<BindStoreEventBool>, BindStoreEventBool> {
+        if let Some(mut item) = self.0.dequeue() {
+            unsafe {
+                item.as_mut_ptr().write(init);
+                Ok(mem::transmute(item))
+            }
+        } else {
+            println!("failed to get from BindStoreEventItemSource");
+            Err(init)
+        }
+    }
+}
+
 impl MidiItemSource {
+    pub fn fill(&self) {
+        while let Ok(()) = self.0.enqueue(Box::new(MaybeUninit::uninit())) {}
+    }
+}
+
+impl BindStoreEventItemSource {
     pub fn fill(&self) {
         while let Ok(()) = self.0.enqueue(Box::new(MaybeUninit::uninit())) {}
     }
@@ -155,6 +181,7 @@ static MIDI_QUEUE: spin::Mutex<MidiQueue> =
     spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 
 static MIDI_VALUE_SOURCE: MidiItemSource = MidiItemSource(Q64::new());
+static BOOL_BIND_STORE_SOURCE: BindStoreEventItemSource = BindStoreEventItemSource(Q64::new());
 static JACK_CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 pub trait IntoPtrs {
@@ -209,6 +236,8 @@ fn main() {
         bpm::ClockPeriodMicroBinding(clock_binding.clone()).into_arc();
 
     let mut voices = Vec::new();
+    let mut trigon_oneshots = Vec::new();
+    let mut trigoff_oneshots = Vec::new();
     for page_index in 0..32 {
         let data = page::PageData::new();
         let note = page_index;
@@ -252,12 +281,25 @@ fn main() {
             &MIDI_QUEUE as MidiEnqueue,
         );
 
+        //one shot bound node lets us know if this node has been triggered since we last read
+        //from the one shot
+        let os_on = generators::GetOneShot::new().into_alock();
+        let os_off = generators::GetOneShot::new().into_alock();
+        let trig = BindStoreNode::new(true, os_on.clone() as Arc<Mutex<dyn ParamBindingSet<bool>>>);
+        let trig: GraphNodeContainer =
+            GraphNodeWrapper::new(trig, children::empty::Children).into();
+
+        trigon_oneshots.push(os_on as Arc<Mutex<dyn ParamBindingGet<bool>>>);
+        trigoff_oneshots.push(os_off);
+
         let note: GraphNodeContainer =
             GraphNodeWrapper::new(note, children::empty::Children).into();
 
-        let step_gate: GraphNodeContainer =
-            GraphNodeWrapper::new(step_gate, children::boxed::Children::new(Box::new([note])))
-                .into();
+        let step_gate: GraphNodeContainer = GraphNodeWrapper::new(
+            step_gate,
+            children::boxed::Children::new(Box::new([note, trig])),
+        )
+        .into();
 
         let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
 
@@ -299,14 +341,13 @@ fn main() {
 
         let connections = Arc::new(AtomicUsize::new(0));
         let draw = Box::new(
-            move |display: &mut QuNeoDisplay, _context: &mut dyn EventEvalContext| {
+            move |display: &mut QuNeoDisplay, context: &mut dyn EventEvalContext| {
                 let page = cpage.get();
                 //display.force_draw();
                 let pages = draw_data.len();
 
                 for p in 0..pages {
                     //indicate the current page
-                    display.update(QDisplayType::Pad, p, if p == page { 127u8 } else { 0 });
                     //flash page buttons for off page sequences when they are triggered
                     //
                     //really just need these states:
@@ -316,7 +357,36 @@ fn main() {
                     //
                     //could use a one shot
                     //
-                    if p != page {
+                    if p == page {
+                        display.update(QDisplayType::Pad, p, 127u8);
+                    } else {
+                        //got a trigger, turn pad on
+                        //then schedule off
+                        let os_on = &trigon_oneshots[p];
+                        let os_off = &trigoff_oneshots[p];
+                        if os_on.get() {
+                            display.update(QDisplayType::Pad, p, 64u8);
+                            let mut src =
+                                &BOOL_BIND_STORE_SOURCE as &'static BindStoreEventItemSource;
+                            let off = src.try_get(BindStoreEvent::new(
+                                true,
+                                os_off.clone() as Arc<Mutex<dyn ParamBindingSet<bool>>>,
+                            ));
+                            if let Ok(off) = off {
+                                let r = context.event_schedule(
+                                    TickSched::Relative(4410),
+                                    EventContainer::new_from_box(off),
+                                );
+                                if r.is_err() {
+                                    println!("failed to schedule off event");
+                                }
+                            } else {
+                                println!("failed to get off event");
+                            }
+                        } else if os_off.lock().get() {
+                            display.update(QDisplayType::Pad, p, 0);
+                        }
+
                         /*
                         if data.triggered.get() {
                             data.triggered.set(false);
@@ -397,20 +467,18 @@ fn main() {
                 }
             },
         );
-        let draw = QuNeoDrawer::new(
-            &MIDI_QUEUE as MidiEnqueue,
-            TickResched::Relative(4410),
-            draw,
-        );
+        let draw = QuNeoDrawer::new(&MIDI_QUEUE as MidiEnqueue, TickResched::Relative(44), draw);
         let draw = EventContainer::new(draw);
         assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
     }
 
     MIDI_VALUE_SOURCE.fill();
+    BOOL_BIND_STORE_SOURCE.fill();
     println!("starting dispose thread");
     std::thread::spawn(|| loop {
         //midi value queue filling
         MIDI_VALUE_SOURCE.fill();
+        BOOL_BIND_STORE_SOURCE.fill();
         //dispose thread, simply ditching
         while let Some(_item) = DISPOSE_SINK.dequeue() {
             /*
