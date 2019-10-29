@@ -284,7 +284,7 @@ fn main() {
     //draw
     {
         let cpage = current_page.clone();
-        let draw_data: Vec<_> = page_data.iter().cloned().collect();
+        let draw_data: Vec<_> = page_data.to_vec();
         let mul_select_shiftc = mul_select_shift.clone();
         let div_select_shiftc = div_select_shift.clone();
         let len_select_shiftc = len_select_shift.clone();
