@@ -276,11 +276,19 @@ fn main() {
             };
 
         let connections = Arc::new(AtomicUsize::new(0));
+        let page_last = Arc::new(AtomicUsize::new(0));
         let draw = Box::new(
             move |display: &mut QuNeoDisplay, context: &mut dyn EventEvalContext| {
                 let page = cpage.get();
                 //display.force_draw();
                 let pages = draw_data.len();
+
+                //turn off the old page display if the page has changed
+                let last = page_last.get();
+                if page != last {
+                    display.update(QDisplayType::Pad, last, 0);
+                    page_last.set(page);
+                }
 
                 for p in 0..pages {
                     //indicate the current page
@@ -391,7 +399,7 @@ fn main() {
         midi_creator.fill().expect("failed to fill midi");
         boolbind_creator.fill().expect("failed to fill boolbind");
 
-        dispose.dispose_all();
+        dispose.dispose_all().expect("dispose failed");
         std::thread::sleep(std::time::Duration::from_millis(1));
     });
 
