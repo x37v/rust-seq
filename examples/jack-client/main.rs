@@ -14,8 +14,8 @@ use sched::tick::*;
 //use sched::event::ticked_value_queue::TickedValueQueueEvent;
 use sched::event::bindstore::BindStoreEvent;
 use sched::event::*;
-use sched::item_sink::ItemSink;
-use sched::item_source::ItemSource;
+use sched::item_sink::{ItemDispose, ItemSink};
+use sched::item_source::*;
 use sched::midi::*;
 use sched::pqueue::*;
 use sched::schedule::ScheduleExecutor;
@@ -42,7 +42,6 @@ use core::sync::atomic::{AtomicBool, AtomicUsize};
 pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U1024, Min>);
 pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U1024, Min>);
 pub struct DisposeSink(Q64<EventContainer>);
-pub struct MidiItemSource(Q64<Box<MaybeUninit<TickedMidiValueEvent>>>);
 pub struct BindStoreEventItemSource(Q64<Box<MaybeUninit<BindStoreEventBool>>>);
 
 type MidiEnqueue = &'static spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>;
@@ -102,6 +101,7 @@ impl TickPriorityDequeue<MidiValue> for MidiQueue {
     }
 }
 
+/*
 impl ItemSink<EventContainer> for &'static DisposeSink {
     fn try_put(&mut self, item: EventContainer) -> Result<(), EventContainer> {
         self.0.enqueue(item)
@@ -114,6 +114,7 @@ impl DisposeSink {
     }
 }
 
+pub struct MidiItemSource(Q64<Box<MaybeUninit<TickedMidiValueEvent>>>);
 impl ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>> for &'static MidiItemSource {
     fn try_get(
         &mut self,
@@ -159,15 +160,19 @@ impl BindStoreEventItemSource {
         while let Ok(()) = self.0.enqueue(Box::new(MaybeUninit::uninit())) {}
     }
 }
+*/
 
-static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
 static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
     spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 static MIDI_QUEUE: spin::Mutex<MidiQueue> =
     spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 
+/*
+static DISPOSE_SINK: DisposeSink = DisposeSink(Q64::new());
 static MIDI_VALUE_SOURCE: MidiItemSource = MidiItemSource(Q64::new());
 static BOOL_BIND_STORE_SOURCE: BindStoreEventItemSource = BindStoreEventItemSource(Q64::new());
+*/
+
 static JACK_CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 pub trait IntoPtrs {
@@ -202,8 +207,11 @@ fn main() {
     let mut page_data: Vec<Arc<spin::Mutex<page::PageData>>> = Vec::new();
     let current_page: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
 
+    let (dispose_sink, mut dispose) = sched::std::channel_item_sink::channel_item_sink(1024);
+    let dispose_sink: Arc<Mutex<dyn ItemSink<EventContainer>>> = dispose_sink.into_alock();
+
     let mut ex = ScheduleExecutor::new(
-        &DISPOSE_SINK,
+        dispose_sink,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityDequeue<EventContainer>>,
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
@@ -220,6 +228,15 @@ fn main() {
     let _ppq = bpm::ClockPPQBinding(clock_binding.clone()).into_arc();
     let micros: Arc<dyn ParamBindingGet<f32>> =
         bpm::ClockPeriodMicroBinding(clock_binding.clone()).into_arc();
+
+    let (mut midi_creator, midi_source) = sched::std::channel_item_source::item_source(1024);
+    let midi_source: Arc<Mutex<dyn ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>>>> =
+        Arc::new(Mutex::new(midi_source));
+
+    let (mut boolbind_creator, boolbind_source) =
+        sched::std::channel_item_source::item_source(1024);
+    let boolbind_source: Arc<Mutex<dyn ItemSource<BindStoreEventBool, Box<BindStoreEventBool>>>> =
+        Arc::new(Mutex::new(boolbind_source));
 
     let mut voices = Vec::new();
     let mut trigon_oneshots = Vec::new();
@@ -263,7 +280,7 @@ fn main() {
             &TickResched::ContextRelative(1),
             &127,
             &127,
-            &MIDI_VALUE_SOURCE,
+            midi_source.clone(),
             &MIDI_QUEUE as MidiEnqueue,
         );
 
@@ -344,9 +361,7 @@ fn main() {
                         let os_off = &trigoff_oneshots[p];
                         if os_on.get() {
                             display.update(QDisplayType::Pad, p, 64u8);
-                            let mut src =
-                                &BOOL_BIND_STORE_SOURCE as &'static BindStoreEventItemSource;
-                            let off = src.try_get(BindStoreEvent::new(
+                            let off = boolbind_source.lock().try_get(BindStoreEvent::new(
                                 true,
                                 os_off.clone() as Arc<Mutex<dyn ParamBindingSet<bool>>>,
                             ));
@@ -435,23 +450,27 @@ fn main() {
         assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
     }
 
-    MIDI_VALUE_SOURCE.fill();
-    BOOL_BIND_STORE_SOURCE.fill();
+    midi_creator.fill().expect("failed to fill midi");
+    boolbind_creator.fill().expect("failed to fill boolbind");
+    //BOOL_BIND_STORE_SOURCE.fill();
     println!("starting dispose thread");
-    std::thread::spawn(|| loop {
-        //midi value queue filling
-        MIDI_VALUE_SOURCE.fill();
-        BOOL_BIND_STORE_SOURCE.fill();
+    std::thread::spawn(move || loop {
+        //value queue filling
+        midi_creator.fill().expect("failed to fill midi");
+        boolbind_creator.fill().expect("failed to fill boolbind");
+
+        dispose.dispose_all();
+        //BOOL_BIND_STORE_SOURCE.fill();
         //dispose thread, simply ditching
+        /*
         while let Some(_item) = DISPOSE_SINK.dequeue() {
-            /*
             println!("got dispose");
             let a = Into::<BoxEventEval>::into(item).into_any();
             if a.is::<TickedValueQueueEvent<MidiValue, MidiEnqueue>>() {
                 println!("is TickedValueQueueEvent<MidiValue, ..>");
             }
-            */
         }
+            */
         std::thread::sleep(std::time::Duration::from_millis(1));
     });
 
