@@ -3,6 +3,8 @@ use crate::context::ChildContext;
 use crate::event::{EventEval, EventEvalContext};
 use crate::graph::GraphNode;
 use crate::tick::TickResched;
+
+#[cfg(not(feature = "std"))]
 use num::traits::float::FloatCore;
 
 pub type Micro = f32;
