@@ -335,14 +335,6 @@ fn main() {
                 for p in 0..pages {
                     //indicate the current page
                     //flash page buttons for off page sequences when they are triggered
-                    //
-                    //really just need these states:
-                    //Off,
-                    //TriggerOn (draw, schedule TriggerOff, set Off),
-                    //TriggerOff (draw, set Off)
-                    //
-                    //could use a one shot
-                    //
                     if p == page {
                         display.update(QDisplayType::Pad, p, 127u8);
                     } else {
@@ -372,21 +364,6 @@ fn main() {
                         } else if os_off.lock().get() {
                             display.update(QDisplayType::Pad, p, 0);
                         }
-
-                        /*
-                        if data.triggered.get() {
-                            data.triggered.set(false);
-                            display.update(QDisplayType::Pad, p, 64u8);
-                            context.schedule_value(
-                                TimeSched::Relative(4410),
-                                &BindingSet::Bool(true, data.triggered_off.clone()),
-                            );
-                        }
-                        if data.triggered_off.get() {
-                            data.triggered_off.set(false);
-                            display.update(QDisplayType::Pad, p, 0);
-                        }
-                        */
                     }
                 }
 
