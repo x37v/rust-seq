@@ -9,6 +9,7 @@ pub mod gate;
 pub mod midi;
 pub mod node_wrapper;
 pub mod one_hot;
+pub mod retrig_scheduler;
 pub mod root_clock;
 pub mod root_event;
 pub mod step_seq;
