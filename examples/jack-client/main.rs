@@ -163,12 +163,12 @@ fn main() {
         bpm::ClockPeriodMicroBinding(clock_binding.clone()).into_arc();
 
     let (mut midi_creator, midi_source) = sched::std::channel_item_source::item_source(1024);
-    let midi_source: Arc<Mutex<dyn ItemSource<TickedMidiValueEvent, Box<TickedMidiValueEvent>>>> =
+    let midi_source: Arc<Mutex<dyn ItemSource<TickedMidiValueEvent>>> =
         Arc::new(Mutex::new(midi_source));
 
     let (mut boolbind_creator, boolbind_source) =
         sched::std::channel_item_source::item_source(1024);
-    let boolbind_source: Arc<Mutex<dyn ItemSource<BindStoreEventBool, Box<BindStoreEventBool>>>> =
+    let boolbind_source: Arc<Mutex<dyn ItemSource<BindStoreEventBool>>> =
         Arc::new(Mutex::new(boolbind_source));
 
     let mut voices = Vec::new();
