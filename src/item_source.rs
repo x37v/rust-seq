@@ -1,7 +1,7 @@
 extern crate alloc;
 
 /// A source for items of type T that can be sent across threads
-pub trait ItemSource<T, O>: Send {
+pub trait ItemSource<T, O = Box<T>>: Send {
     fn try_get(&mut self, init: T) -> Result<O, T>;
 }
 
