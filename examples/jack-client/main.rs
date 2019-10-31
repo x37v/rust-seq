@@ -512,6 +512,9 @@ fn main() {
                                 102 => page.volume.set(val as f32 / 127f32),
                                 103 => page.volume_rand.set(val as f32 / 127f32),
                                 105 => page.probability.set(val as f32 / 127f32),
+                                106 => page
+                                    .retrig_period
+                                    .set(4410usize / (1 + (1 + val as usize) / 32)),
                                 _ => (),
                             }
                         }
