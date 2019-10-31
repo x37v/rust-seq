@@ -26,8 +26,8 @@ use spin::Mutex;
 use sched::graph::*;
 use sched::graph::{
     bindstore::BindStoreIndexChild, bindstore::BindStoreNode, clock_ratio::ClockRatio,
-    fanout::FanOut, node_wrapper::GraphNodeWrapper, one_hot::OneHot,
-    retrig_scheduler::RetrigScheduler, root_clock::RootClock, step_seq::StepSeq,
+    fanout::FanOut, node_wrapper::GraphNodeWrapper, one_hot::OneHot, root_clock::RootClock,
+    step_seq::StepSeq,
 };
 
 use sched::binding::*;
@@ -172,11 +172,6 @@ fn main() {
     let boolbind_source: Arc<Mutex<dyn ItemSource<BindStoreEventBool>>> =
         Arc::new(Mutex::new(boolbind_source));
 
-    let (mut retrig_event_creator, retrig_event_source) =
-        sched::std::channel_item_source::item_source(1024);
-    let retrig_event_source: Arc<Mutex<dyn ItemSource<_>>> =
-        Arc::new(Mutex::new(retrig_event_source));
-
     let mut voices = Vec::new();
     let mut trigon_oneshots = Vec::new();
     let mut trigoff_oneshots = Vec::new();
@@ -184,9 +179,8 @@ fn main() {
         let data = page::PageData::new();
         let note = page_index;
 
-        //root -> ratio -> step_seq ---(nchild index bind)-->
-        //  one hot --> step_gate --> fanout---> note
-        //          +-> retrig ---+          +-> notify
+        //root -> ratio ---> one hot --> step_seq ---(nchild index bind)---> step_gate ---> fanout---> note
+        //                            +-> ratio (retrig) --------------------------------+          +-> notify
 
         let ratio = ClockRatio::new(
             data.clock_mul.clone() as Arc<dyn ParamBindingGet<_>>,
@@ -252,36 +246,37 @@ fn main() {
         )
         .into();
 
-        let retrig = GraphNodeContainer::new(RetrigScheduler::new(
-            note.clone(),
-            ops::GetIfElse::new(
-                data.retrig.clone() as Arc<dyn ParamBindingGet<bool>>,
-                ops::GetTickResched::ContextRelative(
-                    data.retrig_period.clone() as Arc<dyn ParamBindingGet<usize>>
-                ),
-                TickResched::None,
-            )
-            .into_alock() as Arc<Mutex<dyn ParamBindingGet<TickResched>>>,
-            retrig_event_source.clone(),
-        ));
-
-        let one_hot: GraphNodeContainer = GraphNodeWrapper::new(
-            OneHot::new(ops::GetIfElse::new(
-                data.retrig.clone() as Arc<dyn ParamBindingGet<bool>>,
-                1,
-                0,
-            )),
-            children::boxed::Children::new(Box::new([step_gate, retrig])),
-        )
-        .into();
-
         let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
 
         let seq: GraphNodeContainer =
-            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(one_hot, ichild)).into();
+            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild))
+                .into();
+
+        let retrig_ratio: GraphNodeContainer = GraphNodeWrapper::new(
+            ClockRatio::new(
+                1,
+                data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<usize>>,
+            ),
+            children::boxed::Children::new(Box::new([note.clone()])),
+        )
+        .into();
+
+        //0 is the retrig, 1 is the step seq
+        let one_hot = OneHot::new(ops::GetIfElse::new(
+            data.retrig.clone() as Arc<dyn ParamBindingGet<bool>>,
+            0,
+            1,
+        ));
+
+        let one_hot: GraphNodeContainer = GraphNodeWrapper::new(
+            one_hot,
+            children::boxed::Children::new(Box::new([retrig_ratio, seq])),
+        )
+        .into();
 
         let ratio: GraphNodeContainer =
-            GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
+            GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([one_hot])))
+                .into();
 
         page_data.push(Arc::new(Mutex::new(data)));
         voices.push(ratio);
@@ -431,9 +426,6 @@ fn main() {
     let mut fill_dispose = move || {
         midi_creator.fill().expect("failed to fill midi");
         boolbind_creator.fill().expect("failed to fill boolbind");
-        retrig_event_creator
-            .fill()
-            .expect("failed to fill retrig_event");
         dispose.dispose_all().expect("dispose failed");
     };
 
@@ -512,9 +504,12 @@ fn main() {
                                 102 => page.volume.set(val as f32 / 127f32),
                                 103 => page.volume_rand.set(val as f32 / 127f32),
                                 105 => page.probability.set(val as f32 / 127f32),
-                                106 => page
-                                    .retrig_period
-                                    .set(4410usize / (1 + (1 + val as usize) / 32)),
+                                106 => {
+                                    let step = 2 * (val / 21) as usize;
+                                    //let step = (val / 10) as usize;
+                                    let div = 4 + step;
+                                    page.retrig_ratio.set(ppq / div);
+                                }
                                 _ => (),
                             }
                         }

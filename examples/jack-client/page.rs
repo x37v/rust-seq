@@ -12,7 +12,7 @@ pub struct PageData {
     pub volume: Arc<SpinlockParamBinding<f32>>,
     pub volume_rand: Arc<SpinlockParamBinding<f32>>,
     pub retrig: Arc<AtomicBool>,
-    pub retrig_period: Arc<AtomicUsize>,
+    pub retrig_ratio: Arc<AtomicUsize>,
 }
 
 impl Default for PageData {
@@ -66,7 +66,7 @@ impl PageData {
             volume: Arc::new(SpinlockParamBinding::new(1f32)),
             volume_rand: Arc::new(SpinlockParamBinding::new(0f32)),
             retrig: Arc::new(AtomicBool::new(false)),
-            retrig_period: Arc::new(AtomicUsize::new(4410usize)),
+            retrig_ratio: Arc::new(AtomicUsize::new(960usize / 8)),
         }
     }
 }
