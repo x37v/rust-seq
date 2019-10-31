@@ -1,5 +1,6 @@
 extern crate alloc;
 use crate::binding::{ParamBindingGet, ParamBindingSet};
+use crate::tick::TickResched;
 use core::cell::Cell;
 use core::marker::PhantomData;
 use core::ops::Deref;
@@ -111,6 +112,15 @@ where
     out_true: OT,
     out_false: OF,
     _phantom: PhantomData<fn() -> T>,
+}
+
+/// Convert a usize into a TickResched
+pub enum GetTickResched<B>
+where
+    B: ParamBindingGet<usize>,
+{
+    Relative(B),
+    ContextRelative(B),
 }
 
 struct OneShotInner<T> {
@@ -640,6 +650,18 @@ where
             self.out_true.get()
         } else {
             self.out_false.get()
+        }
+    }
+}
+
+impl<B> ParamBindingGet<TickResched> for GetTickResched<B>
+where
+    B: ParamBindingGet<usize>,
+{
+    fn get(&self) -> TickResched {
+        match self {
+            Self::Relative(b) => TickResched::Relative(b.get()),
+            Self::ContextRelative(b) => TickResched::ContextRelative(b.get()),
         }
     }
 }
