@@ -24,7 +24,10 @@ pub enum ChildCount {
     Inf,
 }
 
+#[derive(Clone)]
 pub struct GraphNodeContainer(alloc::sync::Arc<spin::Mutex<dyn GraphNode>>);
+
+#[derive(Clone)]
 pub struct IndexChildContainer(alloc::sync::Arc<spin::Mutex<dyn GraphIndexExec>>);
 
 impl GraphNodeContainer {
