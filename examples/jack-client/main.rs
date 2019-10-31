@@ -254,7 +254,14 @@ fn main() {
 
         let retrig = GraphNodeContainer::new(RetrigScheduler::new(
             note.clone(),
-            TickResched::None,
+            ops::GetIfElse::new(
+                data.retrig.clone() as Arc<dyn ParamBindingGet<bool>>,
+                ops::GetTickResched::ContextRelative(
+                    data.retrig_period.clone() as Arc<dyn ParamBindingGet<usize>>
+                ),
+                TickResched::None,
+            )
+            .into_alock() as Arc<Mutex<dyn ParamBindingGet<TickResched>>>,
             retrig_event_source.clone(),
         ));
 
@@ -470,6 +477,7 @@ fn main() {
                         }
                     } else {
                         match index {
+                            90 => page.retrig.set(on),
                             67 => len_select_shift.set(on),
                             76 => mul_select_shift.set(on),
                             77 => div_select_shift.set(on),
