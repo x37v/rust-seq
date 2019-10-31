@@ -5,7 +5,7 @@
 
 (
     SynthDef(\sampler, { |t_trig, bufnum, out = 0, freq = 1, amp = 1|
-        var sig = PlayBuf.ar(1, bufnum, rate: freq, trigger: t_trig) * amp;
+        var sig = PlayBuf.ar(1, bufnum, rate: freq, trigger: t_trig) * Lag.kr(amp);
         Out.ar(out, sig ! 2)
     }).add;
 )
@@ -44,14 +44,14 @@
 (
     ~synths = ~buffers.collect({
         arg item, i;
-        Synth(\sampler, [t_trig: 0, bufnum: item.bufnum, amp: 0.25])
+        Synth(\sampler, [t_trig: 0, bufnum: item.bufnum, amp: 0])
     }); 
 )
 ~synths[0].set(\t_trig, 1);
 (
     ~noteon = MIDIFunc.noteOn({
         arg val, num, chan, src;
-        if (num < ~synths.size, { ~synths[num].set(\t_trig, 1); });
+        if (num < ~synths.size, { ~synths[num].set(\t_trig, 1, \amp, val / 127.0); });
     }, chan: 0);
 )
 ~noteon.free;
