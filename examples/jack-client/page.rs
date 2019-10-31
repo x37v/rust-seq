@@ -11,6 +11,8 @@ pub struct PageData {
     pub probability: Arc<SpinlockParamBinding<f32>>,
     pub volume: Arc<SpinlockParamBinding<f32>>,
     pub volume_rand: Arc<SpinlockParamBinding<f32>>,
+    pub retrig: Arc<AtomicBool>,
+    pub retrig_period: Arc<AtomicUsize>,
 }
 
 impl Default for PageData {
@@ -63,6 +65,8 @@ impl PageData {
             probability: Arc::new(SpinlockParamBinding::new(1f32)),
             volume: Arc::new(SpinlockParamBinding::new(1f32)),
             volume_rand: Arc::new(SpinlockParamBinding::new(0f32)),
+            retrig: Arc::new(AtomicBool::new(false)),
+            retrig_period: Arc::new(AtomicUsize::new(960usize)),
         }
     }
 }
