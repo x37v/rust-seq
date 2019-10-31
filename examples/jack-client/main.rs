@@ -26,12 +26,13 @@ use spin::Mutex;
 use sched::graph::*;
 use sched::graph::{
     bindstore::BindStoreIndexChild, bindstore::BindStoreNode, clock_ratio::ClockRatio,
-    fanout::FanOut, node_wrapper::GraphNodeWrapper, root_clock::RootClock, step_seq::StepSeq,
+    fanout::FanOut, node_wrapper::GraphNodeWrapper, one_hot::OneHot,
+    retrig_scheduler::RetrigScheduler, root_clock::RootClock, step_seq::StepSeq,
 };
 
 use sched::binding::*;
 
-use core::mem::{self, MaybeUninit};
+use core::mem::MaybeUninit;
 
 use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
@@ -171,6 +172,11 @@ fn main() {
     let boolbind_source: Arc<Mutex<dyn ItemSource<BindStoreEventBool>>> =
         Arc::new(Mutex::new(boolbind_source));
 
+    let (mut retrig_event_creator, retrig_event_source) =
+        sched::std::channel_item_source::item_source(1024);
+    let retrig_event_source: Arc<Mutex<dyn ItemSource<_>>> =
+        Arc::new(Mutex::new(retrig_event_source));
+
     let mut voices = Vec::new();
     let mut trigon_oneshots = Vec::new();
     let mut trigoff_oneshots = Vec::new();
@@ -178,7 +184,9 @@ fn main() {
         let data = page::PageData::new();
         let note = page_index;
 
-        //root -> ratio -> step_seq ---(nchild index bind)--> step_gate -> note
+        //root -> ratio -> step_seq ---(nchild index bind)-->
+        //  one hot --> step_gate --> fanout---> note
+        //          +-> retrig ---+          +-> notify
 
         let ratio = ClockRatio::new(
             data.clock_mul.clone() as Arc<dyn ParamBindingGet<_>>,
@@ -231,17 +239,39 @@ fn main() {
         let note: GraphNodeContainer =
             GraphNodeWrapper::new(note, children::empty::Children).into();
 
+        //note + trigger indication: fanout
+        let note: GraphNodeContainer = GraphNodeWrapper::new(
+            FanOut::new(),
+            children::boxed::Children::new(Box::new([note, trig])),
+        )
+        .into();
+
         let step_gate: GraphNodeContainer = GraphNodeWrapper::new(
             step_gate,
-            children::boxed::Children::new(Box::new([note, trig])),
+            children::boxed::Children::new(Box::new([note.clone()])),
+        )
+        .into();
+
+        let retrig = GraphNodeContainer::new(RetrigScheduler::new(
+            note.clone(),
+            TickResched::None,
+            retrig_event_source.clone(),
+        ));
+
+        let one_hot: GraphNodeContainer = GraphNodeWrapper::new(
+            OneHot::new(ops::GetIfElse::new(
+                data.retrig.clone() as Arc<dyn ParamBindingGet<bool>>,
+                1,
+                0,
+            )),
+            children::boxed::Children::new(Box::new([step_gate, retrig])),
         )
         .into();
 
         let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
 
         let seq: GraphNodeContainer =
-            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild))
-                .into();
+            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(one_hot, ichild)).into();
 
         let ratio: GraphNodeContainer =
             GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([seq]))).into();
@@ -391,15 +421,19 @@ fn main() {
         assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
     }
 
-    midi_creator.fill().expect("failed to fill midi");
-    boolbind_creator.fill().expect("failed to fill boolbind");
-    println!("starting dispose thread");
-    std::thread::spawn(move || loop {
-        //value queue filling
+    let mut fill_dispose = move || {
         midi_creator.fill().expect("failed to fill midi");
         boolbind_creator.fill().expect("failed to fill boolbind");
-
+        retrig_event_creator
+            .fill()
+            .expect("failed to fill retrig_event");
         dispose.dispose_all().expect("dispose failed");
+    };
+
+    println!("starting dispose thread");
+    fill_dispose();
+    std::thread::spawn(move || loop {
+        fill_dispose();
         std::thread::sleep(std::time::Duration::from_millis(1));
     });
 
