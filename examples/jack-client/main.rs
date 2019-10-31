@@ -208,12 +208,17 @@ fn main() {
         .into_alock();
 
         let step_gate = gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
+        let onvel = ops::GetCast::new(
+            ops::GetMul::new(127f32, data.volume.clone() as Arc<dyn ParamBindingGet<f32>>)
+                .into_alock() as Arc<Mutex<dyn ParamBindingGet<f32>>>,
+        )
+        .into_alock() as Arc<Mutex<dyn ParamBindingGet<u8>>>;
 
         let note = midi::MidiNote::new(
             &0,
             note,
             &TickResched::ContextRelative(1),
-            &127,
+            onvel,
             &127,
             midi_source.clone(),
             &MIDI_QUEUE as MidiEnqueue,
@@ -260,6 +265,7 @@ fn main() {
         //init div to current ratio
         let div = Arc::new(AtomicUsize::new(data.retrig_ratio.get()));
 
+        /*
         let cond = ops::GetLogical::And(
             ops::GetCmp::new(
                 ops::CmpOp::Equal,
@@ -281,6 +287,15 @@ fn main() {
                 .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
             )
             .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>,
+        )
+        .into_alock();
+        */
+
+        let cond = ops::GetCmp::new(
+            ops::CmpOp::Equal,
+            0usize,
+            ops::GetRem::new(tick.clone() as Arc<dyn ParamBindingGet<_>>, ppq / 4).into_alock()
+                as Arc<Mutex<dyn ParamBindingGet<usize>>>,
         )
         .into_alock();
 
