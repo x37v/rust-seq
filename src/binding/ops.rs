@@ -101,6 +101,23 @@ pub struct GetCmp<T, L, R> {
     _phantom: PhantomData<fn() -> T>,
 }
 
+pub struct GetNot<B>
+where
+    B: ParamBindingGet<bool>,
+{
+    binding: B,
+}
+
+pub enum GetLogical<L, R>
+where
+    L: ParamBindingGet<bool>,
+    R: ParamBindingGet<bool>,
+{
+    And(L, R),
+    Or(L, R),
+    Xor(L, R),
+}
+
 pub struct GetIfElse<T, C, OT, OF>
 where
     T: Send,
@@ -494,6 +511,43 @@ where
             left,
             right,
             _phantom: Default::default(),
+        }
+    }
+}
+
+impl<B> GetNot<B>
+where
+    B: ParamBindingGet<bool>,
+{
+    /// Construct a new `GetNot`
+    ///
+    /// # Arguments
+    ///
+    /// * `binding` - the binding to negate
+    pub fn new(binding: B) -> Self {
+        Self { binding }
+    }
+}
+
+impl<B> ParamBindingGet<bool> for GetNot<B>
+where
+    B: ParamBindingGet<bool>,
+{
+    fn get(&self) -> bool {
+        !self.binding.get()
+    }
+}
+
+impl<L, R> ParamBindingGet<bool> for GetLogical<L, R>
+where
+    L: ParamBindingGet<bool>,
+    R: ParamBindingGet<bool>,
+{
+    fn get(&self) -> bool {
+        match self {
+            Self::And(l, r) => l.get() && r.get(),
+            Self::Or(l, r) => l.get() || r.get(),
+            Self::Xor(l, r) => l.get() ^ r.get(),
         }
     }
 }
