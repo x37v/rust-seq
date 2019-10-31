@@ -13,6 +13,7 @@ pub mod retrig_scheduler;
 pub mod root_clock;
 pub mod root_event;
 pub mod step_seq;
+pub mod tick_record;
 
 mod traits;
 pub use self::traits::*;
