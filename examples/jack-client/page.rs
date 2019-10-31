@@ -22,7 +22,7 @@ impl Default for PageData {
 impl PageData {
     pub fn new() -> Self {
         Self {
-            length: Arc::new(AtomicUsize::new(16)),
+            length: Arc::new(AtomicUsize::new(8)),
             step_cur: Arc::new(AtomicUsize::new(0)),
             gates: Arc::new([
                 Arc::new(AtomicBool::new(false)),
