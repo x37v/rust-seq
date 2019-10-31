@@ -51,7 +51,7 @@
 (
     ~noteon = MIDIFunc.noteOn({
         arg val, num, chan, src;
-        if (val < ~synths.size, { ~synths[val].set(\t_trig, 1); });
+        if (num < ~synths.size, { ~synths[num].set(\t_trig, 1); });
     }, chan: 0);
 )
 ~noteon.free;
