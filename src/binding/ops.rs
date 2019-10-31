@@ -100,6 +100,19 @@ pub struct GetCmp<T, L, R> {
     _phantom: PhantomData<fn() -> T>,
 }
 
+pub struct GetIfElse<T, C, OT, OF>
+where
+    T: Send,
+    C: ParamBindingGet<bool>,
+    OT: ParamBindingGet<T>,
+    OF: ParamBindingGet<T>,
+{
+    cmp: C,
+    out_true: OT,
+    out_false: OF,
+    _phantom: PhantomData<fn() -> T>,
+}
+
 struct OneShotInner<T> {
     pub value: T,
     pub state: Option<()>,
@@ -475,6 +488,30 @@ where
     }
 }
 
+impl<T, C, OT, OF> GetIfElse<T, C, OT, OF>
+where
+    T: Send,
+    C: ParamBindingGet<bool>,
+    OT: ParamBindingGet<T>,
+    OF: ParamBindingGet<T>,
+{
+    /// Construct a new `GetIfElse`
+    ///
+    /// # Arguments
+    ///
+    /// * `cond` - the condition to get
+    /// * `out_true` - the binding to output on true
+    /// * `out_false` - the binding to output on false
+    pub fn new(cmp: C, out_true: OT, out_false: OF) -> Self {
+        Self {
+            cmp,
+            out_true,
+            out_false,
+            _phantom: Default::default(),
+        }
+    }
+}
+
 impl<T, L, R> ParamBindingGet<bool> for GetCmp<T, L, R>
 where
     T: PartialOrd + PartialEq,
@@ -588,6 +625,22 @@ where
 {
     fn set(&self, value: T) {
         self.inner.lock().get_mut().value_set(value);
+    }
+}
+
+impl<T, C, OT, OF> ParamBindingGet<T> for GetIfElse<T, C, OT, OF>
+where
+    T: Send,
+    C: ParamBindingGet<bool>,
+    OT: ParamBindingGet<T>,
+    OF: ParamBindingGet<T>,
+{
+    fn get(&self) -> T {
+        if self.cmp.get() {
+            self.out_true.get()
+        } else {
+            self.out_false.get()
+        }
     }
 }
 
