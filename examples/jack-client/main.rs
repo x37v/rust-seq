@@ -27,7 +27,7 @@ use sched::graph::*;
 use sched::graph::{
     bindstore::BindStoreIndexChild, bindstore::BindStoreNode, clock_ratio::ClockRatio,
     fanout::FanOut, node_wrapper::GraphNodeWrapper, one_hot::OneHot, root_clock::RootClock,
-    step_seq::StepSeq,
+    step_seq::StepSeq, tick_record::TickRecord,
 };
 
 use sched::binding::*;
@@ -252,12 +252,63 @@ fn main() {
             GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild))
                 .into();
 
+        //use a proxy binding for actual ratio that only changes when the last and current ratio
+        //match
+
+        let tick = Arc::new(AtomicUsize::new(0));
+
+        //init div to current ratio
+        let div = Arc::new(AtomicUsize::new(data.retrig_ratio.get()));
+
+        let cond = ops::GetLogical::And(
+            ops::GetCmp::new(
+                ops::CmpOp::Equal,
+                0usize,
+                ops::GetRem::new(
+                    tick.clone() as Arc<dyn ParamBindingGet<_>>,
+                    div.clone() as Arc<dyn ParamBindingGet<_>>,
+                )
+                .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
+            )
+            .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>,
+            ops::GetCmp::new(
+                ops::CmpOp::Equal,
+                0usize,
+                ops::GetRem::new(
+                    tick.clone() as Arc<dyn ParamBindingGet<_>>,
+                    data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
+                )
+                .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
+            )
+            .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>,
+        )
+        .into_alock();
+
+        let cur = ops::GetIfElse::new(
+            cond as Arc<Mutex<dyn ParamBindingGet<bool>>>,
+            data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
+            div.clone() as Arc<dyn ParamBindingGet<_>>,
+        )
+        .into_alock();
+
         let retrig_ratio: GraphNodeContainer = GraphNodeWrapper::new(
-            ClockRatio::new(
-                1,
-                data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<usize>>,
-            ),
+            ClockRatio::new(1, div.clone() as Arc<dyn ParamBindingGet<usize>>),
             children::boxed::Children::new(Box::new([note.clone()])),
+        )
+        .into();
+
+        let store_div: GraphNodeContainer = GraphNodeWrapper::new(
+            BindStoreNode::new(
+                cur as Arc<Mutex<dyn ParamBindingGet<usize>>>,
+                div.clone() as Arc<dyn ParamBindingSet<usize>>,
+            ),
+            children::boxed::Children::new(Box::new([retrig_ratio])),
+        )
+        .into();
+
+        let store_tick: GraphNodeContainer = GraphNodeWrapper::new(
+            TickRecord::Context(tick.clone() as Arc<dyn ParamBindingSet<usize>>),
+            children::boxed::Children::new(Box::new([store_div])),
         )
         .into();
 
@@ -270,7 +321,7 @@ fn main() {
 
         let one_hot: GraphNodeContainer = GraphNodeWrapper::new(
             one_hot,
-            children::boxed::Children::new(Box::new([retrig_ratio, seq])),
+            children::boxed::Children::new(Box::new([store_tick, seq])),
         )
         .into();
 
