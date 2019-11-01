@@ -1,6 +1,6 @@
 (
     s = Server.local.boot;
-    MIDIClient.init(1, 1, verbose: true);
+    MIDIClient.init(1, 0, verbose: true);
 )
 
 (
