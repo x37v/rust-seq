@@ -23,6 +23,7 @@ spin = "0.5.2"
 jack = { git = "https://github.com/RustAudio/rust-jack.git" }
 rosc = "~0.1"
 heapless = "0.5.0"
+assert_approx_eq = "1.1.0"
 
 [[example]]
 name = "jack-client"
