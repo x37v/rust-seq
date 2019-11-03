@@ -507,6 +507,12 @@ fn main() {
         bpm.set(c);
     };
 
+    let retrig_update = Arc::new(spinlock::SpinlockParamBinding::new(0f32));
+    let retrig_hysteresis = Arc::new(Mutex::new(hysteresis::Hysteresis::new(
+        retrig_update.clone() as Arc<dyn ParamBindingGet<f32>>,
+        0.1f32,
+    ))) as Arc<Mutex<dyn ParamBindingGet<f32>>>;
+
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let process_note = |on: bool, chan: u8, num: u8, vel: u8| {
             if chan == 15 {
@@ -571,9 +577,10 @@ fn main() {
                                 103 => page.volume_rand.set(val as f32 / 127f32),
                                 105 => page.probability.set(val as f32 / 127f32),
                                 106 => {
-                                    let step = 2 * (val / 21) as usize;
+                                    retrig_update.set(val as f32 / 21f32);
+                                    let step = 2f32 * retrig_hysteresis.get();
                                     //let step = (val / 10) as usize;
-                                    let div = 4 + step;
+                                    let div = 4 + step as usize;
                                     page.retrig_ratio.set(ppq / div);
                                 }
                                 _ => (),
