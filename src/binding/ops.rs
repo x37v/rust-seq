@@ -152,6 +152,13 @@ pub struct OneShot<T, D> {
     inner: Mutex<Cell<OneShotInner<T>>>,
 }
 
+pub struct GetBinaryOp<IL, IR, O, F, BL, BR> {
+    left: BL,
+    right: BR,
+    func: F,
+    _phantom: PhantomData<fn() -> (IL, IR, O)>,
+}
+
 impl<T, B, Min, Max> GetClamp<T, B, Min, Max>
 where
     T: Send + Copy + PartialOrd,
@@ -720,9 +727,43 @@ where
     }
 }
 
+impl<IL, IR, O, F, BL, BR> GetBinaryOp<IL, IR, O, F, BL, BR>
+where
+    IL: Send,
+    IR: Send,
+    O: Send,
+    F: Fn(IL, IR) -> O + Send + Sync,
+    BL: ParamBindingGet<IL>,
+    BR: ParamBindingGet<IR>,
+{
+    pub fn new(func: F, left: BL, right: BR) -> Self {
+        Self {
+            left,
+            right,
+            func,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<IL, IR, O, F, BL, BR> ParamBindingGet<O> for GetBinaryOp<IL, IR, O, F, BL, BR>
+where
+    IL: Send,
+    IR: Send,
+    O: Send,
+    F: Fn(IL, IR) -> O + Send + Sync,
+    BL: ParamBindingGet<IL>,
+    BR: ParamBindingGet<IR>,
+{
+    fn get(&self) -> O {
+        (self.func)(self.left.get(), self.right.get())
+    }
+}
+
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
+    use crate::binding::atomic::*;
     use crate::binding::*;
     use core::ops::Index;
     use core::sync::atomic::{AtomicUsize, Ordering};
@@ -826,5 +867,39 @@ mod tests {
         //incorrect input but we want to keep going, will return max
         let c = GetClamp::new(1000isize, 100isize, -100isize);
         assert_eq!(-100isize, c.get());
+    }
+
+    #[test]
+    fn rem() {
+        let l = Arc::new(AtomicUsize::new(0));
+        let r = Arc::new(AtomicUsize::new(2));
+        let b = GetRem::new(
+            l.clone() as Arc<dyn ParamBindingGet<usize>>,
+            r.clone() as Arc<dyn ParamBindingGet<usize>>,
+        );
+        assert_eq!(0, b.get());
+
+        let l = l as Arc<dyn ParamBindingSet<usize>>;
+        let r = r as Arc<dyn ParamBindingSet<usize>>;
+
+        l.set(1);
+        assert_eq!(1, b.get());
+        l.set(2);
+        assert_eq!(0, b.get());
+
+        l.set(100);
+        assert_eq!(0, b.get());
+        l.set(101);
+        assert_eq!(1, b.get());
+        l.set(102);
+        assert_eq!(0, b.get());
+        l.set(103);
+        assert_eq!(1, b.get());
+
+        l.set(1);
+        r.set(10);
+        assert_eq!(1, b.get());
+        l.set(10);
+        assert_eq!(0, b.get());
     }
 }
