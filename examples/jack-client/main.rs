@@ -27,9 +27,10 @@ use sched::graph::*;
 use sched::graph::{
     bindstore::BindStoreIndexChild, bindstore::BindStoreNode, clock_ratio::ClockRatio,
     fanout::FanOut, node_wrapper::GraphNodeWrapper, one_hot::OneHot, root_clock::RootClock,
-    step_seq::StepSeq, tick_record::TickRecord,
+    step_seq::StepSeq, tick_record::TickRecord, GraphLeafExec,
 };
 
+use num::integer::Integer; //for lcm
 use sched::binding::*;
 
 use core::mem::MaybeUninit;
@@ -126,6 +127,40 @@ where
     }
 }
 
+struct GraphPrinter;
+
+impl GraphLeafExec for GraphPrinter {
+    fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
+        println!(
+            "t: {} c: {}",
+            context.tick_now(),
+            context.context_tick_now()
+        );
+    }
+}
+
+pub struct GraphFunc<F> {
+    func: F,
+}
+
+impl<F> GraphFunc<F>
+where
+    F: Fn(&mut dyn EventEvalContext) + Send,
+{
+    pub fn new(func: F) -> Self {
+        Self { func }
+    }
+}
+
+impl<F> GraphLeafExec for GraphFunc<F>
+where
+    F: Fn(&mut dyn EventEvalContext) + Send,
+{
+    fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
+        (self.func)(context);
+    }
+}
+
 fn main() {
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
@@ -150,7 +185,7 @@ fn main() {
         &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
     );
 
-    let ppq = 980usize;
+    let ppq = 960usize;
     let step_ticks = AtomicUsize::new(ppq / 4usize).into_arc();
 
     let mul_select_shift = AtomicBool::new(false).into_arc();
@@ -291,6 +326,7 @@ fn main() {
         .into_alock();
         */
 
+        /*
         let cond = ops::GetCmp::new(
             ops::CmpOp::Equal,
             0usize,
@@ -299,6 +335,44 @@ fn main() {
         )
         .into_alock();
 
+        let cond = ops::GetCmp::new(
+            ops::CmpOp::Equal,
+            0usize,
+            ops::GetRem::new(
+                tick.clone() as Arc<dyn ParamBindingGet<_>>,
+                ops::GetBinaryOp::new(
+                    |l: usize, r: usize| l.lcm(&r),
+                    data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
+                    div.clone() as Arc<dyn ParamBindingGet<_>>,
+                ),
+            )
+            .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
+        )
+        .into_alock();
+        */
+
+        let cond = ops::GetCmp::new(
+            ops::CmpOp::Equal,
+            1usize,
+            ops::GetRem::new(
+                tick.clone() as Arc<dyn ParamBindingGet<_>>,
+                //data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
+                ops::GetIfElse::new(
+                    ops::GetCmp::new(
+                        ops::CmpOp::GreaterOrEqual,
+                        data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
+                        div.clone() as Arc<dyn ParamBindingGet<_>>,
+                    )
+                    .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>,
+                    data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
+                    div.clone() as Arc<dyn ParamBindingGet<_>>,
+                )
+                .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
+            )
+            .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
+        )
+        .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>;
+
         let cur = ops::GetIfElse::new(
             cond as Arc<Mutex<dyn ParamBindingGet<bool>>>,
             data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
@@ -306,9 +380,43 @@ fn main() {
         )
         .into_alock();
 
+        let print: GraphNodeContainer = GraphNodeWrapper::new(
+            GraphFunc::new(|context: &mut dyn EventEvalContext| {
+                println!(
+                    "t: {} c: {}",
+                    context.tick_now(),
+                    context.context_tick_now()
+                );
+            }),
+            children::empty::Children,
+        )
+        .into();
+
+        let r = div.clone() as Arc<dyn ParamBindingGet<_>>;
+        let printr: GraphNodeContainer = GraphNodeWrapper::new(
+            GraphFunc::new(move |_context: &mut dyn EventEvalContext| {
+                println!("ratio: {}", r.get());
+            }),
+            children::empty::Children,
+        )
+        .into();
+        let t = tick.clone();
+        let printt: GraphNodeContainer = GraphNodeWrapper::new(
+            GraphFunc::new(move |_context: &mut dyn EventEvalContext| {
+                println!("tick: {}", t.get());
+            }),
+            children::empty::Children,
+        )
+        .into();
+
         let retrig_ratio: GraphNodeContainer = GraphNodeWrapper::new(
-            ClockRatio::new(1, div.clone() as Arc<dyn ParamBindingGet<usize>>),
-            children::boxed::Children::new(Box::new([note.clone()])),
+            ClockRatio::new(
+                1usize,
+                data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<usize>>,
+                //cur.clone() as Arc<dyn ParamBindingGet<_>>,
+                //div.clone() as Arc<dyn ParamBindingGet<usize>>,
+            ),
+            children::boxed::Children::new(Box::new([note.clone(), print, printr, printt])),
         )
         .into();
 
@@ -578,9 +686,7 @@ fn main() {
                                 105 => page.probability.set(val as f32 / 127f32),
                                 106 => {
                                     retrig_update.set(val as f32 / 21f32);
-                                    let step = 2f32 * retrig_hysteresis.get();
-                                    //let step = (val / 10) as usize;
-                                    let div = 4 + step as usize;
+                                    let div = 2usize.pow(retrig_hysteresis.get() as u32);
                                     page.retrig_ratio.set(ppq / div);
                                 }
                                 _ => (),
