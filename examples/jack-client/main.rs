@@ -480,7 +480,12 @@ fn main() {
                         }
                     } else {
                         match index {
-                            90 => page.retrig.set(on),
+                            90 => {
+                                //turn on in the parameter setting
+                                if !on {
+                                    page.retrig.set(false);
+                                }
+                            }
                             67 => len_select_shift.set(on),
                             76 => mul_select_shift.set(on),
                             77 => div_select_shift.set(on),
@@ -519,6 +524,7 @@ fn main() {
                                     retrig_update.set(val as f32 / 21f32);
                                     let div = 2usize.pow(retrig_hysteresis.get() as u32);
                                     page.retrig_ratio.set(ppq / div);
+                                    page.retrig.set(true); //wait for a value to set this
                                 }
                                 _ => (),
                             }
