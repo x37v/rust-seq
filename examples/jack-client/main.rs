@@ -27,10 +27,9 @@ use sched::graph::*;
 use sched::graph::{
     bindstore::BindStoreIndexChild, bindstore::BindStoreNode, clock_ratio::ClockRatio,
     fanout::FanOut, node_wrapper::GraphNodeWrapper, one_hot::OneHot, root_clock::RootClock,
-    step_seq::StepSeq, tick_record::TickRecord, GraphLeafExec,
+    step_seq::StepSeq,
 };
 
-use num::integer::Integer; //for lcm
 use sched::binding::*;
 
 use core::mem::MaybeUninit;
@@ -124,40 +123,6 @@ where
     }
     fn into_alock(self) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(self))
-    }
-}
-
-struct GraphPrinter;
-
-impl GraphLeafExec for GraphPrinter {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
-        println!(
-            "t: {} c: {}",
-            context.tick_now(),
-            context.context_tick_now()
-        );
-    }
-}
-
-pub struct GraphFunc<F> {
-    func: F,
-}
-
-impl<F> GraphFunc<F>
-where
-    F: Fn(&mut dyn EventEvalContext) + Send,
-{
-    pub fn new(func: F) -> Self {
-        Self { func }
-    }
-}
-
-impl<F> GraphLeafExec for GraphFunc<F>
-where
-    F: Fn(&mut dyn EventEvalContext) + Send,
-{
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
-        (self.func)(context);
     }
 }
 
@@ -292,146 +257,12 @@ fn main() {
             GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild))
                 .into();
 
-        //use a proxy binding for actual ratio that only changes when the last and current ratio
-        //match
-
-        let tick = Arc::new(AtomicUsize::new(0));
-
-        //init div to current ratio
-        let div = Arc::new(AtomicUsize::new(data.retrig_ratio.get()));
-
-        /*
-        let cond = ops::GetLogical::And(
-            ops::GetCmp::new(
-                ops::CmpOp::Equal,
-                0usize,
-                ops::GetRem::new(
-                    tick.clone() as Arc<dyn ParamBindingGet<_>>,
-                    div.clone() as Arc<dyn ParamBindingGet<_>>,
-                )
-                .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
-            )
-            .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>,
-            ops::GetCmp::new(
-                ops::CmpOp::Equal,
-                0usize,
-                ops::GetRem::new(
-                    tick.clone() as Arc<dyn ParamBindingGet<_>>,
-                    data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
-                )
-                .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
-            )
-            .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>,
-        )
-        .into_alock();
-        */
-
-        /*
-        let cond = ops::GetCmp::new(
-            ops::CmpOp::Equal,
-            0usize,
-            ops::GetRem::new(tick.clone() as Arc<dyn ParamBindingGet<_>>, ppq / 4).into_alock()
-                as Arc<Mutex<dyn ParamBindingGet<usize>>>,
-        )
-        .into_alock();
-
-        let cond = ops::GetCmp::new(
-            ops::CmpOp::Equal,
-            0usize,
-            ops::GetRem::new(
-                tick.clone() as Arc<dyn ParamBindingGet<_>>,
-                ops::GetBinaryOp::new(
-                    |l: usize, r: usize| l.lcm(&r),
-                    data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
-                    div.clone() as Arc<dyn ParamBindingGet<_>>,
-                ),
-            )
-            .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
-        )
-        .into_alock();
-        */
-
-        let cond = ops::GetCmp::new(
-            ops::CmpOp::Equal,
-            1usize,
-            ops::GetRem::new(
-                tick.clone() as Arc<dyn ParamBindingGet<_>>,
-                //data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
-                ops::GetIfElse::new(
-                    ops::GetCmp::new(
-                        ops::CmpOp::GreaterOrEqual,
-                        data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
-                        div.clone() as Arc<dyn ParamBindingGet<_>>,
-                    )
-                    .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>,
-                    data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
-                    div.clone() as Arc<dyn ParamBindingGet<_>>,
-                )
-                .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
-            )
-            .into_alock() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
-        )
-        .into_alock() as Arc<Mutex<dyn ParamBindingGet<bool>>>;
-
-        let cur = ops::GetIfElse::new(
-            cond as Arc<Mutex<dyn ParamBindingGet<bool>>>,
-            data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<_>>,
-            div.clone() as Arc<dyn ParamBindingGet<_>>,
-        )
-        .into_alock();
-
-        let print: GraphNodeContainer = GraphNodeWrapper::new(
-            GraphFunc::new(|context: &mut dyn EventEvalContext| {
-                println!(
-                    "t: {} c: {}",
-                    context.tick_now(),
-                    context.context_tick_now()
-                );
-            }),
-            children::empty::Children,
-        )
-        .into();
-
-        let r = div.clone() as Arc<dyn ParamBindingGet<_>>;
-        let printr: GraphNodeContainer = GraphNodeWrapper::new(
-            GraphFunc::new(move |_context: &mut dyn EventEvalContext| {
-                println!("ratio: {}", r.get());
-            }),
-            children::empty::Children,
-        )
-        .into();
-        let t = tick.clone();
-        let printt: GraphNodeContainer = GraphNodeWrapper::new(
-            GraphFunc::new(move |_context: &mut dyn EventEvalContext| {
-                println!("tick: {}", t.get());
-            }),
-            children::empty::Children,
-        )
-        .into();
-
         let retrig_ratio: GraphNodeContainer = GraphNodeWrapper::new(
             ClockRatio::new(
                 1usize,
                 data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<usize>>,
-                //cur.clone() as Arc<dyn ParamBindingGet<_>>,
-                //div.clone() as Arc<dyn ParamBindingGet<usize>>,
             ),
-            children::boxed::Children::new(Box::new([note.clone(), print, printr, printt])),
-        )
-        .into();
-
-        let store_div: GraphNodeContainer = GraphNodeWrapper::new(
-            BindStoreNode::new(
-                cur as Arc<Mutex<dyn ParamBindingGet<usize>>>,
-                div.clone() as Arc<dyn ParamBindingSet<usize>>,
-            ),
-            children::boxed::Children::new(Box::new([retrig_ratio])),
-        )
-        .into();
-
-        let store_tick: GraphNodeContainer = GraphNodeWrapper::new(
-            TickRecord::Context(tick.clone() as Arc<dyn ParamBindingSet<usize>>),
-            children::boxed::Children::new(Box::new([store_div])),
+            children::boxed::Children::new(Box::new([note.clone()])),
         )
         .into();
 
@@ -444,7 +275,7 @@ fn main() {
 
         let one_hot: GraphNodeContainer = GraphNodeWrapper::new(
             one_hot,
-            children::boxed::Children::new(Box::new([store_tick, seq])),
+            children::boxed::Children::new(Box::new([retrig_ratio, seq])),
         )
         .into();
 
