@@ -47,11 +47,13 @@
         Synth(\sampler, [t_trig: 0, bufnum: item.bufnum, amp: 0])
     }); 
 )
-~synths[0].set(\t_trig, 1);
+~synths[0].set(\t_trig, 1, \amp, 0.9);
 (
     ~noteon = MIDIFunc.noteOn({
         arg val, num, chan, src;
-        if (num < ~synths.size, { ~synths[num].set(\t_trig, 1, \amp, val / 127.0); });
+        if (num < ~synths.size, {
+            ~synths[num].set(\t_trig, 1, \amp, val / 127.0);
+        });
     }, chan: 0);
 )
 ~noteon.free;
