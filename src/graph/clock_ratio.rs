@@ -59,3 +59,111 @@ where
         ChildCount::Inf
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    extern crate alloc;
+    use super::*;
+    use crate::binding::*;
+    use crate::graph::{node_wrapper::GraphNodeWrapper, *};
+    use alloc::boxed::Box;
+    use alloc::sync::Arc;
+    use core::sync::atomic::AtomicUsize;
+
+    use crate::context::tests::TestContext;
+
+    #[test]
+    fn radio() {
+        let mut context = TestContext::new(0, 44100);
+        let tick = Arc::new(AtomicUsize::new(0));
+        let ctick = Arc::new(AtomicUsize::new(0));
+        let mul = Arc::new(AtomicUsize::new(1));
+        let div = Arc::new(AtomicUsize::new(1));
+
+        let store_ctick: GraphNodeContainer = GraphNodeWrapper::new(
+            tick_record::TickRecord::Context(ctick.clone() as Arc<dyn ParamBindingSet<usize>>),
+            children::empty::Children,
+        )
+        .into();
+
+        let store_tick: GraphNodeContainer = GraphNodeWrapper::new(
+            tick_record::TickRecord::Absolute(tick.clone() as Arc<dyn ParamBindingSet<usize>>),
+            children::empty::Children,
+        )
+        .into();
+
+        let mut ratio: GraphNodeContainer = GraphNodeWrapper::new(
+            ClockRatio::new(
+                mul.clone() as Arc<dyn ParamBindingGet<_>>,
+                div.clone() as Arc<dyn ParamBindingGet<_>>,
+            ),
+            children::boxed::Children::new(Box::new([store_tick, store_ctick])),
+        )
+        .into();
+
+        //trigger the clock ratio and verify the tick output
+        assert_eq!(0, tick.get());
+        assert_eq!(0, ctick.get());
+
+        ratio.node_exec(&mut context);
+        assert_eq!(0, tick.get());
+        assert_eq!(0, ctick.get());
+
+        context.set_tick(1);
+        ratio.node_exec(&mut context);
+        assert_eq!(1, tick.get());
+        assert_eq!(1, ctick.get());
+
+        ratio.node_exec(&mut context);
+        assert_eq!(1, tick.get());
+        assert_eq!(1, ctick.get());
+        for i in 0..20 {
+            context.set_tick(i);
+            ratio.node_exec(&mut context);
+            assert_eq!(i, tick.get());
+            assert_eq!(i, ctick.get());
+        }
+
+        //should only trigger every other time
+        div.set(2);
+        context.set_tick(0);
+        ratio.node_exec(&mut context);
+        assert_eq!(0, tick.get());
+        assert_eq!(0, ctick.get());
+
+        context.set_tick(1);
+        ratio.node_exec(&mut context);
+        assert_eq!(0, tick.get());
+        assert_eq!(0, ctick.get());
+
+        context.set_tick(2);
+        ratio.node_exec(&mut context);
+        assert_eq!(2, tick.get());
+        assert_eq!(1, ctick.get());
+
+        context.set_tick(3);
+        ratio.node_exec(&mut context);
+        assert_eq!(2, tick.get());
+        assert_eq!(1, ctick.get());
+
+        context.set_tick(4);
+        ratio.node_exec(&mut context);
+        assert_eq!(4, tick.get());
+        assert_eq!(2, ctick.get());
+
+        div.set(4);
+        ratio.node_exec(&mut context);
+        assert_eq!(4, tick.get());
+        assert_eq!(1, ctick.get());
+
+        context.set_tick(5);
+        ratio.node_exec(&mut context);
+        assert_eq!(4, tick.get());
+        assert_eq!(1, ctick.get());
+
+        context.set_tick(8);
+        ratio.node_exec(&mut context);
+        assert_eq!(8, tick.get());
+        assert_eq!(2, ctick.get());
+    }
+}

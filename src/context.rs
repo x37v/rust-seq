@@ -132,6 +132,10 @@ pub(crate) mod tests {
                 ticks_per_second,
             }
         }
+
+        pub fn set_tick(&mut self, tick: usize) {
+            self.tick = tick;
+        }
     }
     impl EventSchedule for TestContext {
         fn event_schedule(
