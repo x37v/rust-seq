@@ -5,6 +5,7 @@ pub mod bindstore;
 pub mod children;
 pub mod clock_ratio;
 pub mod fanout;
+pub mod func;
 pub mod gate;
 pub mod midi;
 pub mod node_wrapper;
