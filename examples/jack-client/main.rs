@@ -173,6 +173,7 @@ fn main() {
     let boolbind_source: Arc<Mutex<dyn ItemSource<BindStoreEventBool>>> =
         Arc::new(Mutex::new(boolbind_source));
 
+    let retrig_stages = 4f32;
     let mut voices = Vec::new();
     let mut trigon_oneshots = Vec::new();
     let mut trigoff_oneshots = Vec::new();
@@ -263,11 +264,18 @@ fn main() {
             GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild))
                 .into();
 
+        let exp = data.retrig_amount.clone() as Arc<dyn ParamBindingGet<f32>>;
+
+        let exp = ops::GetUnaryOp::new(ops::funcs::cast_or_default, exp).into_alock()
+            as Arc<Mutex<dyn ParamBindingGet<usize>>>;
+
+        let div = ops::GetBinaryOp::new(num::pow::pow, 2usize, exp).into_alock()
+            as Arc<Mutex<dyn ParamBindingGet<usize>>>;
+        let retrig_div = ops::GetBinaryOp::new(ops::funcs::div_protected, ppq / 4, div).into_alock()
+            as Arc<Mutex<dyn ParamBindingGet<usize>>>;
+
         let retrig_ratio: GraphNodeContainer = GraphNodeWrapper::new(
-            ClockRatio::new(
-                1usize,
-                data.retrig_ratio.clone() as Arc<dyn ParamBindingGet<usize>>,
-            ),
+            ClockRatio::new(1usize, retrig_div as Arc<Mutex<dyn ParamBindingGet<usize>>>),
             children::boxed::Children::new(Box::new([note.clone()])),
         )
         .into();
@@ -457,7 +465,6 @@ fn main() {
         retrig_update.clone() as Arc<dyn ParamBindingGet<f32>>,
         0.1f32,
     ))) as Arc<Mutex<dyn ParamBindingGet<f32>>>;
-
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let process_note = |on: bool, chan: u8, num: u8, vel: u8| {
             if chan == 15 {
@@ -527,9 +534,8 @@ fn main() {
                                 103 => page.volume_rand.set(val as f32 / 127f32),
                                 105 => page.probability.set(val as f32 / 127f32),
                                 106 => {
-                                    retrig_update.set(val as f32 / 21f32);
-                                    let div = 2usize.pow(retrig_hysteresis.get() as u32);
-                                    page.retrig_ratio.set(ppq / div);
+                                    retrig_update.set(retrig_stages * (val as f32 / 127f32));
+                                    page.retrig_amount.set(retrig_hysteresis.get());
                                     page.retrig.set(true); //wait for a value to set this
                                 }
                                 _ => (),
