@@ -33,6 +33,7 @@ use sched::graph::{
 use sched::binding::*;
 
 use core::mem::MaybeUninit;
+use core::ops::Mul;
 
 use heapless::binary_heap::{BinaryHeap, Min};
 use heapless::consts::*;
@@ -208,9 +209,14 @@ fn main() {
         .into_alock();
 
         let step_gate = gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
-        let onvel = ops::GetCast::new(
-            ops::GetMul::new(127f32, data.volume.clone() as Arc<dyn ParamBindingGet<f32>>)
-                .into_alock() as Arc<Mutex<dyn ParamBindingGet<f32>>>,
+        let onvel = ops::GetUnaryOp::new(
+            ops::funcs::cast_or_default,
+            ops::GetBinaryOp::new(
+                f32::mul,
+                127f32,
+                data.volume.clone() as Arc<dyn ParamBindingGet<f32>>,
+            )
+            .into_alock() as Arc<Mutex<dyn ParamBindingGet<f32>>>,
         )
         .into_alock() as Arc<Mutex<dyn ParamBindingGet<u8>>>;
 
