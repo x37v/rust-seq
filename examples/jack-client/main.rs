@@ -255,6 +255,8 @@ fn main() {
 
         let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
 
+        //the sequencer doesn't actually children, it just sets an index here
+        //child is () aka noop
         let seq: GraphNodeContainer =
             GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new((), ichild)).into();
 
