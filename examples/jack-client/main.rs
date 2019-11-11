@@ -181,8 +181,9 @@ fn main() {
         let data = page::PageData::new();
         let note = page_index;
 
-        //root -> ratio ---> one hot --> step_seq ---(nchild index bind)---> step_gate ---> fanout---> note
-        //                            +-> ratio (retrig) --------------------------------+          +-> notify
+        //root -> ratio --+-> step_seq -(nchild index bind) [selectively open gate etc]
+        //                +-> step_gate-> ratio (retrig)-+-> note
+        //                                               +-> notify
 
         let ratio = ClockRatio::new(
             data.clock_mul.clone() as Arc<dyn ParamBindingGet<_>>,
@@ -252,17 +253,10 @@ fn main() {
         )
         .into();
 
-        let step_gate: GraphNodeContainer = GraphNodeWrapper::new(
-            step_gate,
-            children::boxed::Children::new(Box::new([note.clone()])),
-        )
-        .into();
-
         let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
 
         let seq: GraphNodeContainer =
-            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new(step_gate, ichild))
-                .into();
+            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new((), ichild)).into();
 
         let exp = data.retrig_amount.clone() as Arc<dyn ParamBindingGet<f32>>;
 
@@ -280,24 +274,20 @@ fn main() {
         )
         .into();
 
-        //0 is the retrig, 1 is the step seq
-        let one_hot = OneHot::new(ops::GetIfElse::new(
-            data.retrig.clone() as Arc<dyn ParamBindingGet<bool>>,
-            0,
-            1,
-        ));
-
-        let one_hot: GraphNodeContainer = GraphNodeWrapper::new(
-            one_hot,
-            children::boxed::Children::new(Box::new([retrig_ratio, seq])),
+        let step_gate: GraphNodeContainer = GraphNodeWrapper::new(
+            step_gate,
+            children::boxed::Children::new(Box::new([retrig_ratio])),
         )
         .into();
 
-        let ratio: GraphNodeContainer =
-            GraphNodeWrapper::new(ratio, children::boxed::Children::new(Box::new([one_hot])))
-                .into();
+        let ratio: GraphNodeContainer = GraphNodeWrapper::new(
+            ratio,
+            children::boxed::Children::new(Box::new([seq, step_gate])),
+        )
+        .into();
 
         page_data.push(Arc::new(Mutex::new(data)));
+
         voices.push(ratio);
     }
 
