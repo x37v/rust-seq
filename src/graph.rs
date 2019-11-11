@@ -56,6 +56,11 @@ impl GraphIndexExec for IndexChildContainer {
     }
 }
 
+//noop
+impl GraphNode for () {
+    fn node_exec(&mut self, _context: &mut dyn EventEvalContext) {}
+}
+
 #[cfg(test)]
 mod tests {
     use super::node_wrapper::GraphNodeWrapper;
