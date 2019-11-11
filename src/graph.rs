@@ -56,7 +56,7 @@ impl GraphIndexExec for IndexChildContainer {
     }
 }
 
-//noop
+/// No-op node impl for unit.
 impl GraphNode for () {
     fn node_exec(&mut self, _context: &mut dyn EventEvalContext) {}
 }
