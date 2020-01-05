@@ -9,49 +9,40 @@ a work in progress scheduled executor, built in rust
 cargo make test
 ```
 
-The info below is likely outdated.
+## Notes
 
-## Terminology
+### Remove Spinlock?
 
-### Scheduler
+[spinlock considered harmful](https://matklad.github.io/2020/01/02/spinlocks-considered-harmful.html)
 
-The object that allows initial scheduling of objects that implement the
-SchedCall trait. This object then passes these off to an Executor which
-executes the schedule.
+I used spinlock because I don't want to have system calls in the executing thread.
+The idea is that updates will still be evaluated in the executing thread, so there will really never
+be any waiting on the spinlock, but there is nothing restricting a user from updating in another thread.
 
-### Executor
+Maybe the executing thread should have some unique access to the resource and other threads just get
+some handle?
 
-The object that a schedule gets executed in. This will usually be in another
-thread and likely in a context where heap allocation should not be allowed.
+### Serialize format? 
 
-### Context
+bindings:
+    - id: <uuid>
+      alias: <optionalName>
+      type: <typename>
+      params: #for instance, a cast would have an input format, dest format, binding to cast
+        - name: value
+        - name: value
+        - name: value
 
-The object that the scheduled object can use to discover features, for
-instance, the current time, or, in a musical bar/beat scenario, how to
-translate a bar/beat into a tick value.
-
-### Cache
-
-A source for getting objects to schedule in the Executor context, avoiding heap
-allocation. For instance, a MIDI on/off note pair to be scheduled.
-	
-### Sink
-
-An object that accepts objects to send out from the Executor context. For
-instance, the actual MIDI data to go to your hardware.
-
-
-## NOTES
-
-sched should work like channel, you get a sender and receiver, the receiver goes into another thread that can execute.
-the sender should impl an interface that is the same [or most of] the interface that the receiver thread provides to
-its functions for additional scheduling.
-
-we can provide a variety of different contexts that you can push the receiver to and should be able to send multiple receivers there..
-like, jack.
-
-the executor would have a send and receive as well so you can add more scheds.
-impl JackExecutorSender {
-	fn add(receiver to execute);
-}
-
+nodes: #both graph and non graph nodes??
+    - id: <uuid>
+      type: <typename>
+      alias: <optionalName>
+      params:
+        - name: value
+        - name: value
+        - name: value
+      children:
+        - <uuid>
+        - <uuid>
+      meta: #optional
+        - location: (x, y)
