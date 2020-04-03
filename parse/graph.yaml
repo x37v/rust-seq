@@ -1,0 +1,58 @@
+#define named data bindings
+#can be referenced by name in schedule
+bindings:
+  ppq:
+    value: 960
+    type: usize
+  clock:
+    type: Clock
+    args:
+      bpm: 120
+      ppq: ppq
+  micros:
+    type: ClockPeriodMicro
+    args:
+      clock: clock
+
+#define inputs and outputs
+ports:
+  out:
+    midi_out:
+      type: Midi
+    osc_out:
+      type: OSC
+  in:
+    midi_in:
+      type: Midi
+    osc_in:
+      type: OSC
+
+#descendants list assumes that next is a child,
+#if you need more children, add a, children: item
+schedule:
+  root:
+  -
+    type: RootClock
+    args:
+      period: micros
+    descendants:
+    -
+      type: ClockRatio
+      args:
+        mul: 1
+        div: 
+          type:
+            BinaryOp
+          args:
+            op: "/"
+            left: ppq
+            right: 4
+    -
+      type: MidiNote
+      ref: RefName #so we can reference it later in the graph
+      args:
+        port: midi_out
+        note: 64
+        chan: 0
+        vel: 127
+        dur: ppq
