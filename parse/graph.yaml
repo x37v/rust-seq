@@ -27,6 +27,11 @@ ports:
     osc_in:
       type: OSC
 
+#notes
+# Maybe we're not representing the actual object that construct our ports, bindings and schedule but instead
+# we're representing handles which know more about these things, can get parameters by name, know how to consturct
+# the things they hold, can look into a reference table, etc...
+
 #descendants list assumes that next is a child,
 #if you need more children, add a, children: item
 schedule:
