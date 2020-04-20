@@ -9,6 +9,13 @@ a work in progress scheduled executor, built in rust
 cargo make test
 ```
 
+## TODO
+
+* Bindings with default values and swappable inputs.  Macros to identify inputs.
+* Nodes can use default bindings and then be re-assigned. Macros to identify their bindings.
+  * Must be an opt in thing, should be able to use without default/swappable bindings, so we can build for no_std.
+* Remove Index children.. use bindings (step sequencer simply stores an index).
+
 ## Notes
 
 ### Remove Spinlock?
