@@ -1,7 +1,9 @@
 extern crate alloc;
 
 pub mod bpm;
+pub mod default;
 pub mod generators;
+pub mod hot_swap;
 pub mod hysteresis;
 pub mod ops;
 pub mod spinlock;
