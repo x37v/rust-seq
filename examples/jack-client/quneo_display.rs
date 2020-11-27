@@ -1,7 +1,7 @@
-use sched::event::{EventEval, EventEvalContext, EventSchedule};
+use sched::event::{EventEval, EventEvalContext};
 use sched::midi::MidiValue;
 use sched::pqueue::TickPriorityEnqueue;
-use sched::tick::{TickResched, TickSched};
+use sched::tick::{TickResched};
 
 const PAD_BYTES: usize = 64;
 const SLIDER_BYTES: usize = 9;

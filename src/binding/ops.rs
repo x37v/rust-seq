@@ -368,9 +368,9 @@ where
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use crate::binding::atomic::*;
-    use crate::binding::*;
-    use core::ops::Index;
+    
+    
+    
     use core::sync::atomic::{AtomicUsize, Ordering};
     use spin::Mutex;
     use std::sync::Arc;
@@ -402,7 +402,7 @@ mod tests {
         index.store(2, Ordering::SeqCst);
         assert_eq!(0, indexed.get());
 
-        let index = Arc::new(AtomicUsize::new(0));
+        let _index = Arc::new(AtomicUsize::new(0));
         let collection: Arc<[Arc<dyn ParamBindingGet<usize>>]> = Arc::new([
             Arc::new(AtomicUsize::new(10)),
             Arc::new(AtomicUsize::new(11)),
@@ -414,7 +414,7 @@ mod tests {
             &0usize,
             &1usize,
         )));
-        let indexed = GetIndexed::new(
+        let _indexed = GetIndexed::new(
             collection.clone(),
             index.clone() as Arc<Mutex<dyn ParamBindingGet<usize>>>,
         );

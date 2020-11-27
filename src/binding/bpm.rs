@@ -179,7 +179,7 @@ mod tests {
     use super::*;
     use crate::binding::ParamBindingGet;
     use alloc::sync::Arc;
-    use core::ops::Deref;
+    
     use spin::Mutex;
 
     #[test]

@@ -79,7 +79,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
+    
 
     #[test]
     fn can_get() {

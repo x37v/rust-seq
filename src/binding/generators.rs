@@ -15,7 +15,7 @@ pub struct GetUniformRand<T, Min, Max> {
     _phantom: PhantomData<fn() -> T>,
 }
 
-/// Get a One Shot, if set to true, is only bool for one read until it is set true again
+/// Get a One Shot, if set to true, is only true for one read until it is set true again
 pub struct GetOneShot {
     binding: AtomicBool,
 }

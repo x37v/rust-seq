@@ -26,7 +26,7 @@ use spin::Mutex;
 use sched::graph::*;
 use sched::graph::{
     bindstore::BindStoreNode, clock_ratio::ClockRatio, fanout::FanOut,
-    node_wrapper::GraphNodeWrapper, one_hot::OneHot, root_clock::RootClock, step_seq::StepSeq,
+    node_wrapper::GraphNodeWrapper, root_clock::RootClock, step_seq::StepSeq,
 };
 
 use sched::binding::*;
