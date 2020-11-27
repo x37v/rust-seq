@@ -25,9 +25,8 @@ use spin::Mutex;
 
 use sched::graph::*;
 use sched::graph::{
-    bindstore::BindStoreIndexChild, bindstore::BindStoreNode, clock_ratio::ClockRatio,
-    fanout::FanOut, node_wrapper::GraphNodeWrapper, one_hot::OneHot, root_clock::RootClock,
-    step_seq::StepSeq,
+    bindstore::BindStoreNode, clock_ratio::ClockRatio, fanout::FanOut,
+    node_wrapper::GraphNodeWrapper, one_hot::OneHot, root_clock::RootClock, step_seq::StepSeq,
 };
 
 use sched::binding::*;
@@ -195,10 +194,6 @@ fn main() {
             data.length.clone() as Arc<dyn ParamBindingGet<_>>,
         );
 
-        let step_cur_bind = IndexChildContainer::new(BindStoreIndexChild::new(
-            data.step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
-        ));
-
         let gates: Vec<Arc<dyn ParamBindingGet<bool>>> = data
             .gates
             .iter()
@@ -253,12 +248,16 @@ fn main() {
         )
         .into();
 
-        let ichild = children::boxed::IndexChildren::new(Box::new([step_cur_bind]));
-
         //the sequencer doesn't actually children, it just sets an index here
         //child is () aka noop
-        let seq: GraphNodeContainer =
-            GraphNodeWrapper::new(seq, children::nchild::ChildWrapper::new((), ichild)).into();
+        let seq: GraphNodeContainer = GraphNodeWrapper::new(
+            seq,
+            children::nchild::ChildWrapper::new(
+                (),
+                data.step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
+            ),
+        )
+        .into();
 
         let exp = data.retrig_amount.clone() as Arc<dyn ParamBindingGet<f32>>;
 
@@ -595,74 +594,6 @@ impl Notifications {
 }
 
 impl jack::NotificationHandler for Notifications {
-    fn thread_init(&self, _: &jack::Client) {
-        //println!("JACK: thread init");
-    }
-
-    fn shutdown(&mut self, _status: jack::ClientStatus, _reason: &str) {
-        /*
-        println!(
-            "JACK: shutdown with status {:?} because \"{}\"",
-            status, reason
-        );
-        */
-    }
-
-    fn freewheel(&mut self, _: &jack::Client, _is_enabled: bool) {
-        /*
-        println!(
-            "JACK: freewheel mode is {}",
-            if is_enabled { "on" } else { "off" }
-        );
-        */
-    }
-
-    fn buffer_size(&mut self, _: &jack::Client, _sz: jack::Frames) -> jack::Control {
-        //println!("JACK: buffer size changed to {}", sz);
-        jack::Control::Continue
-    }
-
-    fn sample_rate(&mut self, _: &jack::Client, _srate: jack::Frames) -> jack::Control {
-        //println!("JACK: sample rate changed to {}", srate);
-        jack::Control::Continue
-    }
-
-    fn client_registration(&mut self, _: &jack::Client, _name: &str, _is_reg: bool) {
-        /*
-        println!(
-            "JACK: {} client with name \"{}\"",
-            if is_reg { "registered" } else { "unregistered" },
-            name
-        );
-        */
-    }
-
-    fn port_registration(&mut self, _: &jack::Client, _port_id: jack::PortId, _is_reg: bool) {
-        /*
-        println!(
-            "JACK: {} port with id {}",
-            if is_reg { "registered" } else { "unregistered" },
-            port_id
-        );
-        */
-    }
-
-    fn port_rename(
-        &mut self,
-        _: &jack::Client,
-        _port_id: jack::PortId,
-        _old_name: &str,
-        _new_name: &str,
-    ) -> jack::Control {
-        /*
-        println!(
-            "JACK: port with id {} renamed from {} to {}",
-            port_id, old_name, new_name
-        );
-        */
-        jack::Control::Continue
-    }
-
     fn ports_connected(
         &mut self,
         _: &jack::Client,
@@ -676,27 +607,5 @@ impl jack::NotificationHandler for Notifications {
         } else if c > 0 {
             JACK_CONNECTION_COUNT.set(c - 1);
         }
-    }
-
-    fn graph_reorder(&mut self, _: &jack::Client) -> jack::Control {
-        //println!("JACK: graph reordered");
-        jack::Control::Continue
-    }
-
-    fn xrun(&mut self, _: &jack::Client) -> jack::Control {
-        //println!("JACK: xrun occurred");
-        jack::Control::Continue
-    }
-
-    fn latency(&mut self, _: &jack::Client, _mode: jack::LatencyType) {
-        /*
-        println!(
-            "JACK: {} latency has changed",
-            match mode {
-                jack::LatencyType::Capture => "capture",
-                jack::LatencyType::Playback => "playback",
-            }
-        );
-        */
     }
 }
