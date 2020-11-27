@@ -29,9 +29,6 @@ pub enum ChildCount {
 #[derive(Clone)]
 pub struct GraphNodeContainer(alloc::sync::Arc<spin::Mutex<dyn GraphNode>>);
 
-#[derive(Clone)]
-pub struct IndexChildContainer(alloc::sync::Arc<spin::Mutex<dyn GraphIndexExec>>);
-
 impl GraphNodeContainer {
     pub fn new<T: 'static + GraphNode>(item: T) -> Self {
         Self(alloc::sync::Arc::new(spin::Mutex::new(item)))
@@ -41,18 +38,6 @@ impl GraphNodeContainer {
 impl GraphNode for GraphNodeContainer {
     fn node_exec(&mut self, context: &mut dyn EventEvalContext) {
         self.0.lock().node_exec(context)
-    }
-}
-
-impl IndexChildContainer {
-    pub fn new<T: 'static + GraphIndexExec>(item: T) -> Self {
-        Self(alloc::sync::Arc::new(spin::Mutex::new(item)))
-    }
-}
-
-impl GraphIndexExec for IndexChildContainer {
-    fn exec_index(&mut self, index: usize, context: &mut dyn EventEvalContext) {
-        self.0.lock().exec_index(index, context)
     }
 }
 

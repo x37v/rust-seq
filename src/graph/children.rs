@@ -26,56 +26,75 @@ pub mod empty {
 
 pub mod boxed {
     extern crate alloc;
-    use crate::event::*;
-    use crate::graph::{
-        ChildCount, GraphChildExec, GraphIndexExec, GraphNode, GraphNodeContainer,
-        IndexChildContainer,
+    use crate::{
+        binding::{BindSetNothing, ParamBindingSet},
+        event::*,
+        graph::{ChildCount, GraphChildExec, GraphNode, GraphNodeContainer},
     };
     use alloc::boxed::Box;
     use core::convert::From;
 
-    pub struct Children(Box<[GraphNodeContainer]>);
-    pub struct IndexChildren(Box<[IndexChildContainer]>);
+    pub struct Children<B>
+    where
+        B: ParamBindingSet<usize>,
+    {
+        children: Box<[GraphNodeContainer]>,
+        index_binding: B,
+    }
 
-    impl Children {
+    impl Children<BindSetNothing> {
+        /// Create children with a no-op for the index binding.
         pub fn new(children: Box<[GraphNodeContainer]>) -> Self {
-            Self(children)
+            Self {
+                children,
+                index_binding: BindSetNothing,
+            }
         }
     }
 
-    impl From<Box<[GraphNodeContainer]>> for Children {
-        fn from(children: Box<[GraphNodeContainer]>) -> Self {
-            Self(children)
+    impl<B> Children<B>
+    where
+        B: ParamBindingSet<usize>,
+    {
+        /// Create children, will set the child index into index_binding before executing the
+        /// child.
+        pub fn new_with_index(children: Box<[GraphNodeContainer]>, index_binding: B) -> Self {
+            Self {
+                children,
+                index_binding,
+            }
         }
     }
 
-    impl IndexChildren {
-        pub fn new(children: Box<[IndexChildContainer]>) -> Self {
-            Self(children)
+    impl<B> From<(Box<[GraphNodeContainer]>, B)> for Children<B>
+    where
+        B: ParamBindingSet<usize>,
+    {
+        fn from(children_binding: (Box<[GraphNodeContainer]>, B)) -> Self {
+            Self {
+                children: children_binding.0,
+                index_binding: children_binding.1,
+            }
         }
     }
 
-    impl GraphChildExec for Children {
+    impl<B> GraphChildExec for Children<B>
+    where
+        B: ParamBindingSet<usize>,
+    {
         fn child_count(&self) -> ChildCount {
-            ChildCount::Some(self.0.len())
+            ChildCount::Some(self.children.len())
         }
         fn child_exec_range(
             &mut self,
             context: &mut dyn EventEvalContext,
             range: core::ops::Range<usize>,
         ) {
-            let (_, r) = self.0.split_at_mut(range.start);
+            let (_, r) = self.children.split_at_mut(range.start);
             let (r, _) = r.split_at_mut(range.end - range.start);
-            for c in r {
+            for (i, c) in r.iter_mut().enumerate() {
+                self.index_binding.set(i + range.start);
                 c.node_exec(context);
-            }
-        }
-    }
-
-    impl GraphIndexExec for IndexChildren {
-        fn exec_index(&mut self, index: usize, context: &mut dyn EventEvalContext) {
-            for c in self.0.iter_mut() {
-                c.exec_index(index, context)
             }
         }
     }
@@ -84,86 +103,89 @@ pub mod boxed {
 /// Children build from a Vec
 #[cfg(feature = "std")]
 pub mod vec {
-    use crate::event::*;
-    use crate::graph::{
-        ChildCount, GraphChildExec, GraphIndexExec, GraphNode, GraphNodeContainer,
-        IndexChildContainer,
+    use crate::{
+        binding::ParamBindingSet,
+        event::*,
+        graph::{ChildCount, GraphChildExec, GraphNode, GraphNodeContainer},
     };
     use std::vec::Vec;
 
-    pub struct Children(Vec<GraphNodeContainer>);
-    pub struct IndexChildren(Vec<IndexChildContainer>);
+    pub struct Children<B>
+    where
+        B: ParamBindingSet<usize>,
+    {
+        children: Vec<GraphNodeContainer>,
+        index_binding: B,
+    }
 
-    impl Children {
-        pub fn new(children: Vec<GraphNodeContainer>) -> Self {
-            Self(children)
+    impl<B> Children<B>
+    where
+        B: ParamBindingSet<usize>,
+    {
+        pub fn new_with_index(children: Vec<GraphNodeContainer>, index_binding: B) -> Self {
+            Self {
+                children,
+                index_binding,
+            }
         }
     }
 
-    impl IndexChildren {
-        pub fn new(children: Vec<IndexChildContainer>) -> Self {
-            Self(children)
-        }
-    }
-
-    impl GraphChildExec for Children {
+    impl<B> GraphChildExec for Children<B>
+    where
+        B: ParamBindingSet<usize>,
+    {
         fn child_count(&self) -> ChildCount {
-            ChildCount::Some(self.0.len())
+            ChildCount::Some(self.children.len())
         }
         fn child_exec_range(
             &mut self,
             context: &mut dyn EventEvalContext,
             range: core::ops::Range<usize>,
         ) {
-            let (_, r) = self.0.split_at_mut(range.start);
+            let (_, r) = self.children.split_at_mut(range.start);
             let (r, _) = r.split_at_mut(range.end - range.start);
-            for c in r {
+            for (i, c) in r.iter_mut().enumerate() {
+                self.index_binding.set(i + range.start);
                 c.node_exec(context);
-            }
-        }
-    }
-
-    impl GraphIndexExec for IndexChildren {
-        fn exec_index(&mut self, index: usize, context: &mut dyn EventEvalContext) {
-            for c in self.0.iter_mut() {
-                c.exec_index(index, context)
             }
         }
     }
 }
 
 /// A graph node children impl that fakes that it has infinite children.
-/// It has 'index' children that get called each time a child is addressed by index.
 pub mod nchild {
-    use crate::event::*;
-    use crate::graph::{ChildCount, GraphChildExec, GraphIndexExec, GraphNode};
+    use crate::{
+        binding::ParamBindingSet,
+        event::*,
+        graph::{ChildCount, GraphChildExec, GraphNode},
+    };
 
-    pub struct ChildWrapper<N, C>
+    pub struct ChildWrapper<N, B>
     where
         N: GraphNode,
-        C: GraphIndexExec,
+        B: ParamBindingSet<usize>,
     {
         child: N,
-        index_children: C,
+        index_binding: B,
     }
 
-    impl<N, C> ChildWrapper<N, C>
+    impl<N, B> ChildWrapper<N, B>
     where
         N: GraphNode,
-        C: GraphIndexExec,
+        B: ParamBindingSet<usize>,
     {
-        pub fn new(child: N, index_children: C) -> Self {
+        pub fn new(child: N, index_binding: B) -> Self {
             Self {
                 child,
-                index_children,
+                index_binding,
             }
         }
     }
 
-    impl<N, C> GraphChildExec for ChildWrapper<N, C>
+    impl<N, B> GraphChildExec for ChildWrapper<N, B>
     where
         N: GraphNode,
-        C: GraphIndexExec,
+        B: ParamBindingSet<usize>,
     {
         fn child_count(&self) -> ChildCount {
             ChildCount::Inf
@@ -174,7 +196,7 @@ pub mod nchild {
             range: core::ops::Range<usize>,
         ) {
             for i in range {
-                self.index_children.exec_index(i, context);
+                self.index_binding.set(i);
                 self.child.node_exec(context);
             }
         }

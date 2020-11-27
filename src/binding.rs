@@ -36,6 +36,17 @@ where
     }
 }
 
+/// A no-op
+#[derive(Default)]
+pub struct BindSetNothing;
+
+impl<T> ParamBindingSet<T> for BindSetNothing
+where
+    T: Copy + Send,
+{
+    fn set(&self, _value: T) {}
+}
+
 /*
 impl<U, T> ParamBindingGet<T> for U
 where
