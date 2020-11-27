@@ -59,10 +59,6 @@ pub trait GraphChildExec: Send {
     }
 }
 
-pub trait GraphIndexExec: Send {
-    fn exec_index(&mut self, index: usize, context: &mut dyn EventEvalContext);
-}
-
 /// A trait for a node that wraps something that implements GraphNodeExec and GraphChildExec
 pub trait GraphNode: Send {
     fn node_exec(&mut self, context: &mut dyn EventEvalContext);
