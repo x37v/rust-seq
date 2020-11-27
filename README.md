@@ -11,6 +11,10 @@ cargo make test
 
 ## Notes
 
+### Parse incoming OSC expressions?
+
+`x + y` becomes a binding operation with 2 variables.
+
 ### Remove Spinlock?
 
 [spinlock considered harmful](https://matklad.github.io/2020/01/02/spinlocks-considered-harmful.html)
