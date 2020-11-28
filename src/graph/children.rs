@@ -23,7 +23,7 @@ pub mod empty {
 pub mod boxed {
     extern crate alloc;
     use crate::{
-        binding::{BindSetNothing, ParamBindingSet},
+        binding::ParamBindingSet,
         event::*,
         graph::{ChildCount, GraphChildExec, GraphNode, GraphNodeContainer},
     };
@@ -38,12 +38,12 @@ pub mod boxed {
         index_binding: B,
     }
 
-    impl Children<BindSetNothing> {
+    impl Children<()> {
         /// Create children with a no-op for the index binding.
         pub fn new(children: Box<[GraphNodeContainer]>) -> Self {
             Self {
                 children,
-                index_binding: BindSetNothing,
+                index_binding: (),
             }
         }
     }

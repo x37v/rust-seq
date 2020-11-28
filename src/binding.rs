@@ -36,17 +36,6 @@ where
     }
 }
 
-/// A no-op
-#[derive(Default)]
-pub struct BindSetNothing;
-
-impl<T> ParamBindingSet<T> for BindSetNothing
-where
-    T: Copy + Send,
-{
-    fn set(&self, _value: T) {}
-}
-
 /*
 impl<U, T> ParamBindingGet<T> for U
 where
@@ -102,6 +91,13 @@ where
     fn get(&self) -> T {
         self.lock().get()
     }
+}
+
+impl<T> ParamBindingSet<T> for ()
+where
+    T: Copy + Send,
+{
+    fn set(&self, _value: T) {}
 }
 
 impl<T> ParamBindingSet<T> for alloc::sync::Arc<dyn ParamBindingSet<T>>
