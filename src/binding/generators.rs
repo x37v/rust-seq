@@ -88,16 +88,17 @@ where
         } else if pulses >= steps {
             true
         } else {
-            let index = self.index.get() % steps;
             //get the pattern, it is a bit field
-            if let Some(pattern) = EUCLID_STEP_PULSE_PATTERN_MAP.get(&(steps, pulses)) {
-                (pattern & (1 << index)) != 0
-            } else {
-                panic!(
-                    "steps: {} pulses: {} should produce a valid pattern",
-                    steps, pulses
-                );
-            }
+            let index = self.index.get() % steps;
+            let pattern = EUCLID_STEP_PULSE_PATTERN_MAP
+                .get(&(steps, pulses))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "steps: {} pulses: {} should produce a valid pattern",
+                        steps, pulses
+                    )
+                });
+            (pattern & (1 << index)) != 0
         }
     }
 }
