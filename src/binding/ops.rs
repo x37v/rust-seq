@@ -368,9 +368,7 @@ where
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    
-    
-    
+
     use core::sync::atomic::{AtomicUsize, Ordering};
     use spin::Mutex;
     use std::sync::Arc;
@@ -380,10 +378,9 @@ mod tests {
 
     static COLLECTION1: [&dyn ParamBindingGet<usize>; 2] = [C1, C2];
 
-    static C3: Mutex<AtomicUsize> = Mutex::new(AtomicUsize::new(20));
-    static C4: Mutex<AtomicUsize> = Mutex::new(AtomicUsize::new(22));
-
-    static COLLECTION2: [&Mutex<dyn ParamBindingGet<usize>>; 2] = [&C3, &C4];
+    //static C3: Mutex<AtomicUsize> = Mutex::new(AtomicUsize::new(20));
+    //static C4: Mutex<AtomicUsize> = Mutex::new(AtomicUsize::new(22));
+    //static COLLECTION2: [&Mutex<dyn ParamBindingGet<usize>>; 2] = [&C3, &C4];
 
     #[test]
     fn indexed() {
