@@ -5,13 +5,9 @@ use core::sync::atomic::AtomicBool;
 #[cfg(feature = "std")]
 use rand::prelude::*;
 
-/// Get an uniform random numeric value [min, max(.
-///
-/// This generates a new random value that is greater than or equal to `min` and less than `max`
-/// every time you call `.get()` on it.
-pub struct GetUniformRand<T, Min, Max> {
-    min: Min,
-    max: Max,
+/// Get an random numeric value with the given distribution.
+pub struct GetRand<T, R> {
+    rng: R,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -20,45 +16,32 @@ pub struct GetOneShot {
     binding: AtomicBool,
 }
 
-impl<T, Min, Max> GetUniformRand<T, Min, Max>
+impl<T, R> GetRand<T, R>
 where
     T: Send,
-    Min: ParamBindingGet<T>,
-    Max: ParamBindingGet<T>,
+    R: rand::distributions::Distribution<T> + Send,
 {
-    /// Construct a new `GetUniformRand`
+    /// Construct a new `GetRand`
     ///
     /// # Arguments
     ///
-    /// * `min` - the binding for the minimum value
-    /// * `max` - the binding for the maximum value
-    ///
-    /// # Notes
-    /// The max is **exclusive** so you will never get that value in the output.
-    pub fn new(min: Min, max: Max) -> Self {
+    /// * `rng` - implementor of rand::distributions::Distribution<T>
+    pub fn new(rng: R) -> Self {
         Self {
-            min,
-            max,
+            rng,
             _phantom: Default::default(),
         }
     }
 }
 
 #[cfg(feature = "std")]
-impl<T, Min, Max> ParamBindingGet<T> for GetUniformRand<T, Min, Max>
+impl<T, R> ParamBindingGet<T> for GetRand<T, R>
 where
-    T: rand::distributions::uniform::SampleUniform + PartialOrd,
-    Min: ParamBindingGet<T>,
-    Max: ParamBindingGet<T>,
+    T: Send,
+    R: rand::distributions::Distribution<T> + Send + Sync,
 {
     fn get(&self) -> T {
-        let min = self.min.get();
-        let max = self.max.get();
-        if min >= max {
-            min
-        } else {
-            thread_rng().gen_range(min, max)
-        }
+        self.rng.sample(&mut thread_rng())
     }
 }
 
@@ -91,5 +74,21 @@ impl ParamBindingGet<bool> for GetOneShot {
 impl ParamBindingSet<bool> for GetOneShot {
     fn set(&self, value: bool) {
         self.binding.set(value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn rand() {
+        //mostly just making sure we can build random
+        let r = Arc::new(GetRand::new(rand::distributions::Uniform::new(1f32, 10f32)));
+
+        let b = r as Arc<dyn ParamBindingGet<f32>>;
+        assert!(b.get() >= 1f32);
+        assert!(b.get() <= 10f32);
     }
 }
