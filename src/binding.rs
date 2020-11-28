@@ -6,6 +6,7 @@ pub mod hysteresis;
 pub mod last;
 pub mod ops;
 pub mod spinlock;
+pub mod swap;
 
 use core::ops::Deref;
 
