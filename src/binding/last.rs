@@ -49,7 +49,7 @@ where
         }
     }
     /// Get the last value that the binding gave, if there has been one.
-    pub fn get_last(&self) -> Option<T> {
+    pub fn last_get(&self) -> Option<T> {
         *self.last_value.lock()
     }
 }
@@ -77,8 +77,8 @@ where
             binding,
         }
     }
-    /// Set the last value that the binding gave, if there has been one.
-    pub fn set_last(&self) -> Option<T> {
+    /// Get the last value that the binding gave, if there has been one.
+    pub fn last_set(&self) -> Option<T> {
         *self.last_value.lock()
     }
 }
@@ -120,12 +120,12 @@ where
             binding,
         }
     }
-    /// Set the last value that the binding was set to, if there has been one.
-    pub fn set_last(&self) -> Option<T> {
+    /// Get the last value that the binding was set to, if there has been one.
+    pub fn last_set(&self) -> Option<T> {
         *self.last_set.lock()
     }
-    /// Set the last value that the binding gave, if there has been one.
-    pub fn get_last(&self) -> Option<T> {
+    /// Get the last value that the binding gave, if there has been one.
+    pub fn last_get(&self) -> Option<T> {
         *self.last_get.lock()
     }
 }
