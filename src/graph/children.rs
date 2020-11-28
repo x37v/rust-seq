@@ -114,6 +114,15 @@ pub mod vec {
         index_binding: B,
     }
 
+    impl Children<()> {
+        pub fn new(children: Vec<GraphNodeContainer>) -> Self {
+            Self {
+                children,
+                index_binding: (),
+            }
+        }
+    }
+
     impl<B> Children<B>
     where
         B: ParamBindingSet<usize>,
@@ -165,12 +174,24 @@ pub mod nchild {
         index_binding: B,
     }
 
+    impl<N> ChildWrapper<N, ()>
+    where
+        N: GraphNode,
+    {
+        pub fn new(child: N) -> Self {
+            Self {
+                child,
+                index_binding: (),
+            }
+        }
+    }
+
     impl<N, B> ChildWrapper<N, B>
     where
         N: GraphNode,
         B: ParamBindingSet<usize>,
     {
-        pub fn new(child: N, index_binding: B) -> Self {
+        pub fn new_with_index(child: N, index_binding: B) -> Self {
             Self {
                 child,
                 index_binding,

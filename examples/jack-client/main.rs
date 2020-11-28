@@ -252,7 +252,7 @@ fn main() {
         //child is () aka noop
         let seq: GraphNodeContainer = GraphNodeWrapper::new(
             seq,
-            children::nchild::ChildWrapper::new(
+            children::nchild::ChildWrapper::new_with_index(
                 (),
                 data.step_cur.clone() as Arc<dyn ParamBindingSet<usize>>,
             ),
