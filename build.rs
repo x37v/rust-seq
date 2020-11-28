@@ -1,13 +1,12 @@
 use quote::quote;
 use std::env;
-use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let out_dir = env::var_os("OUT_DIR").unwrap();
     #[cfg(feature = "euclidean")]
     {
+        let out_dir = env::var_os("OUT_DIR").unwrap();
         let dest_path = Path::new(&out_dir).join("euclid.rs");
         let mut f = std::fs::File::create(&dest_path)?;
 
