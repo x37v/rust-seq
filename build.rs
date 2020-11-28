@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut inits = Vec::new();
         let mut pattern = [false; 64];
 
-        for steps in 2..64 {
+        for steps in 2..=64 {
             for pulses in 1..steps {
                 euclidian_rythms::euclidian_rythm(&mut pattern, pulses, steps);
                 let mut v = 0usize;
