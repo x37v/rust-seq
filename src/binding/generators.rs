@@ -45,6 +45,22 @@ where
     }
 }
 
+#[cfg(feature = "euclidean")]
+impl<I, P, S> GetEuclid<I, P, S>
+where
+    I: ParamBindingGet<usize>,
+    P: ParamBindingGet<usize>,
+    S: ParamBindingGet<usize>,
+{
+    pub fn new(steps: S, pulses: P, index: I) -> Self {
+        Self {
+            steps,
+            pulses,
+            index,
+        }
+    }
+}
+
 #[cfg(feature = "std")]
 impl<T, R> ParamBindingGet<T> for GetRand<T, R>
 where
@@ -121,7 +137,10 @@ impl ParamBindingSet<bool> for GetOneShot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
 
     #[test]
     fn rand() {
@@ -131,5 +150,63 @@ mod tests {
         let b = r as Arc<dyn ParamBindingGet<f32>>;
         assert!(b.get() >= 1f32);
         assert!(b.get() <= 10f32);
+    }
+
+    #[test]
+    fn euclid() {
+        let steps = Arc::new(AtomicUsize::new(1));
+        let pulses = Arc::new(AtomicUsize::new(1));
+        let index = Arc::new(AtomicUsize::new(0));
+        let e = Arc::new(GetEuclid::new(
+            steps.clone() as Arc<dyn ParamBindingGet<usize>>,
+            pulses.clone() as Arc<dyn ParamBindingGet<usize>>,
+            index.clone() as Arc<dyn ParamBindingGet<usize>>,
+        )) as Arc<dyn ParamBindingGet<bool>>;
+
+        let top = 64;
+
+        //when steps and pulses are equal, always true
+        for i in 1..=top {
+            steps.store(i, Ordering::SeqCst);
+            pulses.store(i, Ordering::SeqCst);
+            for j in 0..top {
+                index.store(j, Ordering::SeqCst);
+                assert_eq!(true, e.get());
+            }
+        }
+
+        //when steps or pulses zero, always false
+        for i in 1..=top {
+            steps.store(0, Ordering::SeqCst);
+            pulses.store(i, Ordering::SeqCst);
+            for j in 0..top {
+                index.store(j, Ordering::SeqCst);
+                assert_eq!(false, e.get());
+            }
+            steps.store(i, Ordering::SeqCst);
+            pulses.store(0, Ordering::SeqCst);
+            for j in 0..top {
+                index.store(j, Ordering::SeqCst);
+                assert_eq!(false, e.get());
+            }
+        }
+
+        //should produce pulses outputs
+        for s in 2..=top {
+            steps.store(s, Ordering::SeqCst);
+            for p in 1..s {
+                pulses.store(p, Ordering::SeqCst);
+                let mut c = 0;
+                for i in 0..s {
+                    index.store(i, Ordering::SeqCst);
+                    if e.get() {
+                        c += 1;
+                    }
+                    //getting doesn't change the value
+                    assert_eq!(e.get(), e.get());
+                }
+                assert_eq!(p, c, "steps {}, pulses {}", s, p);
+            }
+        }
     }
 }
