@@ -5,6 +5,9 @@ use core::sync::atomic::AtomicBool;
 #[cfg(feature = "std")]
 use rand::prelude::*;
 
+#[cfg(feature = "euclidean")]
+include!(concat!(env!("OUT_DIR"), "/euclid.rs"));
+
 /// Get an random numeric value with the given distribution.
 pub struct GetRand<T, R> {
     rng: R,
@@ -14,6 +17,14 @@ pub struct GetRand<T, R> {
 /// Get a One Shot, if set to true, is only true for one read until it is set true again
 pub struct GetOneShot {
     binding: AtomicBool,
+}
+
+/// Get a Euclidean boolean.
+#[cfg(feature = "euclidean")]
+pub struct GetEuclid<I, P, S> {
+    index: I,
+    pulses: P,
+    steps: S,
 }
 
 impl<T, R> GetRand<T, R>
@@ -42,6 +53,36 @@ where
 {
     fn get(&self) -> T {
         self.rng.sample(&mut thread_rng())
+    }
+}
+
+#[cfg(feature = "euclidean")]
+impl<I, P, S> ParamBindingGet<bool> for GetEuclid<I, P, S>
+where
+    I: ParamBindingGet<usize>,
+    P: ParamBindingGet<usize>,
+    S: ParamBindingGet<usize>,
+{
+    fn get(&self) -> bool {
+        //known that we can only do steps up to 64
+        let steps = std::cmp::min(64, self.steps.get());
+        let pulses = self.pulses.get();
+        if steps == 0 || pulses == 0 {
+            false
+        } else if pulses >= steps {
+            true
+        } else {
+            let index = self.index.get() % steps;
+            //get the pattern, it is a bit field
+            if let Some(pattern) = EUCLID_STEP_PULSE_PATTERN_MAP.get(&(steps, pulses)) {
+                (pattern & (1 << index)) != 0
+            } else {
+                panic!(
+                    "steps: {} pulses: {} should produce a valid pattern",
+                    steps, pulses
+                );
+            }
+        }
     }
 }
 
