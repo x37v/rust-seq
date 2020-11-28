@@ -1,7 +1,7 @@
 use sched::event::{EventEval, EventEvalContext};
 use sched::midi::MidiValue;
 use sched::pqueue::TickPriorityEnqueue;
-use sched::tick::{TickResched};
+use sched::tick::TickResched;
 
 const PAD_BYTES: usize = 64;
 const SLIDER_BYTES: usize = 9;
@@ -91,9 +91,11 @@ impl QuNeoDisplay {
         }
     }
 
+    /*
     pub fn clear(&mut self) {
         self.next = [0; DISPLAY_BYTES]
     }
+    */
 
     pub fn force_draw(&mut self) {
         self.last = [0xFF; DISPLAY_BYTES];
