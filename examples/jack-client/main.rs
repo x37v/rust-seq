@@ -17,6 +17,7 @@ use sched::event::*;
 use sched::item_sink::{ItemDispose, ItemSink};
 use sched::item_source::*;
 use sched::midi::*;
+use sched::pqueue::BinaryHeapQueue;
 use sched::pqueue::*;
 use sched::schedule::ScheduleExecutor;
 
@@ -31,81 +32,13 @@ use sched::graph::{
 
 use sched::binding::*;
 
-use core::mem::MaybeUninit;
 use core::ops::Mul;
-
-use heapless::binary_heap::{BinaryHeap, Min};
-use heapless::consts::*;
-use heapless::mpmc::Q64;
 
 use core::sync::atomic::{AtomicBool, AtomicUsize};
 
-pub struct ScheduleQueue(BinaryHeap<TickItem<EventContainer>, U1024, Min>);
-pub struct MidiQueue(BinaryHeap<TickItem<MidiValue>, U1024, Min>);
-pub struct DisposeSink(Q64<EventContainer>);
-pub struct BindStoreEventItemSource(Q64<Box<MaybeUninit<BindStoreEventBool>>>);
-
-type MidiEnqueue = &'static spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>;
+type MidiEnqueue = Arc<spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>>;
 type TickedMidiValueEvent = midi::TickedMidiValueEvent<MidiEnqueue>;
 type BindStoreEventBool = BindStoreEvent<bool, bool, Arc<Mutex<dyn ParamBindingSet<bool>>>>;
-
-impl TickPriorityEnqueue<EventContainer> for ScheduleQueue {
-    fn enqueue(&mut self, tick: usize, value: EventContainer) -> Result<(), EventContainer> {
-        let item: TickItem<EventContainer> = (tick, value).into();
-        match self.0.push(item) {
-            Ok(()) => Ok(()),
-            Err(item) => {
-                let (_, item) = item.into();
-                Err(item)
-            }
-        }
-    }
-}
-impl TickPriorityDequeue<EventContainer> for ScheduleQueue {
-    fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, EventContainer)> {
-        if let Some(h) = self.0.peek() {
-            if h.tick() < tick {
-                //unchecked because we've already peeked
-                Some(unsafe { self.0.pop_unchecked().into() })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-}
-impl TickPriorityEnqueue<MidiValue> for MidiQueue {
-    fn enqueue(&mut self, tick: usize, value: MidiValue) -> Result<(), MidiValue> {
-        let item: TickItem<MidiValue> = (tick, value).into();
-        match self.0.push(item) {
-            Ok(()) => Ok(()),
-            Err(item) => {
-                let (_, item) = item.into();
-                Err(item)
-            }
-        }
-    }
-}
-impl TickPriorityDequeue<MidiValue> for MidiQueue {
-    fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, MidiValue)> {
-        if let Some(h) = self.0.peek() {
-            if h.tick() < tick {
-                //unchecked because we've already peeked
-                Some(unsafe { self.0.pop_unchecked().into() })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-}
-
-static SCHEDULE_QUEUE: spin::Mutex<ScheduleQueue> =
-    spin::Mutex::new(ScheduleQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
-static MIDI_QUEUE: spin::Mutex<MidiQueue> =
-    spin::Mutex::new(MidiQueue(BinaryHeap(heapless::i::BinaryHeap::new())));
 
 static JACK_CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -127,6 +60,8 @@ where
 }
 
 fn main() {
+    let midi_queue: Arc<spin::Mutex<BinaryHeapQueue<MidiValue>>> = Default::default();
+    let sched_queue: Arc<spin::Mutex<BinaryHeapQueue<EventContainer>>> = Default::default();
     let (client, _status) =
         jack::Client::new("xnor_sched", jack::ClientOptions::NO_START_SERVER).unwrap();
 
@@ -146,8 +81,8 @@ fn main() {
 
     let mut ex = ScheduleExecutor::new(
         dispose_sink,
-        &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityDequeue<EventContainer>>,
-        &SCHEDULE_QUEUE as &'static spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>,
+        sched_queue.clone() as Arc<spin::Mutex<dyn TickPriorityDequeue<EventContainer>>>,
+        sched_queue.clone() as Arc<spin::Mutex<dyn TickPriorityEnqueue<EventContainer>>>,
     );
 
     let ppq = 960usize;
@@ -224,7 +159,7 @@ fn main() {
             onvel,
             &127,
             midi_source.clone(),
-            &MIDI_QUEUE as MidiEnqueue,
+            midi_queue.clone() as MidiEnqueue,
         );
 
         //one shot bound node lets us know if this node has been triggered since we last read
@@ -299,7 +234,7 @@ fn main() {
     .into();
 
     let root = EventContainer::new(RootClock::new(micros, fanout));
-    assert!(SCHEDULE_QUEUE.lock().enqueue(0, root).is_ok());
+    assert!(sched_queue.lock().enqueue(0, root).is_ok());
 
     //draw
     {
@@ -428,9 +363,13 @@ fn main() {
                 }
             },
         );
-        let draw = QuNeoDrawer::new(&MIDI_QUEUE as MidiEnqueue, TickResched::Relative(441), draw);
+        let draw = QuNeoDrawer::new(
+            midi_queue.clone() as MidiEnqueue,
+            TickResched::Relative(441),
+            draw,
+        );
         let draw = EventContainer::new(draw);
-        assert!(SCHEDULE_QUEUE.lock().enqueue(0, draw).is_ok());
+        assert!(sched_queue.lock().enqueue(0, draw).is_ok());
     }
 
     let mut fill_dispose = move || {
@@ -546,7 +485,7 @@ fn main() {
             let mut write_midi = |tick: u32, bytes: &[u8]| {
                 let _ = out_p.write(&jack::RawMidi { time: tick, bytes });
             };
-            let mut q = MIDI_QUEUE.lock();
+            let mut q = midi_queue.lock();
             let next = ex.tick_next();
             while let Some((t, midi)) = q.dequeue_lt(next) {
                 let tick = (if t < now { now } else { t } - now) as u32;
