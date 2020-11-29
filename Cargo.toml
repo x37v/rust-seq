@@ -14,7 +14,6 @@ sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
 rand = { version = "0.7.3", default-features = true, optional = true }
 num = { version = "0.3.1", default-features = false }
 libc = "0.2.80"
-cfg-if = "1.0.0"
 lazy_static = { version = "1.4.0", optional = true }
 spin = "0.7.0"
 

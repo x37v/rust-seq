@@ -229,7 +229,6 @@ name = "sched"
 version = "0.1.0"
 dependencies = [
  "assert_approx_eq 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "cfg-if 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "euclidian-rythms 0.2.0 (git+https://github.com/x37v/euclidian-rythm.git)",
  "jack 0.6.5 (git+https://github.com/RustAudio/rust-jack.git)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
