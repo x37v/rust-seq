@@ -3,12 +3,17 @@ use crate::graph::ChildCount;
 
 /// A trait that a node uses to execute its child nodes.
 pub trait GraphChildExec: Send {
+    /// Get the `ChildCount` value.
     fn child_count(&self) -> ChildCount;
+
+    /// Execute children with the given index `range` and the given `context`.
     fn child_exec_range(
         &mut self,
         context: &mut dyn EventEvalContext,
         range: core::ops::Range<usize>,
     );
+
+    /// Execute the child at the given `index` with the given `context`.
     fn child_exec(&mut self, context: &mut dyn EventEvalContext, index: usize) {
         match self.child_count() {
             ChildCount::None => (),
@@ -34,6 +39,8 @@ pub trait GraphChildExec: Send {
             }
         }
     }
+
+    /// Execute all children with the given `context`.
     fn child_exec_all(&mut self, context: &mut dyn EventEvalContext) {
         match self.child_count() {
             ChildCount::None => (),
@@ -51,7 +58,9 @@ pub trait GraphChildExec: Send {
             }
         }
     }
-    fn child_have(&self) -> bool {
+
+    /// Are there any children.
+    fn child_any(&self) -> bool {
         match self.child_count() {
             ChildCount::None => false,
             ChildCount::Some(_) | ChildCount::Inf => true,
