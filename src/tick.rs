@@ -7,6 +7,7 @@ pub enum TickSched {
     ContextRelative(isize), /* ContextRelative(isize, isize) */
 }
 
+/// A forward only time unit.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TickResched {
     Relative(usize),
