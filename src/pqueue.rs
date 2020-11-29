@@ -181,11 +181,7 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        if self.tick.eq(&other.tick) {
-            self.item.eq(&other.item)
-        } else {
-            false
-        }
+        self.tick.eq(&other.tick) && self.item.eq(&other.item)
     }
 }
 
