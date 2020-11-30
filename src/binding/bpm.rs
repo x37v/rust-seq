@@ -60,6 +60,18 @@ impl ClockData {
     }
 }
 
+impl Default for ClockData {
+    fn default() -> Self {
+        let bpm = 120.0;
+        let ppq = 960;
+        Self {
+            bpm,
+            ppq,
+            period_micros: period_micro!(bpm, ppq),
+        }
+    }
+}
+
 impl Clock for ClockData {
     fn bpm(&self) -> f32 {
         self.bpm
@@ -179,7 +191,7 @@ mod tests {
     use super::*;
     use crate::binding::ParamBindingGet;
     use alloc::sync::Arc;
-    
+
     use spin::Mutex;
 
     #[test]
