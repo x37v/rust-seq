@@ -15,6 +15,31 @@ cargo make test
 
 `x + y` becomes a binding operation with 2 variables.
 
+### Listeners
+
+OSC, Midi -> ParamSet
+
+### Global vs Instance
+
+Listeners, bindings, etc can be global or specific to an instance.
+
+/xsched/global/bindings/
+/xsched/global/listeners/
+/xsched/instances/0/bindings/
+/xsched/instances/0/listeners/
+
+### Gamelan schedule
+
+could use HashMap so that rests are just not present.
+just use the smallest step size as the index? Or, could use more coarse indexes and then provide offsets in the value... this means less lookups in largely empty space
+
+```
+schedule.insert(10, (0 ticks, note A4));
+schedule.insert(10, (30 ticks, note B#7));
+```
+
+should it be cenetered on a tick or should it represent the start of an interval?
+
 ### Remove Spinlock?
 
 [spinlock considered harmful](https://matklad.github.io/2020/01/02/spinlocks-considered-harmful.html)
