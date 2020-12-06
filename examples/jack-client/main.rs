@@ -95,7 +95,7 @@ fn main() {
     let clock_binding: Arc<Mutex<dyn bpm::Clock>> = bpm::ClockData::new(120.0, ppq).into_alock();
     let bpm = bpm::ClockBPMBinding(clock_binding.clone()).into_arc();
     let _ppq = bpm::ClockPPQBinding(clock_binding.clone()).into_arc();
-    let micros: Arc<dyn ParamBindingGet<f32>> =
+    let micros: Arc<dyn ParamBindingGet<f64>> =
         bpm::ClockPeriodMicroBinding(clock_binding.clone()).into_arc();
 
     let (mut midi_creator, midi_source) = sched::std::channel_item_source::item_source(1024);
@@ -107,7 +107,7 @@ fn main() {
     let boolbind_source: Arc<Mutex<dyn ItemSource<BindStoreEventBool>>> =
         Arc::new(Mutex::new(boolbind_source));
 
-    let retrig_stages = 4f32;
+    let retrig_stages = 4f64;
     let mut voices = Vec::new();
     let mut trigon_oneshots = Vec::new();
     let mut trigoff_oneshots = Vec::new();
@@ -144,11 +144,11 @@ fn main() {
         let onvel = ops::GetUnaryOp::new(
             ops::funcs::cast_or_default,
             ops::GetBinaryOp::new(
-                f32::mul,
-                127f32,
-                data.volume.clone() as Arc<dyn ParamBindingGet<f32>>,
+                f64::mul,
+                127f64,
+                data.volume.clone() as Arc<dyn ParamBindingGet<f64>>,
             )
-            .into_alock() as Arc<Mutex<dyn ParamBindingGet<f32>>>,
+            .into_alock() as Arc<Mutex<dyn ParamBindingGet<f64>>>,
         )
         .into_alock() as Arc<Mutex<dyn ParamBindingGet<u8>>>;
 
@@ -194,7 +194,7 @@ fn main() {
         )
         .into();
 
-        let exp = data.retrig_amount.clone() as Arc<dyn ParamBindingGet<f32>>;
+        let exp = data.retrig_amount.clone() as Arc<dyn ParamBindingGet<f64>>;
 
         let exp = ops::GetUnaryOp::new(ops::funcs::cast_or_default, exp).into_alock()
             as Arc<Mutex<dyn ParamBindingGet<usize>>>;
@@ -338,16 +338,16 @@ fn main() {
                             };
                             display.update(QDisplayType::Pad, offset + i, v);
                         }
-                        display.update(QDisplayType::Slider, 4, (127f32 * page.volume.get()) as u8);
+                        display.update(QDisplayType::Slider, 4, (127f64 * page.volume.get()) as u8);
                         display.update(
                             QDisplayType::Slider,
                             5,
-                            (127f32 * page.volume_rand.get()) as u8,
+                            (127f64 * page.volume_rand.get()) as u8,
                         );
                         display.update(
                             QDisplayType::Slider,
                             7,
-                            (127f32 * page.probability.get()) as u8,
+                            (127f64 * page.probability.get()) as u8,
                         );
                     }
                 }
@@ -385,16 +385,16 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_millis(1));
     });
 
-    let update_bpm = move |offset: f32, vel: u8| {
-        let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f32) / 127f32);
+    let update_bpm = move |offset: f64, vel: u8| {
+        let c = bpm.get() + offset * (1.0 + 5.0 * (vel as f64) / 127f64);
         bpm.set(c);
     };
 
-    let retrig_update = Arc::new(spinlock::SpinlockParamBinding::new(0f32));
+    let retrig_update = Arc::new(spinlock::SpinlockParamBinding::new(0f64));
     let retrig_hysteresis = Arc::new(Mutex::new(hysteresis::Hysteresis::new(
-        retrig_update.clone() as Arc<dyn ParamBindingGet<f32>>,
-        0.1f32,
-    ))) as Arc<Mutex<dyn ParamBindingGet<f32>>>;
+        retrig_update.clone() as Arc<dyn ParamBindingGet<f64>>,
+        0.1f64,
+    ))) as Arc<Mutex<dyn ParamBindingGet<f64>>>;
     let process_callback = move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let process_note = |on: bool, chan: u8, num: u8, vel: u8| {
             if chan == 15 {
@@ -434,12 +434,12 @@ fn main() {
                             77 => div_select_shift.set(on),
                             78 => {
                                 if on {
-                                    update_bpm(1f32, vel);
+                                    update_bpm(1f64, vel);
                                 }
                             }
                             79 => {
                                 if on {
-                                    update_bpm(-1f32, vel);
+                                    update_bpm(-1f64, vel);
                                 }
                             }
                             _ => (),
@@ -460,11 +460,11 @@ fn main() {
                         if page < page_data.len() {
                             let page = page_data[page].lock();
                             match num {
-                                102 => page.volume.set(val as f32 / 127f32),
-                                103 => page.volume_rand.set(val as f32 / 127f32),
-                                105 => page.probability.set(val as f32 / 127f32),
+                                102 => page.volume.set(val as f64 / 127f64),
+                                103 => page.volume_rand.set(val as f64 / 127f64),
+                                105 => page.probability.set(val as f64 / 127f64),
                                 106 => {
-                                    retrig_update.set(retrig_stages * (val as f32 / 127f32));
+                                    retrig_update.set(retrig_stages * (val as f64 / 127f64));
                                     page.retrig_amount.set(retrig_hysteresis.get());
                                     page.retrig.set(true); //wait for a value to set this
                                 }

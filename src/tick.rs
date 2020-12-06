@@ -1,3 +1,5 @@
+use crate::Float;
+
 //XXX maybe context ticks should have an isize absolute offset?
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TickSched {
@@ -20,9 +22,9 @@ pub trait TickContext {
     fn tick_now(&self) -> usize;
     fn ticks_per_second(&self) -> usize;
 
-    fn tick_period_micros(&self) -> f32 {
+    fn tick_period_micros(&self) -> Float {
         //XXX likely want to cache this
-        1e6f32 / (self.ticks_per_second() as f32)
+        1.0e6 / (self.ticks_per_second() as Float)
     }
 
     /// Context
@@ -34,9 +36,9 @@ pub trait TickContext {
         self.ticks_per_second()
     }
 
-    fn context_tick_period_micros(&self) -> f32 {
+    fn context_tick_period_micros(&self) -> Float {
         //XXX likely want to cache this
-        1e6f32 / (self.context_ticks_per_second() as f32)
+        1.0e6 / (self.context_ticks_per_second() as Float)
     }
 
     /// Which absolute tick does context 0 happen

@@ -1,7 +1,11 @@
-use crate::binding::*;
-use crate::context::ChildContext;
-use crate::event::EventEvalContext;
-use crate::graph::{ChildCount, GraphChildExec, GraphNodeExec};
+use crate::{
+    binding::*,
+    context::ChildContext,
+    event::EventEvalContext,
+    graph::{ChildCount, GraphChildExec, GraphNodeExec},
+    Float,
+};
+
 use core::marker::PhantomData;
 use num::cast::NumCast;
 
@@ -42,12 +46,13 @@ where
         if div > 0 && context.context_tick_now() % div == 0 {
             let mul: usize = NumCast::from(self.mul.get()).expect("T should cast to usize");
             let base_period_micros = context.tick_period_micros();
-            let period_micros = (context.context_tick_period_micros() * div as f32) / mul as f32;
+            let period_micros =
+                (context.context_tick_period_micros() * div as Float) / mul as Float;
             let coffset = (mul * context.context_tick_now()) / div;
             let mut ccontext = ChildContext::new(context, 0, coffset, period_micros);
             for i in 0..mul {
                 ccontext.update_parent_offset(
-                    ((i as f32 * period_micros) / base_period_micros) as isize,
+                    ((i as Float * period_micros) / base_period_micros) as isize,
                 );
                 ccontext.update_context_tick(coffset + i);
                 children.child_exec_all(&mut ccontext);
@@ -64,7 +69,7 @@ where
 pub mod tests {
     extern crate alloc;
     use super::*;
-    
+
     use crate::graph::{node_wrapper::GraphNodeWrapper, *};
     use alloc::boxed::Box;
     use alloc::sync::Arc;

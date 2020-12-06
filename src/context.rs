@@ -1,6 +1,4 @@
-use crate::event::*;
-use crate::pqueue::TickPriorityEnqueue;
-use crate::tick::*;
+use crate::{event::*, pqueue::TickPriorityEnqueue, tick::*, Float};
 
 pub struct RootContext<'a> {
     tick: usize,
@@ -13,7 +11,7 @@ pub struct ChildContext<'a> {
     parent_tick_offset: isize,
     context_tick: usize,
     context_ticks_per_second: usize,
-    context_tick_period_micros: f32,
+    context_tick_period_micros: Float,
 }
 
 impl<'a> RootContext<'a> {
@@ -63,10 +61,10 @@ impl<'a> ChildContext<'a> {
         parent: &'a mut dyn EventEvalContext,
         parent_tick_offset: isize,
         context_tick: usize,
-        context_tick_period_micros: f32,
+        context_tick_period_micros: Float,
     ) -> Self {
         //XXX TEST
-        let ps = 1e6f32 / context_tick_period_micros;
+        let ps = 1.0e6 / context_tick_period_micros;
         Self {
             parent,
             parent_tick_offset,
@@ -109,10 +107,10 @@ impl<'a> TickContext for ChildContext<'a> {
     fn context_ticks_per_second(&self) -> usize {
         self.context_ticks_per_second
     }
-    fn tick_period_micros(&self) -> f32 {
+    fn tick_period_micros(&self) -> Float {
         self.parent.tick_period_micros()
     }
-    fn context_tick_period_micros(&self) -> f32 {
+    fn context_tick_period_micros(&self) -> Float {
         self.context_tick_period_micros
     }
 }

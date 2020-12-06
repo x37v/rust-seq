@@ -239,11 +239,11 @@ mod tests {
 
         //block drop
         {
-            let mut y = ChannelDropBox::new(234.9f32);
+            let mut y = ChannelDropBox::new(234.9);
             assert!(r.try_recv().is_err());
-            assert_eq!(234.9f32, *y);
-            *y = 345.0f32;
-            assert_eq!(345.0f32, *y);
+            assert_eq!(234.9, *y);
+            *y = 345.0;
+            assert_eq!(345.0, *y);
         }
         assert!(r.try_recv().is_ok());
         assert!(r.try_recv().is_err());
@@ -291,8 +291,8 @@ mod tests {
 
         //block drop
         {
-            let y = ChannelDropArc::new(234.9f32);
-            assert_eq!(234.9f32, *y);
+            let y = ChannelDropArc::new(234.9);
+            assert_eq!(234.9, *y);
             assert!(r.try_recv().is_err());
         }
         assert!(r.try_recv().is_ok());
@@ -374,5 +374,4 @@ mod tests {
         assert!(r.try_recv().is_ok());
         assert!(r.try_recv().is_err());
     }
-
 }

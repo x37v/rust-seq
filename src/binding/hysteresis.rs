@@ -77,227 +77,227 @@ mod tests {
 
     #[test]
     fn assumptions() {
-        assert_approx_eq!(-1f32, (-1.3f32).ceil());
-        assert_approx_eq!(-2f32, (-1.3f32).floor());
+        assert_approx_eq!(-1f64, (-1.3f64).ceil());
+        assert_approx_eq!(-2f64, (-1.3f64).floor());
 
-        let c = 1.3f32;
+        let c = 1.3f64;
         let cf = c.floor();
         let cc = c.ceil();
         assert_ne!(cf, cc);
-        assert_approx_eq!(cf + 1f32, cc);
+        assert_approx_eq!(cf + 1f64, cc);
     }
 
     #[test]
     fn hysteresis() {
-        let t = 0.1f32;
+        let t = 0.1f64;
         let b = Arc::new(Mutex::new(
-            crate::binding::spinlock::SpinlockParamBinding::new(0f32),
+            crate::binding::spinlock::SpinlockParamBinding::new(0f64),
         ));
-        let h = Hysteresis::new(b.clone() as Arc<Mutex<dyn ParamBindingGet<f32>>>, t);
-        assert_approx_eq!(0f32, h.get());
+        let h = Hysteresis::new(b.clone() as Arc<Mutex<dyn ParamBindingGet<f64>>>, t);
+        assert_approx_eq!(0f64, h.get());
 
-        let b = b as Arc<Mutex<dyn ParamBindingSet<f32>>>;
+        let b = b as Arc<Mutex<dyn ParamBindingSet<f64>>>;
 
-        b.set(1.09f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(1.09f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(-0.09f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-0.09f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(1.11f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.11f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(1.1f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.1f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(0.99f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(0.99f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(0.9f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.9f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(0.95f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.95f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(1.0f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(1.0f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(1.1f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.1f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(2.1f32);
-        assert_approx_eq!(2f32, h.get());
+        b.set(2.1f64);
+        assert_approx_eq!(2f64, h.get());
 
-        b.set(2.1f32);
-        assert_approx_eq!(2f32, h.get());
+        b.set(2.1f64);
+        assert_approx_eq!(2f64, h.get());
 
-        b.set(2.01f32);
-        assert_approx_eq!(2f32, h.get());
+        b.set(2.01f64);
+        assert_approx_eq!(2f64, h.get());
 
-        b.set(3.09f32);
-        assert_approx_eq!(2f32, h.get());
+        b.set(3.09f64);
+        assert_approx_eq!(2f64, h.get());
 
-        b.set(-3.0f32);
-        assert_approx_eq!(-2f32, h.get());
+        b.set(-3.0f64);
+        assert_approx_eq!(-2f64, h.get());
 
-        b.set(-3.11f32);
-        assert_approx_eq!(-3f32, h.get());
+        b.set(-3.11f64);
+        assert_approx_eq!(-3f64, h.get());
 
-        b.set(-2.5f32);
-        assert_approx_eq!(-2f32, h.get());
+        b.set(-2.5f64);
+        assert_approx_eq!(-2f64, h.get());
 
-        b.set(-0.5f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-0.5f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(0.5f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.5f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(1.5f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.5f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(-2.5f32);
-        assert_approx_eq!(-2f32, h.get());
+        b.set(-2.5f64);
+        assert_approx_eq!(-2f64, h.get());
 
-        b.set(-2.01f32);
-        assert_approx_eq!(-2f32, h.get());
+        b.set(-2.01f64);
+        assert_approx_eq!(-2f64, h.get());
 
-        b.set(-1.99f32);
-        assert_approx_eq!(-2f32, h.get());
+        b.set(-1.99f64);
+        assert_approx_eq!(-2f64, h.get());
 
         //from a distance negative, below
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(-0.01f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-0.01f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(-0.89f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-0.89f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(-0.91f32);
-        assert_approx_eq!(-1f32, h.get());
+        b.set(-0.91f64);
+        assert_approx_eq!(-1f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(-1.09f32);
-        assert_approx_eq!(-1f32, h.get());
+        b.set(-1.09f64);
+        assert_approx_eq!(-1f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(-1.09f32);
-        assert_approx_eq!(-1f32, h.get());
+        b.set(-1.09f64);
+        assert_approx_eq!(-1f64, h.get());
 
         //from a distance positive, above
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(0.01f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.01f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(0.89f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.89f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(0.91f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(0.91f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(1.09f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.09f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(1.09f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.09f64);
+        assert_approx_eq!(1f64, h.get());
 
         //from a distance negative, above
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(-0.01f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-0.01f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(-0.89f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-0.89f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(-0.9f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-0.9f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(-1.09f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(-1.09f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(-1.1f32);
-        assert_approx_eq!(-1f32, h.get());
+        b.set(-1.1f64);
+        assert_approx_eq!(-1f64, h.get());
 
-        b.set(10.5f32);
-        assert_approx_eq!(10f32, h.get());
+        b.set(10.5f64);
+        assert_approx_eq!(10f64, h.get());
 
-        b.set(-1.89f32);
-        assert_approx_eq!(-1f32, h.get());
+        b.set(-1.89f64);
+        assert_approx_eq!(-1f64, h.get());
 
         //from a distance positive, below
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(0.01f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.01f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(0.89f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.89f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(0.9f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(0.9f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(1.09f32);
-        assert_approx_eq!(0f32, h.get());
+        b.set(1.09f64);
+        assert_approx_eq!(0f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(1.1f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.1f64);
+        assert_approx_eq!(1f64, h.get());
 
-        b.set(-10.5f32);
-        assert_approx_eq!(-10f32, h.get());
+        b.set(-10.5f64);
+        assert_approx_eq!(-10f64, h.get());
 
-        b.set(1.89f32);
-        assert_approx_eq!(1f32, h.get());
+        b.set(1.89f64);
+        assert_approx_eq!(1f64, h.get());
     }
 }

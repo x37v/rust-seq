@@ -1,5 +1,5 @@
 use core::sync::atomic::{AtomicBool, AtomicUsize};
-use sched::binding::spinlock::SpinlockParamBinding;
+use sched::{binding::spinlock::SpinlockParamBinding, Float};
 use std::sync::Arc;
 
 pub struct PageData {
@@ -8,11 +8,11 @@ pub struct PageData {
     pub step_cur: Arc<AtomicUsize>,
     pub clock_mul: Arc<AtomicUsize>,
     pub clock_div: Arc<AtomicUsize>,
-    pub probability: Arc<SpinlockParamBinding<f32>>,
-    pub volume: Arc<SpinlockParamBinding<f32>>,
-    pub volume_rand: Arc<SpinlockParamBinding<f32>>,
+    pub probability: Arc<SpinlockParamBinding<Float>>,
+    pub volume: Arc<SpinlockParamBinding<Float>>,
+    pub volume_rand: Arc<SpinlockParamBinding<Float>>,
     pub retrig: Arc<AtomicBool>,
-    pub retrig_amount: Arc<SpinlockParamBinding<f32>>,
+    pub retrig_amount: Arc<SpinlockParamBinding<Float>>,
 }
 
 impl Default for PageData {
@@ -62,11 +62,11 @@ impl PageData {
             ]),
             clock_div: Arc::new(AtomicUsize::new(1)),
             clock_mul: Arc::new(AtomicUsize::new(1)),
-            probability: Arc::new(SpinlockParamBinding::new(1f32)),
-            volume: Arc::new(SpinlockParamBinding::new(1f32)),
-            volume_rand: Arc::new(SpinlockParamBinding::new(0f32)),
+            probability: Arc::new(SpinlockParamBinding::new(1.0)),
+            volume: Arc::new(SpinlockParamBinding::new(1.0)),
+            volume_rand: Arc::new(SpinlockParamBinding::new(0.0)),
             retrig: Arc::new(AtomicBool::new(false)),
-            retrig_amount: Arc::new(SpinlockParamBinding::new(0f32)),
+            retrig_amount: Arc::new(SpinlockParamBinding::new(0.0)),
         }
     }
 }

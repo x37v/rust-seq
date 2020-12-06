@@ -11,6 +11,9 @@ pub mod pqueue;
 pub mod schedule;
 pub mod tick;
 
+//TODO provide an option for f32
+pub type Float = f64;
+
 #[cfg(feature = "std")]
 pub mod std;
 

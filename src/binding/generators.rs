@@ -146,11 +146,11 @@ mod tests {
     #[test]
     fn rand() {
         //mostly just making sure we can build random
-        let r = Arc::new(GetRand::new(rand::distributions::Uniform::new(1f32, 10f32)));
+        let r = Arc::new(GetRand::new(rand::distributions::Uniform::new(1.0, 10.0)));
 
-        let b = r as Arc<dyn ParamBindingGet<f32>>;
-        assert!(b.get() >= 1f32);
-        assert!(b.get() <= 10f32);
+        let b = r as Arc<dyn ParamBindingGet<f64>>;
+        assert!(b.get() >= 1.0);
+        assert!(b.get() <= 10.0);
     }
 
     #[test]
