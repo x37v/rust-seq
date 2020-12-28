@@ -17,8 +17,5 @@ pub type Float = f64;
 #[cfg(feature = "std")]
 pub mod std;
 
-pub mod mutex {
-    /// Re-export of spin::Mutex for
-    pub use ::spin::Mutex;
-    pub type ArcMutex<T> = ::std::sync::Arc<::spin::Mutex<T>>;
-}
+/// Re-export of spin::Mutex for
+pub use ::spin as mutex;
