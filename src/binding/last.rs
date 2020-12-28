@@ -3,7 +3,7 @@
 //! Mostly useful for wrapping generators so that we can observe what value has been used without
 //! altering it.
 
-use crate::binding::{ParamBindingGet, ParamBindingSet};
+use crate::binding::{ParamBinding, ParamBindingGet, ParamBindingSet};
 
 /// Trait for cached get and or set values.
 pub trait BindingLast<T> {
@@ -19,28 +19,27 @@ pub trait BindingLast<T> {
 }
 
 /// Wrapper for a `ParamBindingGet`, caches the last get value so it can be observed later.
-pub struct BindingLastGet<T, B> {
+pub struct BindingLastGet<T> {
     last_value: spin::Mutex<Option<T>>,
-    binding: B,
+    binding: Box<dyn ParamBindingGet<T>>,
 }
 
 /// Wrapper for a `ParamBindingSet`, caches the last set value so it can be observed later.
-pub struct BindingLastSet<T, B> {
+pub struct BindingLastSet<T> {
     last_value: spin::Mutex<Option<T>>,
-    binding: B,
+    binding: Box<dyn ParamBindingSet<T>>,
 }
 
-/// Wrapper for a `ParamBindingGet` + `ParamBindingSet`, caches the last get and set values so they can be observed later.
-pub struct BindingLastGetSet<T, B> {
+/// Wrapper for a `ParamBinding` (Get + Set), caches the last get and set values so they can be observed later.
+pub struct BindingLastGetSet<T> {
     last_get: spin::Mutex<Option<T>>,
     last_set: spin::Mutex<Option<T>>,
-    binding: B,
+    binding: Box<dyn ParamBinding<T>>,
 }
 
-impl<T, B> ParamBindingGet<T> for BindingLastGet<T, B>
+impl<T> ParamBindingGet<T> for BindingLastGet<T>
 where
     T: Send + Copy,
-    B: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         let mut g = self.last_value.lock();
@@ -50,20 +49,20 @@ where
     }
 }
 
-impl<T, B> BindingLastGet<T, B>
+impl<T> BindingLastGet<T>
 where
     T: Send + Copy,
 {
     /// Construct a BindingLastGet, wrapping the given binding.
-    pub fn new(binding: B) -> Self {
+    pub fn new<B: ParamBindingGet<T> + 'static>(binding: B) -> Self {
         Self {
             last_value: spin::Mutex::new(None),
-            binding,
+            binding: Box::new(binding),
         }
     }
 }
 
-impl<T, B> BindingLast<T> for BindingLastGet<T, B>
+impl<T> BindingLast<T> for BindingLastGet<T>
 where
     T: Send + Copy,
 {
@@ -73,10 +72,9 @@ where
     }
 }
 
-impl<T, B> ParamBindingSet<T> for BindingLastSet<T, B>
+impl<T> ParamBindingSet<T> for BindingLastSet<T>
 where
     T: Send + Copy,
-    B: ParamBindingSet<T>,
 {
     fn set(&self, value: T) {
         let mut g = self.last_value.lock();
@@ -85,20 +83,17 @@ where
     }
 }
 
-impl<T, B> BindingLastSet<T, B>
-where
-    T: Send + Copy,
-{
+impl<T> BindingLastSet<T> {
     /// Construct a BindingLastSet, wrapping the given binding.
-    pub fn new(binding: B) -> Self {
+    pub fn new<B: ParamBindingSet<T> + 'static>(binding: B) -> Self {
         Self {
             last_value: spin::Mutex::new(None),
-            binding,
+            binding: Box::new(binding),
         }
     }
 }
 
-impl<T, B> BindingLast<T> for BindingLastSet<T, B>
+impl<T> BindingLast<T> for BindingLastSet<T>
 where
     T: Send + Copy,
 {
@@ -108,10 +103,9 @@ where
     }
 }
 
-impl<T, B> ParamBindingGet<T> for BindingLastGetSet<T, B>
+impl<T> ParamBindingGet<T> for BindingLastGetSet<T>
 where
     T: Send + Copy,
-    B: ParamBindingGet<T>,
 {
     fn get(&self) -> T {
         let mut g = self.last_get.lock();
@@ -121,10 +115,9 @@ where
     }
 }
 
-impl<T, B> ParamBindingSet<T> for BindingLastGetSet<T, B>
+impl<T> ParamBindingSet<T> for BindingLastGetSet<T>
 where
     T: Send + Copy,
-    B: ParamBindingSet<T>,
 {
     fn set(&self, value: T) {
         let mut g = self.last_set.lock();
@@ -133,21 +126,21 @@ where
     }
 }
 
-impl<T, B> BindingLastGetSet<T, B>
+impl<T> BindingLastGetSet<T>
 where
     T: Send + Copy,
 {
     /// Construct a BindingLastSet, wrapping the given binding.
-    pub fn new(binding: B) -> Self {
+    pub fn new<B: ParamBinding<T> + 'static>(binding: B) -> Self {
         Self {
             last_get: spin::Mutex::new(None),
             last_set: spin::Mutex::new(None),
-            binding,
+            binding: Box::new(binding),
         }
     }
 }
 
-impl<T, B> BindingLast<T> for BindingLastGetSet<T, B>
+impl<T> BindingLast<T> for BindingLastGetSet<T>
 where
     T: Send + Copy,
 {
@@ -170,7 +163,7 @@ mod tests {
     #[test]
     fn can_wrap_get() {
         let x = Arc::new(AtomicUsize::new(0));
-        let w: Arc<BindingLastGet<usize, _>> = Arc::new(BindingLastGet::new(
+        let w: Arc<BindingLastGet<usize>> = Arc::new(BindingLastGet::new(
             x.clone() as Arc<dyn ParamBindingGet<usize>>
         ));
         assert_eq!(w.last_get(), None);
@@ -189,7 +182,7 @@ mod tests {
     #[test]
     fn can_wrap_set() {
         let x = Arc::new(AtomicUsize::new(0));
-        let w: Arc<BindingLastSet<usize, _>> = Arc::new(BindingLastSet::new(
+        let w: Arc<BindingLastSet<usize>> = Arc::new(BindingLastSet::new(
             x.clone() as Arc<dyn ParamBindingSet<usize>>
         ));
         assert_eq!(w.last_set(), None);
@@ -212,7 +205,7 @@ mod tests {
 
     #[test]
     fn can_wrap_get_set() {
-        let w: Arc<BindingLastGetSet<usize, _>> =
+        let w: Arc<BindingLastGetSet<usize>> =
             Arc::new(BindingLastGetSet::new(AtomicUsize::new(0)));
         let s = w.clone() as Arc<dyn ParamBindingSet<usize>>;
         let g = w.clone() as Arc<dyn ParamBindingGet<usize>>;
