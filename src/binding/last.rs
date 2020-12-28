@@ -60,6 +60,13 @@ where
             binding: Box::new(binding),
         }
     }
+
+    /// Construct a BindingLastGet, wrapping the given binding, initialize the last_value.
+    pub fn new_init<B: ParamBindingGet<T> + 'static>(binding: B) -> Self {
+        let b = Self::new(binding);
+        let _ = b.get();
+        b
+    }
 }
 
 impl<T> BindingLast<T> for BindingLastGet<T>
