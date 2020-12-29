@@ -6,7 +6,7 @@
 use crate::binding::{ParamBinding, ParamBindingGet, ParamBindingSet};
 
 /// Trait for cached get and or set values.
-pub trait BindingLast<T> {
+pub trait BindingLast<T>: Send + Sync {
     /// Get the last value that the binding gave, if there has been one.
     fn last_get(&self) -> Option<T> {
         None
