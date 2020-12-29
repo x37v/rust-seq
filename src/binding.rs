@@ -86,6 +86,15 @@ where
     }
 }
 
+impl<T> ParamBindingGet<T> for alloc::sync::Arc<dyn ParamBinding<T>>
+where
+    T: Copy + Send,
+{
+    fn get(&self) -> T {
+        self.deref().get()
+    }
+}
+
 impl<T> ParamBindingGet<T> for alloc::sync::Arc<spin::Mutex<dyn ParamBindingGet<T>>>
 where
     T: Copy + Send,
@@ -103,6 +112,15 @@ where
 }
 
 impl<T> ParamBindingSet<T> for alloc::sync::Arc<dyn ParamBindingSet<T>>
+where
+    T: Copy + Send,
+{
+    fn set(&self, value: T) {
+        self.deref().set(value)
+    }
+}
+
+impl<T> ParamBindingSet<T> for alloc::sync::Arc<dyn ParamBinding<T>>
 where
     T: Copy + Send,
 {
