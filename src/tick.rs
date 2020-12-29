@@ -115,6 +115,18 @@ impl TickSched {
     }
 }
 
+impl Default for TickSched {
+    fn default() -> Self {
+        Self::ContextRelative(0)
+    }
+}
+
+impl Default for TickResched {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
