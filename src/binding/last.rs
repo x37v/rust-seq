@@ -131,12 +131,19 @@ impl<T> BindingLastGetSet<T>
 where
     T: Send + Copy,
 {
-    /// Construct a BindingLastSet, wrapping the given binding.
+    /// Construct a BindingLastGetSet, wrapping the given binding.
     pub fn new<B: ParamBinding<T> + 'static>(binding: B) -> Self {
         Self {
             last_value: spin::Mutex::new(None),
             binding: Box::new(binding),
         }
+    }
+
+    /// Construct a BindingLastGetSet, wrapping the given binding. Initialize the last value
+    pub fn new_init<B: ParamBinding<T> + 'static>(binding: B) -> Self {
+        let b = Self::new(binding);
+        let _ = b.get();
+        b
     }
 }
 
