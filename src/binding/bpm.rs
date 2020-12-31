@@ -3,6 +3,7 @@ extern crate alloc;
 use super::*;
 use crate::Float;
 use core::ops::Deref;
+use serde::{Deserialize, Serialize};
 use spin::Mutex;
 
 pub trait Clock: Send {
@@ -16,7 +17,7 @@ pub trait Clock: Send {
     fn set_ppq(&mut self, ppq: usize);
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ClockData {
     pub bpm: Float,
     pub period_micros: Float,
