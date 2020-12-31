@@ -3,7 +3,10 @@
 //! Mostly useful for wrapping generators so that we can observe what value has been used without
 //! altering it.
 
-use crate::binding::{ParamBinding, ParamBindingGet, ParamBindingSet};
+use crate::{
+    atomic::{Atomic, Ordering},
+    binding::{ParamBinding, ParamBindingGet, ParamBindingSet},
+};
 
 /// Trait for cached get and or set values.
 pub trait BindingLast<T>: Send + Sync {
@@ -15,19 +18,19 @@ pub trait BindingLast<T>: Send + Sync {
 
 /// Wrapper for a `ParamBindingGet`, caches the last get value so it can be observed later.
 pub struct BindingLastGet<T> {
-    last_value: spin::Mutex<Option<T>>,
+    last_value: Atomic<Option<T>>,
     binding: Box<dyn ParamBindingGet<T>>,
 }
 
 /// Wrapper for a `ParamBindingSet`, caches the last set value so it can be observed later.
 pub struct BindingLastSet<T> {
-    last_value: spin::Mutex<Option<T>>,
+    last_value: Atomic<Option<T>>,
     binding: Box<dyn ParamBindingSet<T>>,
 }
 
 /// Wrapper for a `ParamBinding` (Get + Set), caches the last get and set value so it can be observed later.
 pub struct BindingLastGetSet<T> {
-    last_value: spin::Mutex<Option<T>>,
+    last_value: Atomic<Option<T>>,
     binding: Box<dyn ParamBinding<T>>,
 }
 
@@ -36,9 +39,8 @@ where
     T: Send + Copy,
 {
     fn get(&self) -> T {
-        let mut g = self.last_value.lock();
         let v = self.binding.get();
-        *g = Some(v);
+        self.last_value.store(Some(v), Ordering::Release);
         v
     }
 }
@@ -50,7 +52,7 @@ where
     /// Construct a BindingLastGet, wrapping the given binding.
     pub fn new<B: ParamBindingGet<T> + 'static>(binding: B) -> Self {
         Self {
-            last_value: spin::Mutex::new(None),
+            last_value: Default::default(),
             binding: Box::new(binding),
         }
     }
@@ -69,7 +71,7 @@ where
 {
     /// Get the last value that the binding gave, if there has been one.
     fn last(&self) -> Option<T> {
-        *self.last_value.lock()
+        self.last_value.load(Ordering::Acquire)
     }
 }
 
@@ -78,17 +80,19 @@ where
     T: Send + Copy,
 {
     fn set(&self, value: T) {
-        let mut g = self.last_value.lock();
         self.binding.set(value);
-        *g = Some(value);
+        self.last_value.store(Some(value), Ordering::Release);
     }
 }
 
-impl<T> BindingLastSet<T> {
+impl<T> BindingLastSet<T>
+where
+    T: Send + Copy,
+{
     /// Construct a BindingLastSet, wrapping the given binding.
     pub fn new<B: ParamBindingSet<T> + 'static>(binding: B) -> Self {
         Self {
-            last_value: spin::Mutex::new(None),
+            last_value: Default::default(),
             binding: Box::new(binding),
         }
     }
@@ -100,7 +104,7 @@ where
 {
     /// Get the last value that the binding was set to, if there has been one.
     fn last(&self) -> Option<T> {
-        *self.last_value.lock()
+        self.last_value.load(Ordering::Acquire)
     }
 }
 
@@ -109,9 +113,8 @@ where
     T: Send + Copy,
 {
     fn get(&self) -> T {
-        let mut g = self.last_value.lock();
         let v = self.binding.get();
-        *g = Some(v);
+        self.last_value.store(Some(v), Ordering::Release);
         v
     }
 }
@@ -121,9 +124,8 @@ where
     T: Send + Copy,
 {
     fn set(&self, value: T) {
-        let mut g = self.last_value.lock();
         self.binding.set(value);
-        *g = Some(value);
+        self.last_value.store(Some(value), Ordering::Release);
     }
 }
 
@@ -134,7 +136,7 @@ where
     /// Construct a BindingLastGetSet, wrapping the given binding.
     pub fn new<B: ParamBinding<T> + 'static>(binding: B) -> Self {
         Self {
-            last_value: spin::Mutex::new(None),
+            last_value: Default::default(),
             binding: Box::new(binding),
         }
     }
@@ -153,7 +155,7 @@ where
 {
     /// Get the last value that the binding got or was set to, if there has been one.
     fn last(&self) -> Option<T> {
-        *self.last_value.lock()
+        self.last_value.load(Ordering::Acquire)
     }
 }
 
