@@ -1,5 +1,4 @@
 use super::*;
-
 use core::sync::atomic::*;
 
 macro_rules! impl_get_set {
@@ -32,3 +31,21 @@ impl_get_set!(usize, AtomicUsize);
 impl_get_set!(i64, AtomicI64);
 #[cfg(target_pointer_width = "64")]
 impl_get_set!(u64, AtomicU64);
+
+impl<T> ParamBindingGet<T> for crate::atomic::Atomic<T>
+where
+    T: Copy + Send,
+{
+    fn get(&self) -> T {
+        self.load(Ordering::SeqCst)
+    }
+}
+
+impl<T> ParamBindingSet<T> for crate::atomic::Atomic<T>
+where
+    T: Copy + Send,
+{
+    fn set(&self, value: T) {
+        self.store(value, Ordering::SeqCst);
+    }
+}

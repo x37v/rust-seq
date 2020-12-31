@@ -17,5 +17,6 @@ pub type Float = f64;
 #[cfg(feature = "std")]
 pub mod std;
 
-/// Re-export of spin::Mutex for
+pub use ::atomic;
+/// Re-exports
 pub use ::spin as mutex;

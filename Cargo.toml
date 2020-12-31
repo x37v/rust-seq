@@ -17,6 +17,7 @@ libc = "0.2.80"
 lazy_static = { version = "1.4.0", optional = true }
 spin = "0.7.0"
 serde = { version = "1.0.118", features = ["derive"] }
+atomic = "0.5.0"
 
 [build-dependencies]
 euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git", optional = true }
