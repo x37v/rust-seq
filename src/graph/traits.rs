@@ -1,5 +1,4 @@
-use crate::event::*;
-use crate::graph::ChildCount;
+use crate::{event::*, graph::ChildCount, tick::TickResched};
 
 /// A trait that a node uses to execute its child nodes.
 pub trait GraphChildExec: Send {
@@ -71,6 +70,15 @@ pub trait GraphChildExec: Send {
 /// A trait for a node that wraps something that implements GraphNodeExec and GraphChildExec
 pub trait GraphNode: Send {
     fn node_exec(&mut self, context: &mut dyn EventEvalContext);
+}
+
+/// A trait for a graph root, this is executed the event schedule.
+pub trait GraphRootExec: Send {
+    fn event_eval(
+        &mut self,
+        context: &mut dyn EventEvalContext,
+        children: &mut dyn GraphChildExec,
+    ) -> TickResched;
 }
 
 /// A trait that a node, that will have children, implements.

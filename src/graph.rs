@@ -13,6 +13,7 @@ pub mod one_hot;
 pub mod retrig_scheduler;
 pub mod root_clock;
 pub mod root_event;
+pub mod root_wrapper;
 pub mod step_seq;
 pub mod tick_record;
 

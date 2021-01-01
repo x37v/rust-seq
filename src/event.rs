@@ -2,6 +2,7 @@ use crate::tick::*;
 use core::cmp::Ordering;
 
 pub mod bindstore;
+pub mod gate;
 pub mod ticked_value_queue;
 
 extern crate alloc;

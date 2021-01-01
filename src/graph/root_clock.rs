@@ -1,8 +1,8 @@
 use crate::{
     binding::ParamBindingGet,
     context::ChildContext,
-    event::{EventEval, EventEvalContext},
-    graph::GraphChildExec,
+    event::EventEvalContext,
+    graph::{GraphChildExec, GraphRootExec},
     tick::TickResched,
     Float,
 };
@@ -10,42 +10,41 @@ use crate::{
 #[cfg(not(feature = "std"))]
 use num::traits::float::FloatCore;
 
-/// A event_eval schedulable item that holds and executes a graph tree.
-pub struct RootClock<PeriodMicros, C>
+/// A event_eval schedulable item that executes a graph tree.
+pub struct RootClock<PeriodMicros>
 where
     PeriodMicros: ParamBindingGet<Float>,
-    C: GraphChildExec,
 {
     tick: usize,
     tick_sub: Float,
     period_micros: PeriodMicros,
-    children: C,
 }
 
-impl<PeriodMicros, C> RootClock<PeriodMicros, C>
+impl<PeriodMicros> RootClock<PeriodMicros>
 where
     PeriodMicros: ParamBindingGet<Float>,
-    C: GraphChildExec,
 {
-    pub fn new(period_micros: PeriodMicros, children: C) -> Self {
+    pub fn new(period_micros: PeriodMicros) -> Self {
         Self {
             tick: 0,
             tick_sub: 0.0,
             period_micros,
-            children,
         }
     }
 }
 
-impl<PeriodMicros, C> EventEval for RootClock<PeriodMicros, C>
+impl<PeriodMicros> GraphRootExec for RootClock<PeriodMicros>
 where
     PeriodMicros: ParamBindingGet<Float>,
-    C: GraphChildExec,
 {
-    fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TickResched {
+    fn event_eval(
+        &mut self,
+        context: &mut dyn EventEvalContext,
+        children: &mut dyn GraphChildExec,
+    ) -> TickResched {
         let period_micros = self.period_micros.get();
         let mut ccontext = ChildContext::new(context, 0, self.tick, period_micros);
-        self.children.child_exec_all(&mut ccontext);
+        children.child_exec_all(&mut ccontext);
 
         let ctp = context.context_tick_period_micros();
         if period_micros <= 0.0 || ctp <= 0.0 {
