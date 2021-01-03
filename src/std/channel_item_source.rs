@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn can_get() {
-        let (mut c, mut s): (_, ChannelItemSource<usize>) = item_source(2);
+        let (mut c, s): (_, ChannelItemSource<usize>) = item_source(2);
         assert_eq!(Ok(()), c.fill());
 
         let x = s.try_get(23usize);

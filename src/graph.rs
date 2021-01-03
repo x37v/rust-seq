@@ -70,7 +70,7 @@ mod tests {
 
         let children = crate::graph::children::boxed::Children::new(Box::new([c]));
 
-        let mut r = GraphNodeContainer::new(GraphNodeWrapper::new(TestNodeExec, children));
+        let r = GraphNodeContainer::new(GraphNodeWrapper::new(TestNodeExec, children));
 
         r.node_exec(&mut context);
         r.node_exec(&mut context);

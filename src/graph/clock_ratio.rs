@@ -93,7 +93,7 @@ pub mod tests {
         )
         .into();
 
-        let mut ratio: GraphNodeContainer = GraphNodeWrapper::new(
+        let ratio: GraphNodeContainer = GraphNodeWrapper::new(
             ClockRatio::new(
                 mul.clone() as Arc<dyn ParamBindingGet<_>>,
                 div.clone() as Arc<dyn ParamBindingGet<_>>,
