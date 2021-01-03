@@ -12,7 +12,7 @@ pub mod empty {
             ChildCount::None
         }
         fn child_exec_range(
-            &mut self,
+            &self,
             _context: &mut dyn EventEvalContext,
             _range: core::ops::Range<usize>,
         ) {
@@ -82,13 +82,13 @@ pub mod boxed {
             ChildCount::Some(self.children.len())
         }
         fn child_exec_range(
-            &mut self,
+            &self,
             context: &mut dyn EventEvalContext,
             range: core::ops::Range<usize>,
         ) {
-            let (_, r) = self.children.split_at_mut(range.start);
-            let (r, _) = r.split_at_mut(range.end - range.start);
-            for (i, c) in r.iter_mut().enumerate() {
+            let (_, r) = self.children.split_at(range.start);
+            let (r, _) = r.split_at(range.end - range.start);
+            for (i, c) in r.iter().enumerate() {
                 self.index_binding.set(i + range.start);
                 c.node_exec(context);
             }
@@ -143,13 +143,13 @@ pub mod vec {
             ChildCount::Some(self.children.len())
         }
         fn child_exec_range(
-            &mut self,
+            &self,
             context: &mut dyn EventEvalContext,
             range: core::ops::Range<usize>,
         ) {
-            let (_, r) = self.children.split_at_mut(range.start);
-            let (r, _) = r.split_at_mut(range.end - range.start);
-            for (i, c) in r.iter_mut().enumerate() {
+            let (_, r) = self.children.split_at(range.start);
+            let (r, _) = r.split_at(range.end - range.start);
+            for (i, c) in r.iter().enumerate() {
                 self.index_binding.set(i + range.start);
                 c.node_exec(context);
             }
@@ -208,7 +208,7 @@ pub mod nchild {
             ChildCount::Inf
         }
         fn child_exec_range(
-            &mut self,
+            &self,
             context: &mut dyn EventEvalContext,
             range: core::ops::Range<usize>,
         ) {

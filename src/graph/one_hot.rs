@@ -28,11 +28,7 @@ impl<B> GraphNodeExec for OneHot<B>
 where
     B: ParamBindingGet<usize>,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         let index = self.binding.get();
         if match children.child_count() {
             ChildCount::None => false,

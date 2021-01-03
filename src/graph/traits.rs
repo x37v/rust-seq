@@ -6,14 +6,10 @@ pub trait GraphChildExec: Send {
     fn child_count(&self) -> ChildCount;
 
     /// Execute children with the given index `range` and the given `context`.
-    fn child_exec_range(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        range: core::ops::Range<usize>,
-    );
+    fn child_exec_range(&self, context: &mut dyn EventEvalContext, range: core::ops::Range<usize>);
 
     /// Execute the child at the given `index` with the given `context`.
-    fn child_exec(&mut self, context: &mut dyn EventEvalContext, index: usize) {
+    fn child_exec(&self, context: &mut dyn EventEvalContext, index: usize) {
         match self.child_count() {
             ChildCount::None => (),
             ChildCount::Some(i) => {
@@ -40,7 +36,7 @@ pub trait GraphChildExec: Send {
     }
 
     /// Execute all children with the given `context`.
-    fn child_exec_all(&mut self, context: &mut dyn EventEvalContext) {
+    fn child_exec_all(&self, context: &mut dyn EventEvalContext) {
         match self.child_count() {
             ChildCount::None => (),
             ChildCount::Some(i) => {
@@ -69,7 +65,7 @@ pub trait GraphChildExec: Send {
 
 /// A trait for a node that wraps something that implements GraphNodeExec and GraphChildExec
 pub trait GraphNode: Send {
-    fn node_exec(&mut self, context: &mut dyn EventEvalContext);
+    fn node_exec(&self, context: &mut dyn EventEvalContext);
 }
 
 /// A trait for a graph root, this is executed the event schedule.
@@ -83,7 +79,7 @@ pub trait GraphRootExec: Send {
 
 /// A trait that a node, that will have children, implements.
 pub trait GraphNodeExec: Send {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext, children: &mut dyn GraphChildExec);
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec);
     fn graph_children_max(&self) -> ChildCount {
         ChildCount::Inf
     }
@@ -91,7 +87,7 @@ pub trait GraphNodeExec: Send {
 
 /// A trait that a leaf, a node without children, implements.
 pub trait GraphLeafExec: Send {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext);
+    fn graph_exec(&self, context: &mut dyn EventEvalContext);
 }
 
 /// Automatically implement the node exec for leaf.
@@ -99,11 +95,7 @@ impl<T> GraphNodeExec for T
 where
     T: GraphLeafExec,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        _children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, _children: &dyn GraphChildExec) {
         self.graph_exec(context)
     }
     fn graph_children_max(&self) -> ChildCount {
@@ -115,11 +107,7 @@ impl<T> GraphNodeExec for &'static spin::Mutex<T>
 where
     T: GraphNodeExec,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         self.lock().graph_exec(context, children)
     }
 
@@ -132,7 +120,7 @@ impl<T> GraphNode for &'static spin::Mutex<T>
 where
     T: GraphNode,
 {
-    fn node_exec(&mut self, context: &mut dyn EventEvalContext) {
+    fn node_exec(&self, context: &mut dyn EventEvalContext) {
         self.lock().node_exec(context)
     }
 }

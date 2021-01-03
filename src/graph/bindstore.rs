@@ -36,11 +36,7 @@ where
     G: ParamBindingGet<T>,
     S: ParamBindingSet<T>,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         self.set.set(self.get.get());
         children.child_exec_all(context);
     }

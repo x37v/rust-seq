@@ -35,7 +35,7 @@ where
     E: GraphNodeExec,
     C: GraphChildExec,
 {
-    fn node_exec(&mut self, context: &mut dyn EventEvalContext) {
-        self.exec.graph_exec(context, &mut self.children)
+    fn node_exec(&self, context: &mut dyn EventEvalContext) {
+        self.exec.graph_exec(context, &self.children)
     }
 }

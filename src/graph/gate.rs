@@ -28,11 +28,7 @@ impl<B> GraphNodeExec for Gate<B>
 where
     B: ParamBindingGet<bool>,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         if self.binding.get() {
             children.child_exec_all(context);
         }

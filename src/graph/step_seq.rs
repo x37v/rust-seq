@@ -28,11 +28,7 @@ where
     StepTicks: ParamBindingGet<usize>,
     Steps: ParamBindingGet<usize>,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         let step_ticks = self.step_ticks.get();
 
         if step_ticks > 0 && context.context_tick_now() % step_ticks == 0 {

@@ -36,11 +36,7 @@ where
     Div: ParamBindingGet<T>,
     T: num::Unsigned + NumCast + Send,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         let div: usize = NumCast::from(self.div.get()).expect("T should cast to usize");
 
         if div > 0 && context.context_tick_now() % div == 0 {

@@ -22,10 +22,7 @@ where
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
     Source: 'static
-        + ItemSource<
-            TickedMidiValueEvent<MidiValueQueue>,
-            Box<TickedMidiValueEvent<MidiValueQueue>>,
-        >,
+        + ItemSource<TickedMidiValueEvent<MidiValueQueue>, Box<TickedMidiValueEvent<MidiValueQueue>>>,
 {
     chan: Chan,
     note: Note,
@@ -46,10 +43,7 @@ where
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
     Source: 'static
-        + ItemSource<
-            TickedMidiValueEvent<MidiValueQueue>,
-            Box<TickedMidiValueEvent<MidiValueQueue>>,
-        >,
+        + ItemSource<TickedMidiValueEvent<MidiValueQueue>, Box<TickedMidiValueEvent<MidiValueQueue>>>,
 {
     pub fn new(
         chan: Chan,
@@ -82,12 +76,9 @@ where
     OffVel: ParamBindingGet<u8>,
     MidiValueQueue: 'static + TickPriorityEnqueue<MidiValue> + Clone,
     Source: 'static
-        + ItemSource<
-            TickedMidiValueEvent<MidiValueQueue>,
-            Box<TickedMidiValueEvent<MidiValueQueue>>,
-        >,
+        + ItemSource<TickedMidiValueEvent<MidiValueQueue>, Box<TickedMidiValueEvent<MidiValueQueue>>>,
 {
-    fn graph_exec(&mut self, context: &mut dyn EventEvalContext) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext) {
         let chan = self.chan.get();
         let num = self.note.get();
         let dur = self.dur.get();

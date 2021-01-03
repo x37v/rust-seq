@@ -37,14 +37,14 @@ impl GraphNodeContainer {
 }
 
 impl GraphNode for GraphNodeContainer {
-    fn node_exec(&mut self, context: &mut dyn EventEvalContext) {
+    fn node_exec(&self, context: &mut dyn EventEvalContext) {
         self.0.lock().node_exec(context)
     }
 }
 
 /// No-op node impl for unit.
 impl GraphNode for () {
-    fn node_exec(&mut self, _context: &mut dyn EventEvalContext) {}
+    fn node_exec(&self, _context: &mut dyn EventEvalContext) {}
 }
 
 #[cfg(test)]
@@ -55,11 +55,7 @@ mod tests {
 
     struct TestNodeExec;
     impl GraphNodeExec for TestNodeExec {
-        fn graph_exec(
-            &mut self,
-            context: &mut dyn EventEvalContext,
-            children: &mut dyn GraphChildExec,
-        ) {
+        fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
             children.child_exec_all(context);
         }
     }

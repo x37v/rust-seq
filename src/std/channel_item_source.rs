@@ -35,7 +35,7 @@ where
 {
     /// Try to get an item and set it to `init`
     /// Passes back a `Err(init)` on failure.
-    fn try_get(&mut self, init: T) -> Result<Box<T>, T> {
+    fn try_get(&self, init: T) -> Result<Box<T>, T> {
         if let Some(mut item) = self.recv.lock().try_recv().ok() {
             unsafe {
                 item.deref_mut().as_mut_ptr().write(init);
@@ -79,7 +79,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn can_get() {

@@ -16,11 +16,7 @@ impl<B> GraphNodeExec for TickRecord<B>
 where
     B: ParamBindingSet<usize>,
 {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         match self {
             Self::Absolute(b) => b.set(context.tick_now()),
             Self::Context(b) => b.set(context.context_tick_now()),

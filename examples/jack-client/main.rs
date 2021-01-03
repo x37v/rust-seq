@@ -9,35 +9,32 @@ use quneo_display::{DisplayType as QDisplayType, QuNeoDisplay, QuNeoDrawer};
 
 use core::convert::Into;
 
-use sched::tick::*;
-
-//use sched::event::ticked_value_queue::TickedValueQueueEvent;
-use sched::event::bindstore::BindStoreEvent;
-use sched::event::*;
-use sched::item_sink::{ItemDispose, ItemSink};
-use sched::item_source::*;
-use sched::midi::*;
-use sched::pqueue::BinaryHeapQueue;
-use sched::pqueue::*;
-use sched::schedule::ScheduleExecutor;
-
 use alloc::sync::Arc;
 use spin::Mutex;
 
-use sched::graph::*;
-use sched::graph::{
-    bindstore::BindStoreNode, clock_ratio::ClockRatio, fanout::FanOut,
-    node_wrapper::GraphNodeWrapper, root_clock::RootClock, step_seq::StepSeq,
+use sched::{
+    binding::*,
+    event::bindstore::BindStoreEvent,
+    event::*,
+    graph::{
+        bindstore::BindStoreNode, children, clock_ratio::ClockRatio, fanout::FanOut,
+        midi::MidiNote, node_wrapper::GraphNodeWrapper, root_clock::RootClock,
+        root_wrapper::GraphRootWrapper, step_seq::StepSeq, GraphNodeContainer,
+    },
+    item_sink::{ItemDispose, ItemSink},
+    item_source::*,
+    midi::MidiValue,
+    pqueue::*,
+    schedule::ScheduleExecutor,
+    tick::*,
 };
-
-use sched::binding::*;
 
 use core::ops::Mul;
 
 use core::sync::atomic::{AtomicBool, AtomicUsize};
 
 type MidiEnqueue = Arc<spin::Mutex<dyn TickPriorityEnqueue<MidiValue>>>;
-type TickedMidiValueEvent = midi::TickedMidiValueEvent<MidiEnqueue>;
+type TickedMidiValueEvent = sched::graph::midi::TickedMidiValueEvent<MidiEnqueue>;
 type BindStoreEventBool = BindStoreEvent<bool, bool, Arc<Mutex<dyn ParamBindingSet<bool>>>>;
 
 static JACK_CONNECTION_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -76,7 +73,7 @@ fn main() {
     let mut page_data: Vec<Arc<spin::Mutex<page::PageData>>> = Vec::new();
     let current_page: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
 
-    let (dispose_sink, mut dispose) = sched::std::channel_item_sink::channel_item_sink(1024);
+    let (dispose_sink, dispose) = sched::std::channel_item_sink::channel_item_sink(1024);
     let dispose_sink: Arc<Mutex<dyn ItemSink<EventContainer>>> = dispose_sink.into_alock();
 
     let mut ex = ScheduleExecutor::new(
@@ -140,7 +137,8 @@ fn main() {
         )
         .into_alock();
 
-        let step_gate = gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
+        let step_gate =
+            sched::graph::gate::Gate::new(step_gate as Arc<Mutex<dyn ParamBindingGet<bool>>>);
         let onvel = ops::GetUnaryOp::new(
             ops::funcs::cast_or_default,
             ops::GetBinaryOp::new(
@@ -152,7 +150,7 @@ fn main() {
         )
         .into_alock() as Arc<Mutex<dyn ParamBindingGet<u8>>>;
 
-        let note = midi::MidiNote::new(
+        let note = MidiNote::new(
             &0,
             note,
             &TickResched::ContextRelative(1),
@@ -233,7 +231,10 @@ fn main() {
     )
     .into();
 
-    let root = EventContainer::new(RootClock::new(micros, fanout));
+    let root = EventContainer::new(GraphRootWrapper::new(
+        RootClock::new(micros),
+        children::boxed::Children::new(Box::new([fanout])),
+    ));
     assert!(sched_queue.lock().enqueue(0, root).is_ok());
 
     //draw

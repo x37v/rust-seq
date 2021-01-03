@@ -17,11 +17,7 @@ impl Default for FanOut {
 }
 
 impl GraphNodeExec for FanOut {
-    fn graph_exec(
-        &mut self,
-        context: &mut dyn EventEvalContext,
-        children: &mut dyn GraphChildExec,
-    ) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext, children: &dyn GraphChildExec) {
         children.child_exec_all(context);
     }
 }

@@ -84,7 +84,7 @@ where
     B: 'static + ParamBindingGet<TickResched> + Clone,
     S: 'static + ItemSource<RootEvent<T, Arc<Mutex<Notify<B>>>>>,
 {
-    fn node_exec(&mut self, context: &mut dyn EventEvalContext) {
+    fn node_exec(&self, context: &mut dyn EventEvalContext) {
         //if the gate is open, close it and schedule the node
         if self.next_binding.lock().test_and_set() {
             if let Ok(e) = self

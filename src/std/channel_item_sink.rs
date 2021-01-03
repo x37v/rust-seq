@@ -27,7 +27,7 @@ impl<T> ItemSink<T> for ChannelItemSink<T>
 where
     T: Send,
 {
-    fn try_put(&mut self, item: T) -> Result<(), T> {
+    fn try_put(&self, item: T) -> Result<(), T> {
         match self.send.try_send(item) {
             Ok(()) => Ok(()),
             Err(TrySendError::Disconnected(item)) => Err(item),
@@ -40,7 +40,7 @@ impl<T> ItemDispose<T> for ChannelItemDispose<T>
 where
     T: Send,
 {
-    fn dispose_all(&mut self) -> Result<(), ()> {
+    fn dispose_all(&self) -> Result<(), ()> {
         //do nothing, just let go
         self.with_each(&|_| {})
     }
@@ -50,7 +50,7 @@ impl<T> ItemDisposeFunc<T> for ChannelItemDispose<T>
 where
     T: Send,
 {
-    fn with_each(&mut self, func: &dyn Fn(T)) -> Result<(), ()> {
+    fn with_each(&self, func: &dyn Fn(T)) -> Result<(), ()> {
         let mut should_loop = true;
         while should_loop {
             should_loop = false;
