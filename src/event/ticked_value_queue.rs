@@ -44,7 +44,6 @@ where
 mod tests {
     extern crate alloc;
     use super::*;
-    use crate::event::EventEvalAny;
     use alloc::sync::Arc;
     use spin::Mutex;
 
@@ -62,9 +61,6 @@ mod tests {
     #[test]
     pub fn can_build() {
         type Queue = Arc<Mutex<dyn TickPriorityEnqueue<usize>>>;
-        let q: Queue = Arc::new(Mutex::new(TestQueue));
-        let e = alloc::boxed::Box::new(TickedValueQueueEvent::new(1usize, q));
-        let a = e.into_any();
-        assert!(a.is::<TickedValueQueueEvent<usize, Queue>>());
+        let _: Queue = Arc::new(Mutex::new(TestQueue));
     }
 }

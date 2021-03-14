@@ -1,3 +1,5 @@
+//! Events potentially generate other events, they also may hold other events and gate their actual
+//! output.
 use crate::tick::*;
 use core::cmp::Ordering;
 
@@ -8,29 +10,13 @@ pub mod ticked_value_queue;
 extern crate alloc;
 use alloc::boxed::Box;
 
-pub type BoxEventEval = Box<dyn EventEvalAny>;
+pub type BoxEventEval = Box<dyn EventEval>;
+
 pub struct EventContainer(BoxEventEval);
 
-/// Events potentially generate other events, they also may hold other events and gate their actual
-/// output.
-
-/// trait for evaluating Events
+/// Trait for evaluating Events
 pub trait EventEval: Send {
     fn event_eval(&mut self, context: &mut dyn EventEvalContext) -> TickResched;
-}
-
-/// helper trait that we use so we can downcast
-pub trait EventEvalAny: EventEval + core::any::Any {
-    fn into_any(self: Box<Self>) -> Box<dyn core::any::Any>;
-}
-
-impl<T> EventEvalAny for T
-where
-    T: 'static + EventEval,
-{
-    fn into_any(self: Box<Self>) -> Box<dyn core::any::Any> {
-        self
-    }
 }
 
 /// Interface to schedule Events
@@ -56,7 +42,7 @@ where
 }
 
 impl EventContainer {
-    pub fn new<T: 'static + EventEvalAny>(item: T) -> Self {
+    pub fn new<T: 'static + EventEval>(item: T) -> Self {
         Self(Box::new(item))
     }
 
