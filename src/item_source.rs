@@ -1,4 +1,5 @@
 extern crate alloc;
+use alloc::prelude::v1::Box;
 
 /// A source for items of type T that can be sent across threads
 pub trait ItemSource<T, O = Box<T>>: Send {

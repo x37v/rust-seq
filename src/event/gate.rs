@@ -3,7 +3,8 @@ use crate::{
     event::{EventEval, EventEvalContext},
     tick::TickResched,
 };
-use std::sync::Arc;
+extern crate alloc;
+use alloc::sync::Arc;
 
 pub type ArcMutexEvent = Arc<crate::mutex::Mutex<dyn EventEval>>;
 

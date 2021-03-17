@@ -3,13 +3,12 @@ extern crate alloc;
 pub mod bpm;
 pub mod generators;
 pub mod hysteresis;
-pub mod last;
 pub mod ops;
 pub mod spinlock;
 pub mod swap;
+//pub mod last;
 
-use core::ops::Deref;
-use std::marker::PhantomData;
+use core::{marker::PhantomData, ops::Deref};
 
 // include automatic impls
 mod atomic;

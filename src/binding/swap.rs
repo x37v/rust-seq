@@ -1,7 +1,8 @@
 //! Swappable bindings.
+extern crate alloc;
 use crate::binding::{ParamBindingGet, ParamBindingSet};
+use alloc::sync::Arc;
 use spin::Mutex;
-use std::sync::Arc;
 
 type ABindingGet<T> = Arc<dyn ParamBindingGet<T>>;
 type ABindingSet<T> = Arc<dyn ParamBindingSet<T>>;

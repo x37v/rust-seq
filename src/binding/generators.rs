@@ -1,5 +1,4 @@
 use crate::binding::{ParamBindingGet, ParamBindingSet};
-use core::marker::PhantomData;
 use core::sync::atomic::AtomicBool;
 
 #[cfg(feature = "std")]
@@ -8,10 +7,11 @@ use rand::prelude::*;
 #[cfg(feature = "euclidean")]
 include!(concat!(env!("OUT_DIR"), "/euclid.rs"));
 
+#[cfg(feature = "std")]
 /// Get an random numeric value with the given distribution.
 pub struct GetRand<T, R> {
     rng: R,
-    _phantom: PhantomData<fn() -> T>,
+    _phantom: core::marker::PhantomData<fn() -> T>,
 }
 
 /// Get a One Shot, if set to true, is only true for one read until it is set true again
@@ -27,6 +27,7 @@ pub struct GetEuclid<I, P, S> {
     steps: S,
 }
 
+#[cfg(feature = "std")]
 impl<T, R> GetRand<T, R>
 where
     T: Send,

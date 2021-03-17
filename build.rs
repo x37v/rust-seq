@@ -1,12 +1,9 @@
-use quote::quote;
-use std::env;
-use std::io::Write;
-use std::path::Path;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "euclidean")]
     {
-        let out_dir = env::var_os("OUT_DIR").unwrap();
+        use std::io::Write;
+        use std::path::Path;
+        let out_dir = std::env::var_os("OUT_DIR").unwrap();
         let dest_path = Path::new(&out_dir).join("euclid.rs");
         let mut f = std::fs::File::create(&dest_path)?;
 
@@ -20,14 +17,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for bit in 0..64 {
                     v |= (if pattern[bit] { 1 } else { 0 }) << bit;
                 }
-                inits.push(quote! {
+                inits.push(quote::quote! {
                     m.insert((#steps, #pulses), #v);
                 })
             }
         }
 
         f.write_all(
-            quote! {
+            quote::quote! {
             ::lazy_static::lazy_static! {
                 static ref EUCLID_STEP_PULSE_PATTERN_MAP: ::std::collections::HashMap<(usize, usize), usize> = {
                     let mut m = ::std::collections::HashMap::new();
