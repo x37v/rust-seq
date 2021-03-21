@@ -71,6 +71,12 @@ mod tests {
         graph::root::{clock::RootClock, GraphRootWrapper},
         pqueue::binaryheap::BinaryHeapQueue,
     };
+    use core::cmp::Ordering;
+
+    //TODO
+    pub struct RefEventContainer {
+        inner: &'static dyn EventEval<RefEventContainer>,
+    }
 
     static CLOCK: GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent> = GraphRootWrapper {
         root: RootClock {
@@ -83,10 +89,37 @@ mod tests {
         _phantom: core::marker::PhantomData,
     };
 
-    #[derive(PartialOrd, Ord, PartialEq, Eq)]
     enum EnumEvent {
         Root(&'static GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent>),
     }
+
+    pub fn ptr_cmp<T>(a: *const T, b: *const T) -> Ordering {
+        a.cmp(&b)
+    }
+
+    impl Ord for EnumEvent {
+        fn cmp(&self, other: &Self) -> Ordering {
+            match other {
+                Self::Root(o) => match self {
+                    Self::Root(r) => ptr_cmp(r, o),
+                },
+            }
+        }
+    }
+
+    impl PartialOrd for EnumEvent {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl PartialEq for EnumEvent {
+        fn eq(&self, _other: &Self) -> bool {
+            false //box, never equal
+        }
+    }
+
+    impl Eq for EnumEvent {}
 
     impl EventEval<EnumEvent> for EnumEvent {
         fn event_eval(&mut self, _context: &mut dyn EventEvalContext<EnumEvent>) -> TickResched {
