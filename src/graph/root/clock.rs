@@ -7,7 +7,7 @@ use crate::{
     Float,
 };
 
-#[cfg(not(test))]
+#[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 
 /// A root of a graph tree that evaluates its children at an interval controlled by its
