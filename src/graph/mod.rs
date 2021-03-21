@@ -1,5 +1,7 @@
 //! Graph items and evaluation
 
+pub mod root;
+
 use crate::event::EventEvalContext;
 
 /// An indication of the child count for a node.
