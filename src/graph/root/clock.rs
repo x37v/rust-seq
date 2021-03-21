@@ -9,21 +9,21 @@ use crate::{
 
 /// A root of a graph tree that evaluates its children at an interval controlled by its
 /// period_micros `ParamGet`.
-pub struct RootClock<PeriodMicros, E>
+pub struct RootClock<P, E>
 where
-    PeriodMicros: ParamGet<Float>,
+    P: ParamGet<Float>,
 {
     tick: usize,
     tick_sub: Float,
-    period_micros: PeriodMicros,
+    period_micros: P,
     _phantom: core::marker::PhantomData<E>,
 }
 
-impl<PeriodMicros, E> RootClock<PeriodMicros, E>
+impl<P, E> RootClock<P, E>
 where
-    PeriodMicros: ParamGet<Float>,
+    P: ParamGet<Float>,
 {
-    pub fn new(period_micros: PeriodMicros) -> Self {
+    pub fn new(period_micros: P) -> Self {
         Self {
             tick: 0,
             tick_sub: 0.0,
@@ -33,9 +33,9 @@ where
     }
 }
 
-impl<PeriodMicros, E> GraphRootExec<E> for RootClock<PeriodMicros, E>
+impl<P, E> GraphRootExec<E> for RootClock<P, E>
 where
-    PeriodMicros: ParamGet<Float>,
+    P: ParamGet<Float>,
     E: Send,
 {
     fn event_eval(
