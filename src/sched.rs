@@ -131,7 +131,7 @@ mod tests {
         fn event_eval(&mut self, context: &mut dyn EventEvalContext<EnumEvent>) -> TickResched {
             ENUM_CNT.fetch_add(1, AOrdering::SeqCst);
             match &self {
-                Self::Root(mut r) => r.lock().unwrap().event_eval(context),
+                Self::Root(r) => r.lock().unwrap().event_eval(context),
             }
         }
     }

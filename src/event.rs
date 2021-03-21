@@ -75,8 +75,3 @@ where
         self
     }
 }
-
-#[cfg(all(test, feature = "with_alloc"))]
-mod tests {
-    use super::*;
-}
