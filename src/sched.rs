@@ -72,9 +72,20 @@ mod tests {
         pqueue::binaryheap::BinaryHeapQueue,
     };
 
+    static CLOCK: GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent> = GraphRootWrapper {
+        root: RootClock {
+            tick: 0,
+            tick_sub: 0.0,
+            period_micros: 1.0 as crate::Float,
+            _phantom: core::marker::PhantomData,
+        },
+        children: (),
+        _phantom: core::marker::PhantomData,
+    };
+
     #[derive(PartialOrd, Ord, PartialEq, Eq)]
     enum EnumEvent {
-        A,
+        Root(&'static GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent>),
     }
 
     impl EventEval<EnumEvent> for EnumEvent {
@@ -98,9 +109,10 @@ mod tests {
 
     #[test]
     fn can_build_enum() {
-        //TODO test we can do the enum approach
-        let reader: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::with_capacity(16);
+        let mut reader: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::with_capacity(16);
         let writer: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::default();
+
+        assert!(reader.try_enqueue(0, EnumEvent::Root(&CLOCK)).is_ok());
         let mut sched = SchedExec::new(reader, writer);
         sched.run(0, 16);
     }
