@@ -1,7 +1,7 @@
 use crate::Float;
 
 //XXX maybe context ticks should have an isize absolute offset?
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TickSched {
     Absolute(usize),
@@ -11,7 +11,7 @@ pub enum TickSched {
 }
 
 /// A forward only time unit.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TickResched {
     Relative(usize),
