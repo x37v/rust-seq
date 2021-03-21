@@ -1,5 +1,7 @@
 use crate::{event::*, graph::GraphChildExec, tick::TickResched};
 
+use core::cmp::Ordering;
+
 pub mod clock;
 
 /// A trait for a graph root, this is executed the event schedule.
@@ -17,9 +19,9 @@ where
     R: GraphRootExec<E>,
     C: GraphChildExec<E>,
 {
-    root: R,
-    children: C,
-    _phantom: core::marker::PhantomData<E>,
+    pub(crate) root: R,
+    pub(crate) children: C,
+    pub(crate) _phantom: core::marker::PhantomData<E>,
 }
 
 impl<R, C, E> GraphRootWrapper<R, C, E>
@@ -45,4 +47,47 @@ where
     fn event_eval(&mut self, context: &mut dyn EventEvalContext<E>) -> TickResched {
         self.root.event_eval(context, &mut self.children)
     }
+}
+
+impl<R, C, E> Ord for GraphRootWrapper<R, C, E>
+where
+    R: GraphRootExec<E>,
+    C: GraphChildExec<E>,
+    E: Send,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        let left = &self.root as *const R;
+        let right = &other.root as *const R;
+        left.cmp(&right)
+    }
+}
+
+impl<R, C, E> PartialOrd for GraphRootWrapper<R, C, E>
+where
+    R: GraphRootExec<E>,
+    C: GraphChildExec<E>,
+    E: Send,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<R, C, E> PartialEq for GraphRootWrapper<R, C, E>
+where
+    R: GraphRootExec<E>,
+    C: GraphChildExec<E>,
+    E: Send,
+{
+    fn eq(&self, _other: &Self) -> bool {
+        false //box, never equal
+    }
+}
+
+impl<R, C, E> Eq for GraphRootWrapper<R, C, E>
+where
+    R: GraphRootExec<E>,
+    C: GraphChildExec<E>,
+    E: Send,
+{
 }

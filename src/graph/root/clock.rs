@@ -13,10 +13,10 @@ pub struct RootClock<P, E>
 where
     P: ParamGet<Float>,
 {
-    tick: usize,
-    tick_sub: Float,
-    period_micros: P,
-    _phantom: core::marker::PhantomData<E>,
+    pub(crate) tick: usize,
+    pub(crate) tick_sub: Float,
+    pub(crate) period_micros: P,
+    pub(crate) _phantom: core::marker::PhantomData<E>,
 }
 
 impl<P, E> RootClock<P, E>
