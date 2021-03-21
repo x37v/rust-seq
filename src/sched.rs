@@ -68,6 +68,7 @@ mod tests {
     use super::*;
     use crate::{
         event::{boxed::EventContainer, EventEval, EventEvalContext},
+        graph::root::{clock::RootClock, GraphRootWrapper},
         pqueue::binaryheap::BinaryHeapQueue,
     };
 
@@ -84,14 +85,20 @@ mod tests {
 
     #[test]
     fn can_build_boxed() {
-        let reader: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::with_capacity(16);
+        let clock = GraphRootWrapper::new(RootClock::new(1.0 as crate::Float), ());
+        let mut reader: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::with_capacity(16);
         let writer: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::default();
+
+        assert!(reader
+            .try_enqueue(0, EventContainer::new(Box::new(clock)))
+            .is_ok());
         let mut sched = SchedExec::new(reader, writer);
         sched.run(0, 16);
     }
 
     #[test]
     fn can_build_enum() {
+        //TODO test we can do the enum approach
         let reader: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::with_capacity(16);
         let writer: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::default();
         let mut sched = SchedExec::new(reader, writer);
