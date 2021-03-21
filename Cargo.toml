@@ -13,3 +13,6 @@ default = ["std", "with_alloc", "euclidean", "with_serde"]
 
 [dependencies]
 serde = { version = "1.0.124", features = ["derive"], optional = true }
+
+[dev-dependencies]
+lazy_static = "1.4.0"
