@@ -7,6 +7,9 @@ use crate::{
     Float,
 };
 
+#[cfg(not(test))]
+use num_traits::float::FloatCore;
+
 /// A root of a graph tree that evaluates its children at an interval controlled by its
 /// period_micros `ParamGet`.
 pub struct RootClock<P, E>
