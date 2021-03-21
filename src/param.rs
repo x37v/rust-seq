@@ -100,3 +100,12 @@ where
         ParamKeyValueSet::len(&self.param)
     }
 }
+
+impl<T> ParamGet<T> for T
+where
+    T: Copy + Send + Sync,
+{
+    fn get(&self) -> T {
+        *self
+    }
+}
