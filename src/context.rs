@@ -1,24 +1,24 @@
 use crate::{event::*, pqueue::TickPriorityEnqueue, tick::*, Float};
 
-pub struct RootContext<'a> {
+pub struct RootContext<'a, E> {
     tick: usize,
     ticks_per_second: usize,
-    schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
+    schedule: &'a mut dyn TickPriorityEnqueue<E>,
 }
 
-pub struct ChildContext<'a> {
-    parent: &'a mut dyn EventEvalContext,
+pub struct ChildContext<'a, E> {
+    parent: &'a mut dyn EventEvalContext<E>,
     parent_tick_offset: isize,
     context_tick: usize,
     context_ticks_per_second: usize,
     context_tick_period_micros: Float,
 }
 
-impl<'a> RootContext<'a> {
+impl<'a, E> RootContext<'a, E> {
     pub fn new(
         tick: usize,
         ticks_per_second: usize,
-        schedule: &'a mut dyn TickPriorityEnqueue<EventContainer>,
+        schedule: &'a mut dyn TickPriorityEnqueue<E>,
     ) -> Self {
         Self {
             tick,
@@ -32,22 +32,18 @@ impl<'a> RootContext<'a> {
     }
 }
 
-impl<'a> EventSchedule for RootContext<'a> {
-    fn event_schedule(
-        &mut self,
-        tick: TickSched,
-        event: EventContainer,
-    ) -> Result<(), EventContainer> {
+impl<'a, E> EventSchedule<E> for RootContext<'a, E> {
+    fn event_try_schedule(&mut self, tick: TickSched, event: E) -> Result<(), E> {
         //in the root, context and absolute are the same
         let tick = match tick {
             TickSched::Absolute(t) | TickSched::ContextAbsolute(t) => t,
             TickSched::Relative(o) | TickSched::ContextRelative(o) => offset_tick(self.tick, o),
         };
-        self.schedule.enqueue(tick, event)
+        self.schedule.try_enqueue(tick, event)
     }
 }
 
-impl<'a> TickContext for RootContext<'a> {
+impl<'a, E> TickContext for RootContext<'a, E> {
     fn tick_now(&self) -> usize {
         self.tick
     }
@@ -56,9 +52,9 @@ impl<'a> TickContext for RootContext<'a> {
     }
 }
 
-impl<'a> ChildContext<'a> {
+impl<'a, E> ChildContext<'a, E> {
     pub fn new(
-        parent: &'a mut dyn EventEvalContext,
+        parent: &'a mut dyn EventEvalContext<E>,
         parent_tick_offset: isize,
         context_tick: usize,
         context_tick_period_micros: Float,
@@ -83,18 +79,14 @@ impl<'a> ChildContext<'a> {
     }
 }
 
-impl<'a> EventSchedule for ChildContext<'a> {
-    fn event_schedule(
-        &mut self,
-        tick: TickSched,
-        event: EventContainer,
-    ) -> Result<(), EventContainer> {
+impl<'a, E> EventSchedule<E> for ChildContext<'a, E> {
+    fn event_try_schedule(&mut self, tick: TickSched, event: E) -> Result<(), E> {
         //XXX TODO TRANSLATE TO CONTEXT TIME IF NEEDED
-        self.parent.event_schedule(tick, event)
+        self.parent.event_try_schedule(tick, event)
     }
 }
 
-impl<'a> TickContext for ChildContext<'a> {
+impl<'a, E> TickContext for ChildContext<'a, E> {
     fn tick_now(&self) -> usize {
         offset_tick(self.parent.tick_now(), self.parent_tick_offset)
     }
@@ -135,12 +127,9 @@ pub(crate) mod tests {
             self.tick = tick;
         }
     }
-    impl EventSchedule for TestContext {
-        fn event_schedule(
-            &mut self,
-            _tick: TickSched,
-            _event: EventContainer,
-        ) -> Result<(), EventContainer> {
+
+    impl<E> EventSchedule<E> for TestContext {
+        fn event_try_schedule(&mut self, _tick: TickSched, _event: E) -> Result<(), E> {
             Ok(())
         }
     }

@@ -5,42 +5,11 @@ authors = ["Alex Norman <alex@x37v.info>"]
 edition = "2018"
 
 [features]
-std = ["lazy_static", "rand"]
+std = []
+euclidean = []
 with_serde = ["serde"]
-euclidean = ["euclidian-rythms"]
-default = ["std", "euclidean", "with_serde"]
+with_alloc = []
+default = ["std", "with_alloc", "euclidean", "with_serde"]
 
 [dependencies]
-sched_macros = { git = "https://github.com/x37v/sched_macros.git" }
-rand = { version = "0.7.3", default-features = true, optional = true }
-num = { version = "0.3.1", default-features = false }
-libc = "0.2.80"
-lazy_static = { version = "1.4.0", optional = true }
-spin = "0.7.0"
-serde = { version = "1.0.118", features = ["derive"], optional = true }
-atomic = "0.5.0"
-
-[build-dependencies]
-euclidian-rythms = { git = "https://github.com/x37v/euclidian-rythm.git", optional = true }
-quote = "1.0.7"
-
-[dev-dependencies]
-jack = { git = "https://github.com/RustAudio/rust-jack.git" }
-rosc = "0.4.2"
-assert_approx_eq = "1.1.0"
-
-[[example]]
-name = "jack-client"
-#required-features = ["std", "euclidean"]
-
-#[[example]]
-#name = "no_std"
-
-#XXX for the no_std test, remove when not needed anymore
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-
-
+serde = { version = "1.0.124", features = ["derive"], optional = true }
