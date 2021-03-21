@@ -104,3 +104,17 @@ where
         ChildCount::None
     }
 }
+
+impl<E> GraphChildExec<E> for () {
+    fn child_count(&self) -> ChildCount {
+        ChildCount::None
+    }
+
+    fn child_exec_range(
+        &self,
+        _context: &mut dyn EventEvalContext<E>,
+        _range: core::ops::Range<usize>,
+    ) {
+        //Do nothing
+    }
+}
