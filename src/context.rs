@@ -1,3 +1,4 @@
+//! Context implementations
 use crate::{event::*, pqueue::TickPriorityEnqueue, tick::*, Float};
 
 pub struct RootContext<'a, E> {

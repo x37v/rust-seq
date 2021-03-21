@@ -1,3 +1,4 @@
+//! Priority Queues
 use core::cmp::Ordering;
 
 pub trait TickPriorityEnqueue<T>: Send {

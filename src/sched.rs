@@ -1,9 +1,11 @@
+//! Schedules
 use crate::context::RootContext;
 use crate::event::*;
 use crate::pqueue::{TickPriorityDequeue, TickPriorityEnqueue};
 use crate::tick::*;
 
-pub struct ScheduleExecutor<R, W, E>
+/// Schedule executor.
+pub struct SchedExec<R, W, E>
 where
     R: TickPriorityDequeue<E>,
     W: TickPriorityEnqueue<E>,
@@ -14,7 +16,7 @@ where
     _phantom: core::marker::PhantomData<fn() -> E>,
 }
 
-impl<R, W, E> ScheduleExecutor<R, W, E>
+impl<R, W, E> SchedExec<R, W, E>
 where
     R: TickPriorityDequeue<E>,
     W: TickPriorityEnqueue<E>,
@@ -84,7 +86,7 @@ mod tests {
     fn can_build_boxed() {
         let reader: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::with_capacity(16);
         let writer: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::default();
-        let mut sched = ScheduleExecutor::new(reader, writer);
+        let mut sched = SchedExec::new(reader, writer);
         sched.run(0, 16);
     }
 
@@ -92,7 +94,7 @@ mod tests {
     fn can_build_enum() {
         let reader: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::with_capacity(16);
         let writer: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::default();
-        let mut sched = ScheduleExecutor::new(reader, writer);
+        let mut sched = SchedExec::new(reader, writer);
         sched.run(0, 16);
     }
 }

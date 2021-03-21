@@ -1,6 +1,8 @@
+//! Times represented as ticks
 use crate::Float;
 
 //XXX maybe context ticks should have an isize absolute offset?
+/// A representation of time, absolute, relative, context absolute or relative.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TickSched {
@@ -10,7 +12,7 @@ pub enum TickSched {
     ContextRelative(isize), /* ContextRelative(isize, isize) */
 }
 
-/// A forward only time unit.
+/// A forward only relative time unit.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "with_serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TickResched {

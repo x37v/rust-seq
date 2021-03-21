@@ -1,3 +1,4 @@
+//! Events and event scheduling
 use crate::tick::*;
 
 pub trait EventSchedule<E> {
