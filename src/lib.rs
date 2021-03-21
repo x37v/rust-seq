@@ -1,5 +1,6 @@
 pub mod context;
 pub mod event;
+pub mod graph;
 pub mod param;
 pub mod pqueue;
 pub mod sched;
