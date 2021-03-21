@@ -72,28 +72,34 @@ mod tests {
         pqueue::binaryheap::BinaryHeapQueue,
     };
     use core::cmp::Ordering;
-
-    //TODO
-    pub struct RefEventContainer {
-        inner: &'static dyn EventEval<RefEventContainer>,
-    }
-
-    static CLOCK: GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent> = GraphRootWrapper {
-        root: RootClock {
-            tick: 0,
-            tick_sub: 0.0,
-            period_micros: 1.0 as crate::Float,
-            _phantom: core::marker::PhantomData,
-        },
-        children: (),
-        _phantom: core::marker::PhantomData,
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering as AOrdering},
+        Mutex,
     };
 
-    enum EnumEvent {
-        Root(&'static GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent>),
+    static ENUM_CNT: AtomicUsize = AtomicUsize::new(0);
+    static REF_CNT: AtomicUsize = AtomicUsize::new(0);
+
+    lazy_static::lazy_static! {
+        static ref CLOCK_REF: Mutex<GraphRootWrapper<RootClock<f64, RefEventContainer>, (), RefEventContainer>> = {
+            let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64), ()));
+            c
+        };
+        static ref CLOCK_ENUM: Mutex<GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent>> = {
+            let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64), ()));
+            c
+        };
     }
 
-    pub fn ptr_cmp<T>(a: *const T, b: *const T) -> Ordering {
+    enum EnumEvent {
+        Root(&'static Mutex<GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent>>),
+    }
+
+    pub struct RefEventContainer {
+        inner: &'static Mutex<dyn EventEval<RefEventContainer>>,
+    }
+
+    pub fn ptr_cmp<T: ?Sized>(a: *const T, b: *const T) -> Ordering {
         a.cmp(&b)
     }
 
@@ -122,10 +128,46 @@ mod tests {
     impl Eq for EnumEvent {}
 
     impl EventEval<EnumEvent> for EnumEvent {
-        fn event_eval(&mut self, _context: &mut dyn EventEvalContext<EnumEvent>) -> TickResched {
-            TickResched::None
+        fn event_eval(&mut self, context: &mut dyn EventEvalContext<EnumEvent>) -> TickResched {
+            ENUM_CNT.fetch_add(1, AOrdering::SeqCst);
+            match &self {
+                Self::Root(mut r) => r.lock().unwrap().event_eval(context),
+            }
         }
     }
+
+    impl EventEval<RefEventContainer> for RefEventContainer {
+        fn event_eval(&mut self, context: &mut dyn EventEvalContext<Self>) -> TickResched {
+            REF_CNT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.inner.lock().unwrap().event_eval(context)
+        }
+    }
+
+    impl RefEventContainer {
+        pub fn new(inner: &'static Mutex<dyn EventEval<RefEventContainer>>) -> Self {
+            Self { inner }
+        }
+    }
+
+    impl Ord for RefEventContainer {
+        fn cmp(&self, other: &Self) -> Ordering {
+            ptr_cmp(self.inner, other.inner)
+        }
+    }
+
+    impl PartialOrd for RefEventContainer {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl PartialEq for RefEventContainer {
+        fn eq(&self, _other: &Self) -> bool {
+            false //box, never equal
+        }
+    }
+
+    impl Eq for RefEventContainer {}
 
     #[test]
     fn can_build_boxed() {
@@ -145,8 +187,32 @@ mod tests {
         let mut reader: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::with_capacity(16);
         let writer: BinaryHeapQueue<EnumEvent> = BinaryHeapQueue::default();
 
-        assert!(reader.try_enqueue(0, EnumEvent::Root(&CLOCK)).is_ok());
+        ENUM_CNT.store(0, AOrdering::SeqCst);
+
+        assert!(reader.try_enqueue(0, EnumEvent::Root(&*CLOCK_ENUM)).is_ok());
         let mut sched = SchedExec::new(reader, writer);
-        sched.run(0, 16);
+
+        sched.run(0, 44100);
+        assert_eq!(ENUM_CNT.load(AOrdering::SeqCst), 0);
+        sched.run(16, 44100);
+        assert_eq!(ENUM_CNT.load(AOrdering::SeqCst), 1);
+    }
+
+    #[test]
+    fn can_build_ref() {
+        let mut reader: BinaryHeapQueue<RefEventContainer> = BinaryHeapQueue::with_capacity(16);
+        let writer: BinaryHeapQueue<RefEventContainer> = BinaryHeapQueue::default();
+
+        REF_CNT.store(0, AOrdering::SeqCst);
+
+        assert!(reader
+            .try_enqueue(0, RefEventContainer::new(&*CLOCK_REF))
+            .is_ok());
+        let mut sched = SchedExec::new(reader, writer);
+
+        sched.run(0, 4410);
+        assert_eq!(REF_CNT.load(AOrdering::SeqCst), 0);
+        sched.run(1, 4410);
+        assert_eq!(REF_CNT.load(AOrdering::SeqCst), 1);
     }
 }
