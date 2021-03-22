@@ -1,5 +1,6 @@
 //! Graph items and evaluation
 
+pub mod func;
 pub mod root;
 
 use crate::event::EventEvalContext;
@@ -92,6 +93,7 @@ pub trait GraphChildExec<E>: Send {
     }
 }
 
+/*
 /// Automatically implement the node exec for leaf.
 impl<L, E> GraphNodeExec<E> for L
 where
@@ -104,6 +106,7 @@ where
         ChildCount::None
     }
 }
+*/
 
 impl<E> GraphChildExec<E> for () {
     fn child_count(&self) -> ChildCount {
