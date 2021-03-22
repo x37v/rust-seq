@@ -33,11 +33,16 @@ where
 
     pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
         let now = self.tick_next;
-        let next = now + ticks;
+
+        //Find the net run's tick and handle rollover
+        let next = now.wrapping_add(ticks);
+        let end = if next < now { core::usize::MAX } else { next };
+        //TODO there are likely other places where we have to deal with rollover
+
         let mut context = RootContext::new(now, ticks_per_second, &mut self.schedule_writer);
 
         //evaluate events before next
-        while let Some((t, mut event)) = self.schedule_reader.dequeue_lt(next) {
+        while let Some((t, mut event)) = self.schedule_reader.dequeue_lt(end) {
             //clamp below now, exal and dispose
             let tick = if t < now { now } else { t };
             context.update_tick(tick);
