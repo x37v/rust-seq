@@ -9,6 +9,7 @@ std = []
 euclidean = []
 with_serde = ["serde"]
 with_alloc = []
+float32 = []
 default = ["std", "with_alloc", "euclidean", "with_serde"]
 
 [dependencies]
