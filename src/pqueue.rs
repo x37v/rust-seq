@@ -3,12 +3,12 @@ use core::cmp::Ordering;
 
 pub trait TickPriorityEnqueue<T>: Send {
     /// Try to enqueue the item at the given tick
-    fn try_enqueue(&mut self, tick: usize, value: T) -> Result<(), T>;
+    fn try_enqueue(&self, tick: usize, value: T) -> Result<(), T>;
 }
 
 pub trait TickPriorityDequeue<T>: Send {
     /// Dequeue items, in order, with a tick less than `tick`, if there are any.
-    fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, T)>;
+    fn dequeue_lt(&self, tick: usize) -> Option<(usize, T)>;
 }
 
 /// markers for ordering, work the fact that BinaryHeap is a max heap, so we reverse Ord for
@@ -25,18 +25,21 @@ pub struct TickItem<T, OrdOrder = NormalOrd> {
 #[cfg(feature = "std")]
 pub mod binaryheap {
     use super::*;
-    pub struct BinaryHeapQueue<T>(std::collections::BinaryHeap<TickItem<T, ReverseOrd>>);
+    pub struct BinaryHeapQueue<T> {
+        inner: std::sync::Mutex<std::collections::BinaryHeap<TickItem<T, ReverseOrd>>>,
+    }
 
     impl<T> TickPriorityEnqueue<T> for BinaryHeapQueue<T>
     where
         T: Send + Ord,
     {
-        fn try_enqueue(&mut self, tick: usize, value: T) -> Result<(), T> {
+        fn try_enqueue(&self, tick: usize, value: T) -> Result<(), T> {
+            let mut g = self.inner.lock().unwrap();
             //don't allocate
-            if self.0.len() >= self.0.capacity() {
+            if g.len() >= g.capacity() {
                 Err(value)
             } else {
-                self.0.push((tick, value).into());
+                g.push((tick, value).into());
                 Ok(())
             }
         }
@@ -46,10 +49,11 @@ pub mod binaryheap {
     where
         T: Send + Ord,
     {
-        fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, T)> {
-            if let Some(t) = self.0.peek() {
+        fn dequeue_lt(&self, tick: usize) -> Option<(usize, T)> {
+            let mut g = self.inner.lock().unwrap();
+            if let Some(t) = g.peek() {
                 if t.tick() < tick {
-                    self.0.pop().map(|v| v.into())
+                    g.pop().map(|v| v.into())
                 } else {
                     None
                 }
@@ -65,7 +69,9 @@ pub mod binaryheap {
     {
         /// Create a BinaryHeapQueue with the given capacity
         pub fn with_capacity(capacity: usize) -> Self {
-            Self(std::collections::BinaryHeap::with_capacity(capacity))
+            Self {
+                inner: std::sync::Mutex::new(std::collections::BinaryHeap::with_capacity(capacity)),
+            }
         }
     }
 
