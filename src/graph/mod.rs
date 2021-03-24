@@ -2,6 +2,9 @@
 
 pub mod func;
 pub mod root;
+mod wrapper;
+
+pub use wrapper::*;
 
 use crate::event::EventEvalContext;
 
@@ -91,6 +94,11 @@ pub trait GraphChildExec<E>: Send {
             ChildCount::Some(_) | ChildCount::Inf => true,
         }
     }
+}
+
+/// A trait for a node that wraps something that implements GraphNodeExec and GraphChildExec
+pub trait GraphNode<E>: Send {
+    fn node_exec(&self, context: &mut dyn EventEvalContext<E>);
 }
 
 /*
