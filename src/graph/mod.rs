@@ -1,6 +1,7 @@
 //! Graph items and evaluation
 
 pub mod func;
+pub mod node;
 pub mod root;
 mod wrapper;
 
