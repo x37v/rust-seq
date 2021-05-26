@@ -1,3 +1,4 @@
+pub mod clock_ratio;
 pub mod gate;
 pub mod param_store;
 pub mod repeat;
