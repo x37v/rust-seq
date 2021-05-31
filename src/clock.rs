@@ -47,6 +47,8 @@ impl ClockData {
     }
 
     pub fn new(bpm: Float, ppq: usize) -> Self {
+        assert!(bpm > BPM_MIN);
+        assert!(ppq > PPQ_MIN);
         Self {
             bpm,
             period_micros: Self::period_micros(bpm, ppq),
