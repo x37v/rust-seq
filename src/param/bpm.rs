@@ -4,14 +4,14 @@ use crate::{
     Float,
 };
 
-pub struct ClockGetPeriodMicro<P>
+pub struct ClockGetPeriodMicros<P>
 where
     P: ParamGet<ClockData>,
 {
     clock: P,
 }
 
-pub struct ClockSetPeriodMicro<G, S>
+pub struct ClockSetPeriodMicros<G, S>
 where
     G: ParamGet<ClockData>,
     S: ParamSet<ClockData>,
@@ -20,7 +20,7 @@ where
     set: S,
 }
 
-pub struct ClockGetSetPeriodMicro<P>
+pub struct ClockGetSetPeriodMicros<P>
 where
     P: ParamGet<ClockData> + ParamSet<ClockData>,
 {
@@ -73,7 +73,7 @@ where
     param: ParamGetSet<ClockData, P>,
 }
 
-impl<P> ClockGetPeriodMicro<P>
+impl<P> ClockGetPeriodMicros<P>
 where
     P: ParamGet<ClockData>,
 {
@@ -82,7 +82,7 @@ where
     }
 }
 
-impl<P> ParamGet<Float> for ClockGetPeriodMicro<P>
+impl<P> ParamGet<Float> for ClockGetPeriodMicros<P>
 where
     P: ParamGet<ClockData>,
 {
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<G, S> ClockSetPeriodMicro<G, S>
+impl<G, S> ClockSetPeriodMicros<G, S>
 where
     G: ParamGet<ClockData>,
     S: ParamSet<ClockData>,
@@ -101,7 +101,7 @@ where
     }
 }
 
-impl<G, S> ParamSet<Float> for ClockSetPeriodMicro<G, S>
+impl<G, S> ParamSet<Float> for ClockSetPeriodMicros<G, S>
 where
     G: ParamGet<ClockData>,
     S: ParamSet<ClockData>,
@@ -113,7 +113,7 @@ where
     }
 }
 
-impl<P> ClockGetSetPeriodMicro<P>
+impl<P> ClockGetSetPeriodMicros<P>
 where
     P: ParamGet<ClockData> + ParamSet<ClockData>,
 {
@@ -124,7 +124,7 @@ where
     }
 }
 
-impl<P> ParamGet<Float> for ClockGetSetPeriodMicro<P>
+impl<P> ParamGet<Float> for ClockGetSetPeriodMicros<P>
 where
     P: ParamGet<ClockData> + ParamSet<ClockData>,
 {
@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<P> ParamSet<Float> for ClockGetSetPeriodMicro<P>
+impl<P> ParamSet<Float> for ClockGetSetPeriodMicros<P>
 where
     P: ParamGet<ClockData> + ParamSet<ClockData>,
 {
