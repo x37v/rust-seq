@@ -1,5 +1,7 @@
 //! Parameters
 
+pub mod bpm;
+
 pub trait ParamGet<T>: Send + Sync {
     fn get(&self) -> T;
 }
