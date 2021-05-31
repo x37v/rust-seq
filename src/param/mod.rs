@@ -125,6 +125,13 @@ where
     }
 }
 
+impl<T> ParamSet<T> for ()
+where
+    T: Copy + Sync + Send,
+{
+    fn set(&self, _v: T) {}
+}
+
 use crate::spin::mutex::spin::SpinMutex;
 
 impl<T> ParamGet<T> for &'static SpinMutex<T>
