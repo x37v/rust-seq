@@ -1,27 +1,71 @@
 use super::*;
+use core::marker::PhantomData;
+
+/// Helper funcs
+pub mod funcs {
+    /// cast or return O::default() if cast fails
+    pub fn cast_or_default<I, O>(i: I) -> O
+    where
+        I: num_traits::NumCast,
+        O: num_traits::NumCast + Default,
+    {
+        if let Some(v) = O::from(i) {
+            v
+        } else {
+            Default::default()
+        }
+    }
+
+    /// if denominator equals zero, return default, otherwise return div
+    pub fn div_protected<T>(num: T, den: T) -> T
+    where
+        T: core::ops::Div + num_traits::Num + num_traits::Zero + Default,
+    {
+        if den.is_zero() {
+            Default::default()
+        } else {
+            num.div(den)
+        }
+    }
+
+    /// if denominator equals zero, return default, otherwise return remainder
+    pub fn rem_protected<T>(num: T, den: T) -> T
+    where
+        T: core::ops::Rem + num_traits::Num + num_traits::Zero + Default,
+    {
+        if den.is_zero() {
+            Default::default()
+        } else {
+            num.rem(den)
+        }
+    }
+}
 
 ///Get a value out of a ParamKeyValueGet, return `Default::default` if the index is out of
 ///range.
-pub struct KeyValueGetDefault<T, I, P>
-where
-    T: Copy + Default,
-    I: ParamGet<usize>,
-    P: ParamKeyValueGet<T>,
-{
+pub struct KeyValueGetDefault<T, I, P> {
     param: P,
     index: I,
-    _phantom: core::marker::PhantomData<fn() -> T>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
-pub struct KeyValueSet<T, I, P>
-where
-    T: Copy,
-    I: ParamGet<usize>,
-    P: ParamKeyValueSet<T>,
-{
+pub struct KeyValueSet<T, I, P> {
     param: P,
     index: I,
-    _phantom: core::marker::PhantomData<fn() -> T>,
+    _phantom: PhantomData<fn() -> T>,
+}
+
+pub struct GetUnaryOp<I, O, F, P> {
+    param: P,
+    func: F,
+    _phantom: PhantomData<fn() -> (I, O)>,
+}
+
+pub struct GetBinaryOp<IL, IR, O, F, PL, PR> {
+    left: PL,
+    right: PR,
+    func: F,
+    _phantom: PhantomData<fn() -> (IL, IR, O)>,
 }
 
 impl<T, I, P> KeyValueGetDefault<T, I, P>
@@ -73,5 +117,66 @@ where
 {
     fn set(&self, value: T) {
         let _ = self.param.set_at(self.index.get(), value);
+    }
+}
+
+impl<I, O, F, P> GetUnaryOp<I, O, F, P>
+where
+    I: Send,
+    O: Send,
+    F: Fn(I) -> O + Send + Sync,
+    P: ParamGet<I>,
+{
+    pub fn new(func: F, param: P) -> Self {
+        Self {
+            param,
+            func,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<I, O, F, P> ParamGet<O> for GetUnaryOp<I, O, F, P>
+where
+    I: Send,
+    O: Send,
+    F: Fn(I) -> O + Send + Sync,
+    P: ParamGet<I>,
+{
+    fn get(&self) -> O {
+        (self.func)(self.param.get())
+    }
+}
+
+impl<IL, IR, O, F, BL, BR> GetBinaryOp<IL, IR, O, F, BL, BR>
+where
+    IL: Send,
+    IR: Send,
+    O: Send,
+    F: Fn(IL, IR) -> O + Send + Sync,
+    BL: ParamGet<IL>,
+    BR: ParamGet<IR>,
+{
+    pub fn new(func: F, left: BL, right: BR) -> Self {
+        Self {
+            left,
+            right,
+            func,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<IL, IR, O, F, BL, BR> ParamGet<O> for GetBinaryOp<IL, IR, O, F, BL, BR>
+where
+    IL: Send,
+    IR: Send,
+    O: Send,
+    F: Fn(IL, IR) -> O + Send + Sync,
+    BL: ParamGet<IL>,
+    BR: ParamGet<IR>,
+{
+    fn get(&self) -> O {
+        (self.func)(self.left.get(), self.right.get())
     }
 }
