@@ -9,11 +9,7 @@ pub mod funcs {
         I: num_traits::NumCast,
         O: num_traits::NumCast + Default,
     {
-        if let Some(v) = O::from(i) {
-            v
-        } else {
-            Default::default()
-        }
+        O::from(i).unwrap_or_default()
     }
 
     /// if denominator equals zero, return default, otherwise return div
