@@ -1,5 +1,6 @@
 //! Parameters
 
+pub mod bool;
 pub mod bpm;
 pub mod ops;
 
