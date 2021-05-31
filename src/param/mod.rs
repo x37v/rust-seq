@@ -124,3 +124,23 @@ where
         *self
     }
 }
+
+use crate::spin::mutex::spin::SpinMutex;
+
+impl<T> ParamGet<T> for &'static SpinMutex<T>
+where
+    T: Copy + Sync + Send,
+{
+    fn get(&self) -> T {
+        *self.lock()
+    }
+}
+
+impl<T> ParamSet<T> for &'static SpinMutex<T>
+where
+    T: Copy + Sync + Send,
+{
+    fn set(&self, v: T) {
+        *self.lock() = v;
+    }
+}

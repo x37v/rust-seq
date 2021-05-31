@@ -42,14 +42,14 @@ macro_rules! make_clock {
 }
 
 impl ClockData {
-    pub fn period_micro(bpm: Float, ppq: usize) -> Float {
+    pub fn period_micros(bpm: Float, ppq: usize) -> Float {
         period_micro!(bpm, ppq)
     }
 
     pub fn new(bpm: Float, ppq: usize) -> Self {
         Self {
             bpm,
-            period_micros: Self::period_micro(bpm, ppq),
+            period_micros: Self::period_micros(bpm, ppq),
             ppq,
         }
     }
@@ -74,7 +74,7 @@ impl Clock for ClockData {
 
     fn set_bpm(&mut self, bpm: Float) {
         self.bpm = num_traits::clamp(bpm, BPM_MIN, Float::MAX);
-        self.period_micros = Self::period_micro(self.bpm, self.ppq);
+        self.period_micros = Self::period_micros(self.bpm, self.ppq);
     }
 
     fn period_micros(&self) -> Float {
@@ -92,7 +92,7 @@ impl Clock for ClockData {
 
     fn set_ppq(&mut self, ppq: usize) {
         self.ppq = num_traits::clamp(ppq, PPQ_MIN, usize::MAX);
-        self.period_micros = Self::period_micro(self.bpm, self.ppq);
+        self.period_micros = Self::period_micros(self.bpm, self.ppq);
     }
 }
 
@@ -102,8 +102,8 @@ mod tests {
 
     #[test]
     fn bpm_value_test() {
-        assert_eq!(5208f64, ClockData::period_micro(120.0, 96).floor());
-        assert_eq!(20833f64, ClockData::period_micro(120.0, 24).floor());
+        assert_eq!(5208f64, ClockData::period_micros(120.0, 96).floor());
+        assert_eq!(20833f64, ClockData::period_micros(120.0, 24).floor());
 
         let mut c = ClockData::new(120.0, 96);
         assert_eq!(5208f64, c.period_micros().floor());

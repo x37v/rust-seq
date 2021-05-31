@@ -106,9 +106,9 @@ where
     G: ParamGet<ClockData>,
     S: ParamSet<ClockData>,
 {
-    fn set(&self, period_micro: Float) {
+    fn set(&self, period_micros: Float) {
         let mut clock = self.get.get();
-        clock.set_period_micros(period_micro);
+        clock.set_period_micros(period_micros);
         self.set.set(clock);
     }
 }
@@ -137,9 +137,9 @@ impl<P> ParamSet<Float> for ClockGetSetPeriodMicro<P>
 where
     P: ParamGet<ClockData> + ParamSet<ClockData>,
 {
-    fn set(&self, period_micro: Float) {
+    fn set(&self, period_micros: Float) {
         let mut clock = self.param.get();
-        clock.set_period_micros(period_micro);
+        clock.set_period_micros(period_micros);
         self.param.set(clock);
     }
 }

@@ -13,3 +13,6 @@ pub mod tick;
 pub type Float = f32;
 #[cfg(not(feature = "float32"))]
 pub type Float = f64;
+
+//rexport
+pub use ::spin;
