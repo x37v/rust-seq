@@ -144,3 +144,21 @@ where
         *self.lock() = v;
     }
 }
+
+impl<T> ParamGet<T> for &'static dyn ParamGet<T>
+where
+    T: Copy + Sync + Send,
+{
+    fn get(&self) -> T {
+        (*self).get()
+    }
+}
+
+impl<T> ParamSet<T> for &'static dyn ParamSet<T>
+where
+    T: Copy + Sync + Send,
+{
+    fn set(&self, v: T) {
+        (*self).set(v)
+    }
+}
