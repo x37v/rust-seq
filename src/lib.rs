@@ -15,4 +15,5 @@ pub type Float = f32;
 pub type Float = f64;
 
 //rexport
+pub use ::num_traits;
 pub use ::spin;
