@@ -44,6 +44,19 @@ where
     _phantom: core::marker::PhantomData<fn() -> T>,
 }
 
+impl<T, P> ParamGetSet<T, P>
+where
+    T: Copy,
+    P: ParamGet<T> + ParamSet<T>,
+{
+    pub fn new(param: P) -> Self {
+        Self {
+            param,
+            _phantom: Default::default(),
+        }
+    }
+}
+
 impl<T, P> ParamGet<T> for ParamGetSet<T, P>
 where
     T: Copy,
