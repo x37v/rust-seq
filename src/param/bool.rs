@@ -1,3 +1,5 @@
+use std::default::default;
+
 use super::*;
 use crate::spin::mutex::spin::SpinMutex;
 
@@ -10,6 +12,35 @@ impl<const BYTES: usize> BoolArray<BYTES> {
     pub fn new() -> Self {
         Self {
             data: SpinMutex::new([0; BYTES]),
+        }
+    }
+}
+
+impl<const BYTES: usize> Default for BoolArray<BYTES> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<const BYTES: usize> From<[u8; BYTES]> for BoolArray<BYTES> {
+    fn from(bytes: [u8; BYTES]) -> Self {
+        Self {
+            data: SpinMutex::new(bytes),
+        }
+    }
+}
+
+impl<const BYTES: usize> From<&[bool]> for BoolArray<BYTES> {
+    fn from(values: &[bool]) -> Self {
+        assert!(values.len() <= BYTES * 8);
+        let mut bytes = [0; BYTES];
+        for (index, v) in values.iter().enumerate() {
+            if *v {
+                bytes[index / 8] |= 1 << (index % 8);
+            }
+        }
+        Self {
+            data: SpinMutex::new(bytes),
         }
     }
 }
