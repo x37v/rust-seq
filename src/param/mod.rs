@@ -200,3 +200,20 @@ where
         (*self).len()
     }
 }
+
+impl<T, const N: usize> ParamKeyValueGet<T> for [T; N]
+where
+    T: Copy + Sync + Send,
+{
+    fn get_at(&self, index: usize) -> Option<T> {
+        if index < N {
+            Some(self[index])
+        } else {
+            None
+        }
+    }
+
+    fn len(&self) -> Option<usize> {
+        Some(N)
+    }
+}
