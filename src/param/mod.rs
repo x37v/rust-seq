@@ -4,6 +4,9 @@ pub mod bool;
 pub mod bpm;
 pub mod ops;
 
+//impl for atomic
+mod atomic;
+
 pub trait ParamGet<T>: Send + Sync {
     fn get(&self) -> T;
 }
@@ -169,5 +172,31 @@ where
 {
     fn set(&self, v: T) {
         (*self).set(v)
+    }
+}
+
+impl<T> ParamKeyValueGet<T> for &'static dyn ParamKeyValueGet<T>
+where
+    T: Copy + Sync + Send,
+{
+    fn get_at(&self, index: usize) -> Option<T> {
+        (*self).get_at(index)
+    }
+
+    fn len(&self) -> Option<usize> {
+        (*self).len()
+    }
+}
+
+impl<T> ParamKeyValueSet<T> for &'static dyn ParamKeyValueSet<T>
+where
+    T: Copy + Sync + Send,
+{
+    fn set_at(&self, key: usize, value: T) -> Result<(), T> {
+        (*self).set_at(key, value)
+    }
+
+    fn len(&self) -> Option<usize> {
+        (*self).len()
     }
 }
