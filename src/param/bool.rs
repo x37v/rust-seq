@@ -1,5 +1,3 @@
-use std::default::default;
-
 use super::*;
 use crate::spin::mutex::spin::SpinMutex;
 
