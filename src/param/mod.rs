@@ -157,6 +157,41 @@ where
     }
 }
 
+impl<T, const N: usize> ParamKeyValueGet<T> for SpinMutex<[T; N]>
+where
+    T: Copy + Sync + Send,
+{
+    fn get_at(&self, index: usize) -> Option<T> {
+        if index < N {
+            Some(self.lock()[index])
+        } else {
+            None
+        }
+    }
+
+    fn len(&self) -> Option<usize> {
+        Some(N)
+    }
+}
+
+impl<T, const N: usize> ParamKeyValueSet<T> for SpinMutex<[T; N]>
+where
+    T: Copy + Sync + Send,
+{
+    fn set_at(&self, index: usize, value: T) -> Result<(), T> {
+        if index < N {
+            self.lock()[index] = value;
+            Ok(())
+        } else {
+            Err(value)
+        }
+    }
+
+    fn len(&self) -> Option<usize> {
+        Some(N)
+    }
+}
+
 impl<T> ParamGet<T> for &'static dyn ParamGet<T>
 where
     T: Copy + Sync + Send,
