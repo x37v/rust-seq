@@ -12,6 +12,20 @@ impl<const BYTES: usize> BoolArray<BYTES> {
             data: SpinMutex::new([0; BYTES]),
         }
     }
+
+    pub fn toggle(&self, key: usize) -> Result<bool, ()> {
+        let byte = key / 8;
+        if byte >= BYTES {
+            Err(())
+        } else {
+            let mut g = self.data.lock();
+            let bit = key % 8;
+            let mask = 1 << bit;
+            let cur = g[byte] ^ mask;
+            g[byte] = cur;
+            Ok(cur & mask != 0)
+        }
+    }
 }
 
 impl<const BYTES: usize> Default for BoolArray<BYTES> {
