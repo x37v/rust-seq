@@ -13,6 +13,14 @@ impl<const BYTES: usize> BoolArray<BYTES> {
         }
     }
 
+    pub fn byte(&self, index: usize) -> Result<u8, ()> {
+        if index >= BYTES {
+            Err(())
+        } else {
+            Ok(self.data.lock()[index])
+        }
+    }
+
     pub fn toggle(&self, key: usize) -> Result<bool, ()> {
         let byte = key / 8;
         if byte >= BYTES {
