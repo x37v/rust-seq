@@ -6,7 +6,7 @@ pub struct OneShot {
 }
 
 impl OneShot {
-    pub fn new(state: bool) -> Self {
+    pub const fn new(state: bool) -> Self {
         Self {
             inner: AtomicBool::new(state),
         }
