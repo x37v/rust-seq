@@ -2,7 +2,7 @@ use crate::{
     context::ChildContext,
     event::EventEvalContext,
     graph::{root::GraphRootExec, GraphChildExec},
-    param::{ParamGet, ParamSet},
+    param::ParamGet,
     tick::TickResched,
     Float,
 };
@@ -10,57 +10,41 @@ use crate::{
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 
-//XXX tick must be get set because it has to be atomic
-
 /// A root of a graph tree that evaluates its children at an interval controlled by its
 /// period_micros `ParamGet`.
-pub struct RootClock<P, TG, TS, SG, SS, R, E> {
-    pub(crate) tick_get: TG,
-    pub(crate) tick_set: TS,
-    pub(crate) tick_sub_get: SG,
-    pub(crate) tick_sub_set: SS,
+pub struct RootClock<P, R, RS, E> {
+    pub(crate) tick: usize,
+    pub(crate) tick_sub: Float,
     pub(crate) period_micros: P,
     pub(crate) run: R,
+    pub(crate) reset: RS,
     pub(crate) _phantom: core::marker::PhantomData<E>,
 }
 
-impl<P, TG, TS, SG, SS, R, E> RootClock<P, TG, TS, SG, SS, R, E>
+impl<P, R, RS, E> RootClock<P, R, RS, E>
 where
     P: ParamGet<Float>,
-    TG: ParamGet<usize>,
-    TS: ParamSet<usize>,
-    SG: ParamGet<Float>,
-    SS: ParamSet<Float>,
+    R: ParamGet<bool>,
+    RS: ParamGet<bool>,
     R: ParamGet<bool>,
 {
-    pub fn new(
-        period_micros: P,
-        tick_get: TG,
-        tick_set: TS,
-        tick_sub_get: SG,
-        tick_sub_set: SS,
-        run: R,
-    ) -> Self {
+    pub fn new(period_micros: P, tick: usize, tick_sub: Float, run: R, reset: RS) -> Self {
         Self {
-            tick_get,
-            tick_set,
-            tick_sub_get,
-            tick_sub_set,
+            tick,
+            tick_sub,
             period_micros,
             run,
+            reset,
             _phantom: Default::default(),
         }
     }
 }
 
-impl<P, TG, TS, SG, SS, R, E> GraphRootExec<E> for RootClock<P, TG, TS, SG, SS, R, E>
+impl<P, R, RS, E> GraphRootExec<E> for RootClock<P, R, RS, E>
 where
     P: ParamGet<Float>,
-    TG: ParamGet<usize>,
-    TS: ParamSet<usize>,
-    SG: ParamGet<Float>,
-    SS: ParamSet<Float>,
     R: ParamGet<bool>,
+    RS: ParamGet<bool>,
     E: Send,
 {
     fn event_eval(
@@ -70,7 +54,11 @@ where
     ) -> TickResched {
         if self.run.get() {
             let period_micros = self.period_micros.get();
-            let tick = self.tick_get.get();
+            let (tick, tick_sub) = if self.reset.get() {
+                (0, 0.0)
+            } else {
+                (self.tick, self.tick_sub)
+            };
             let mut ccontext = ChildContext::new(context, 0, tick, period_micros);
             children.child_exec_all(&mut ccontext);
 
@@ -78,9 +66,9 @@ where
             if period_micros <= 0.0 || ctp <= 0.0 {
                 TickResched::ContextRelative(1)
             } else {
-                let next = self.tick_sub_get.get() + (period_micros / ctp);
-                self.tick_sub_set.set(next.fract());
-                self.tick_set.set(tick + 1);
+                let next = tick_sub + (period_micros / ctp);
+                self.tick_sub = next.fract();
+                self.tick = tick + 1;
 
                 //XXX what if next is less than 1?
                 //XXX could move root.node_exec in here execute multiple times..
