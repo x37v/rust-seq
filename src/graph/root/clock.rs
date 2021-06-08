@@ -28,10 +28,10 @@ where
     RS: ParamGet<bool>,
     R: ParamGet<bool>,
 {
-    pub fn new(period_micros: P, tick: usize, tick_sub: Float, run: R, reset: RS) -> Self {
+    pub fn new(period_micros: P, run: R, reset: RS) -> Self {
         Self {
-            tick,
-            tick_sub,
+            tick: 0,
+            tick_sub: 0.0 as Float,
             period_micros,
             run,
             reset,
