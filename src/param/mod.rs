@@ -2,7 +2,7 @@
 
 pub mod bool;
 pub mod bpm;
-pub mod oneshot;
+pub mod one_shot;
 pub mod ops;
 
 //impl for atomic
