@@ -7,7 +7,7 @@ pub struct BoolArray<const BYTES: usize> {
 }
 
 impl<const BYTES: usize> BoolArray<BYTES> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             data: SpinMutex::new([0; BYTES]),
         }
