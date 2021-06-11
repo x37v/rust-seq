@@ -13,6 +13,10 @@ impl<const BYTES: usize> BoolArray<BYTES> {
         }
     }
 
+    pub const fn bytes() -> usize {
+        BYTES
+    }
+
     pub fn byte(&self, index: usize) -> Result<u8, ()> {
         if index >= BYTES {
             Err(())
