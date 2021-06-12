@@ -1,6 +1,8 @@
 //! Events and event scheduling
 use crate::tick::*;
 
+pub mod midi;
+
 pub trait EventSchedule<E> {
     /// Try to schedule the event at the given tick.
     fn event_try_schedule(&mut self, tick: TickSched, event: E) -> Result<(), E>;
