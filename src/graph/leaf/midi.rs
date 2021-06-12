@@ -2,7 +2,7 @@ use crate::{
     event::{midi::MidiTryEnqueue, EventEvalContext},
     graph::GraphLeafExec,
     param::ParamGet,
-    tick::TickSched,
+    tick::{TickResched, TickSched},
 };
 
 pub struct Note<N, C, D, VN, VF> {
@@ -17,7 +17,7 @@ impl<N, C, D, VN, VF> Note<N, C, D, VN, VF>
 where
     N: ParamGet<u8>,
     C: ParamGet<u8>,
-    D: ParamGet<TickSched>,
+    D: ParamGet<TickResched>,
     VN: ParamGet<u8>,
     VF: ParamGet<u8>,
 {
@@ -36,26 +36,22 @@ impl<N, C, D, VN, VF, E> GraphLeafExec<E> for Note<N, C, D, VN, VF>
 where
     N: ParamGet<u8>,
     C: ParamGet<u8>,
-    D: ParamGet<TickSched>,
+    D: ParamGet<TickResched>,
     VN: ParamGet<u8>,
     VF: ParamGet<u8>,
     E: Send + MidiTryEnqueue,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>) {
-        let num = self.note.get();
-        let chan = self.chan.get();
-        let dur = self.dur.get();
+        let on = TickSched::ContextRelative(0);
+        let off = on.add(self.dur.get(), context.as_tick_context());
+        let num = num_traits::clamp(self.note.get(), 0, 127);
+        let chan = num_traits::clamp(self.chan.get(), 0, 15);
+        let vel = num_traits::clamp(self.vel_off.get(), 0, 127);
         //schedule off first so we don't have a stuck note
-        let off = E::note_try_enqueue(context, dur, false, chan, num, self.vel_off.get());
+        let off = E::note_try_enqueue(context, off, false, chan, num, vel);
         if off.is_ok() {
-            let _on = E::note_try_enqueue(
-                context,
-                TickSched::ContextRelative(0),
-                true,
-                chan,
-                num,
-                self.vel_on.get(),
-            );
+            let vel = num_traits::clamp(self.vel_on.get(), 1, 127);
+            let _on = E::note_try_enqueue(context, on, true, chan, num, vel);
         }
     }
 }
