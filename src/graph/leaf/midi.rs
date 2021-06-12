@@ -1,11 +1,11 @@
 use crate::{
     event::{midi::MidiTryEnqueue, EventEvalContext},
-    graph::GraphLeafExec,
+    graph::{ChildCount, GraphChildExec, GraphNodeExec},
     param::ParamGet,
     tick::{TickResched, TickSched},
 };
 
-pub struct Note<N, C, D, VN, VF> {
+pub struct MidiNote<N, C, D, VN, VF> {
     note: N,
     chan: C,
     dur: D,
@@ -13,7 +13,7 @@ pub struct Note<N, C, D, VN, VF> {
     vel_off: VF,
 }
 
-impl<N, C, D, VN, VF> Note<N, C, D, VN, VF>
+impl<N, C, D, VN, VF> MidiNote<N, C, D, VN, VF>
 where
     N: ParamGet<u8>,
     C: ParamGet<u8>,
@@ -32,7 +32,7 @@ where
     }
 }
 
-impl<N, C, D, VN, VF, E> GraphLeafExec<E> for Note<N, C, D, VN, VF>
+impl<N, C, D, VN, VF, E> GraphNodeExec<E> for MidiNote<N, C, D, VN, VF>
 where
     N: ParamGet<u8>,
     C: ParamGet<u8>,
@@ -41,7 +41,7 @@ where
     VF: ParamGet<u8>,
     E: Send + MidiTryEnqueue,
 {
-    fn graph_exec(&self, context: &mut dyn EventEvalContext<E>) {
+    fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, _children: &dyn GraphChildExec<E>) {
         let on = TickSched::ContextRelative(0);
         let off = on.add(self.dur.get(), context.as_tick_context());
         let num = num_traits::clamp(self.note.get(), 0, 127);
@@ -53,5 +53,8 @@ where
             let vel = num_traits::clamp(self.vel_on.get(), 1, 127);
             let _on = E::note_try_enqueue(context, on, true, chan, num, vel);
         }
+    }
+    fn graph_children_max(&self) -> ChildCount {
+        ChildCount::None
     }
 }
