@@ -86,18 +86,20 @@ mod tests {
     static REF_CNT: AtomicUsize = AtomicUsize::new(0);
 
     lazy_static::lazy_static! {
-        static ref CLOCK_REF: Mutex<GraphRootWrapper<RootClock<f64, RefEventContainer>, (), RefEventContainer>> = {
-            let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64), ()));
+        static ref CLOCK_REF: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, RefEventContainer>, (), RefEventContainer>> = {
+            let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64, true, false), ()));
             c
         };
-        static ref CLOCK_ENUM: Mutex<GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent>> = {
-            let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64), ()));
+        static ref CLOCK_ENUM: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent>> = {
+            let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64, true, false), ()));
             c
         };
     }
 
     enum EnumEvent {
-        Root(&'static Mutex<GraphRootWrapper<RootClock<f64, EnumEvent>, (), EnumEvent>>),
+        Root(
+            &'static Mutex<GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent>>,
+        ),
     }
 
     pub struct RefEventContainer {
@@ -176,7 +178,7 @@ mod tests {
 
     #[test]
     fn can_build_boxed() {
-        let clock = GraphRootWrapper::new(RootClock::new(1.0 as crate::Float), ());
+        let clock = GraphRootWrapper::new(RootClock::new(1.0 as crate::Float, true, false), ());
         let mut reader: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::with_capacity(16);
         let writer: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::default();
 
