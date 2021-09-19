@@ -64,6 +64,23 @@ pub struct GetBinaryOp<IL, IR, O, F, PL, PR> {
     _phantom: PhantomData<fn() -> (IL, IR, O)>,
 }
 
+pub struct SetUnaryOp<I, F> {
+    func: F,
+    _phantom: PhantomData<fn() -> I>,
+}
+
+pub struct SetBinaryOpRight<IL, IR, F, P> {
+    param: P,
+    func: F,
+    _phantom: PhantomData<fn() -> (IL, IR)>,
+}
+
+pub struct SetBinaryOpLeft<IL, IR, F, P> {
+    param: P,
+    func: F,
+    _phantom: PhantomData<fn() -> (IL, IR)>,
+}
+
 impl<T, I, P> KeyValueGetDefault<T, I, P>
 where
     T: Copy + Default,
@@ -174,5 +191,74 @@ where
 {
     fn get(&self) -> O {
         (self.func)(self.left.get(), self.right.get())
+    }
+}
+
+impl<I, F> SetUnaryOp<I, F>
+where
+    F: Fn(I) + Send + Sync,
+{
+    pub fn new(func: F) -> Self {
+        Self {
+            func,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<I, F> ParamSet<I> for SetUnaryOp<I, F>
+where
+    F: Fn(I) + Send + Sync,
+{
+    fn set(&self, v: I) {
+        (self.func)(v)
+    }
+}
+
+impl<IL, IR, F, P> SetBinaryOpRight<IL, IR, F, P>
+where
+    F: Fn(IL, IR) + Send + Sync,
+    P: ParamGet<IL>,
+{
+    pub fn new(func: F, param: P) -> Self {
+        Self {
+            param,
+            func,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<IL, IR, F, P> ParamSet<IR> for SetBinaryOpRight<IL, IR, F, P>
+where
+    F: Fn(IL, IR) + Send + Sync,
+    P: ParamGet<IL>,
+{
+    fn set(&self, v: IR) {
+        (self.func)(self.param.get(), v)
+    }
+}
+
+impl<IL, IR, F, P> SetBinaryOpLeft<IL, IR, F, P>
+where
+    F: Fn(IL, IR) + Send + Sync,
+    P: ParamGet<IR>,
+{
+    pub fn new(func: F, param: P) -> Self {
+        Self {
+            param,
+            func,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<IL, IR, F, P> ParamSet<IL> for SetBinaryOpLeft<IL, IR, F, P>
+where
+    F: Fn(IL, IR) + Send + Sync,
+    P: ParamGet<IR>,
+{
+    fn set(&self, v: IL) {
+        (self.func)(v, self.param.get())
     }
 }
