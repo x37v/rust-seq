@@ -10,7 +10,6 @@ euclidean = []
 with_serde = ["serde"]
 with_alloc = []
 float32 = []
-no_compare_exchange = [] #some targets don't have this, we work around it if not
 default = ["std", "with_alloc", "euclidean", "with_serde"]
 
 [dependencies]
