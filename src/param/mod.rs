@@ -138,7 +138,7 @@ where
     fn set(&self, _v: T) {}
 }
 
-use crate::spin::mutex::spin::SpinMutex;
+/* use crate::spin::mutex::spin::SpinMutex;
 
 impl<T> ParamGet<T> for &'static SpinMutex<T>
 where
@@ -191,7 +191,7 @@ where
     fn len(&self) -> Option<usize> {
         Some(N)
     }
-}
+} */
 
 impl<T> ParamGet<T> for &'static dyn ParamGet<T>
 where

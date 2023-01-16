@@ -1,16 +1,26 @@
 use super::*;
-use crate::spin::mutex::spin::SpinMutex;
+use core::{
+    mem::MaybeUninit,
+    sync::atomic::{AtomicU8, Ordering},
+};
 
 ///A packed bool array
+///NOTE this expects that you don't alter data from multiple threads, but you can read it from
+///multiple
 pub struct BoolArray<const BYTES: usize> {
-    data: SpinMutex<[u8; BYTES]>,
+    data: [AtomicU8; BYTES],
 }
 
 impl<const BYTES: usize> BoolArray<BYTES> {
     pub const fn new() -> Self {
-        Self {
-            data: SpinMutex::new([0; BYTES]),
+        let mut data: [AtomicU8; BYTES] = unsafe { MaybeUninit::uninit().assume_init() };
+        //for isn't const safe
+        let mut i = 0;
+        while i < BYTES {
+            data[i] = AtomicU8::new(0);
+            i += 1;
         }
+        Self { data }
     }
 
     pub const fn bytes() -> usize {
@@ -18,11 +28,10 @@ impl<const BYTES: usize> BoolArray<BYTES> {
     }
 
     pub fn byte(&self, index: usize) -> Result<u8, ()> {
-        if index >= BYTES {
-            Err(())
-        } else {
-            Ok(self.data.lock()[index])
-        }
+        self.data
+            .get(index)
+            .map(|v| v.load(Ordering::SeqCst))
+            .ok_or(())
     }
 
     pub fn toggle(&self, key: usize) -> Result<bool, ()> {
@@ -30,11 +39,10 @@ impl<const BYTES: usize> BoolArray<BYTES> {
         if byte >= BYTES {
             Err(())
         } else {
-            let mut g = self.data.lock();
             let bit = key % 8;
             let mask = 1 << bit;
-            let cur = g[byte] ^ mask;
-            g[byte] = cur;
+            let cur = self.byte(byte).unwrap() ^ mask;
+            self.data[byte].store(cur, Ordering::SeqCst);
             Ok(cur & mask != 0)
         }
     }
@@ -48,9 +56,11 @@ impl<const BYTES: usize> Default for BoolArray<BYTES> {
 
 impl<const BYTES: usize> From<[u8; BYTES]> for BoolArray<BYTES> {
     fn from(bytes: [u8; BYTES]) -> Self {
-        Self {
-            data: SpinMutex::new(bytes),
+        let mut v: Self = Self::new();
+        for (o, i) in v.data.iter_mut().zip(bytes) {
+            o.store(i, Ordering::SeqCst);
         }
+        v
     }
 }
 
@@ -63,21 +73,16 @@ impl<const BYTES: usize> From<&[bool]> for BoolArray<BYTES> {
                 bytes[index / 8] |= 1 << (index % 8);
             }
         }
-        Self {
-            data: SpinMutex::new(bytes),
-        }
+        Self::from(bytes)
     }
 }
 
 impl<const BYTES: usize> ParamKeyValueGet<bool> for BoolArray<BYTES> {
     fn get_at(&self, key: usize) -> Option<bool> {
         let byte = key / 8;
-        if byte >= BYTES {
-            None
-        } else {
-            let bit = key % 8;
-            Some(0 != (self.data.lock()[byte] & (1 << bit)))
-        }
+        self.byte(byte)
+            .ok()
+            .map(|cur| (cur & (1 << (key % 8))) != 0)
     }
 
     fn len(&self) -> Option<usize> {
@@ -91,9 +96,12 @@ impl<const BYTES: usize> ParamKeyValueSet<bool> for BoolArray<BYTES> {
         if byte >= BYTES {
             Err(value)
         } else {
-            let mut g = self.data.lock();
+            let cur = self.data[byte].load(Ordering::SeqCst);
             let bit = key % 8;
-            g[byte] = (g[byte] & !(1 << bit)) | if value { 1 << bit } else { 0 };
+            self.data[byte].store(
+                (cur & !(1 << bit)) | if value { 1 << bit } else { 0 },
+                Ordering::SeqCst,
+            );
             Ok(())
         }
     }
