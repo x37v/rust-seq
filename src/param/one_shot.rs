@@ -13,9 +13,30 @@ impl OneShot {
     }
 }
 
+#[cfg(not(feature = "no_compare_exchange"))]
 impl ParamGet<bool> for OneShot {
     fn get(&self) -> bool {
-        self.inner.swap(false, Ordering::SeqCst)
+        if let Ok(state) =
+            self.inner
+                .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
+        {
+            state
+        } else {
+            false
+        }
+    }
+}
+
+///NOTE: expects that there is only one thread doing the get & set
+#[cfg(feature = "no_compare_exchange")]
+impl ParamGet<bool> for OneShot {
+    fn get(&self) -> bool {
+        if !self.inner.load(Ordering::SeqCst) {
+            self.inner.store(true, Ordering::SeqCst);
+            true
+        } else {
+            false
+        }
     }
 }
 
