@@ -29,7 +29,6 @@ impl<StepTicks, Index, E, const INDEX_CHILDREN: bool> GraphNodeExec<E>
 where
     StepTicks: ParamGet<usize>,
     Index: ParamGet<usize>,
-    E: Send,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         let step_ticks = self.step_ticks.get();

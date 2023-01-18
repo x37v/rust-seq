@@ -18,7 +18,7 @@ impl<T, Mul, Div> ClockRatio<T, Mul, Div>
 where
     Mul: ParamGet<T>,
     Div: ParamGet<T>,
-    T: num_traits::sign::Unsigned + NumCast + Send,
+    T: num_traits::sign::Unsigned + NumCast,
 {
     pub fn new(mul: Mul, div: Div) -> Self {
         Self {
@@ -33,8 +33,7 @@ impl<T, Mul, Div, E> GraphNodeExec<E> for ClockRatio<T, Mul, Div>
 where
     Mul: ParamGet<T>,
     Div: ParamGet<T>,
-    T: num_traits::sign::Unsigned + NumCast + Send,
-    E: Send,
+    T: num_traits::sign::Unsigned + NumCast,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         let div: usize = NumCast::from(self.div.get()).expect("T should cast to usize");

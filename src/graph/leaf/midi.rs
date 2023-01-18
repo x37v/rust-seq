@@ -39,7 +39,7 @@ where
     D: ParamGet<TickResched>,
     VN: ParamGet<u8>,
     VF: ParamGet<u8>,
-    E: Send + MidiTryEnqueue,
+    E: MidiTryEnqueue,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, _children: &dyn GraphChildExec<E>) {
         let on = TickSched::ContextRelative(0);

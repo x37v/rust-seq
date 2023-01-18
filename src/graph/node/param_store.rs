@@ -7,7 +7,6 @@ use crate::{
 ///A graph node that stores a value and then calls its children.
 pub struct ParamStore<T, G, S>
 where
-    T: Send,
     G: ParamGet<T>,
     S: ParamSet<T>,
 {
@@ -18,7 +17,6 @@ where
 
 impl<T, G, S> ParamStore<T, G, S>
 where
-    T: Send,
     G: ParamGet<T>,
     S: ParamSet<T>,
 {
@@ -33,10 +31,8 @@ where
 
 impl<T, G, S, E> GraphNodeExec<E> for ParamStore<T, G, S>
 where
-    T: Send,
     G: ParamGet<T>,
     S: ParamSet<T>,
-    E: Send,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         self.set.set(self.get.get());

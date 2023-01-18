@@ -103,7 +103,7 @@ mod tests {
     }
 
     pub struct RefEventContainer {
-        inner: &'static Mutex<dyn EventEval<RefEventContainer>>,
+        inner: &'static Mutex<dyn EventEval<RefEventContainer> + Send>,
     }
 
     pub fn ptr_cmp<T: ?Sized>(a: *const T, b: *const T) -> Ordering {
@@ -151,7 +151,7 @@ mod tests {
     }
 
     impl RefEventContainer {
-        pub fn new(inner: &'static Mutex<dyn EventEval<RefEventContainer>>) -> Self {
+        pub fn new(inner: &'static Mutex<dyn EventEval<RefEventContainer> + Send>) -> Self {
             Self { inner }
         }
     }

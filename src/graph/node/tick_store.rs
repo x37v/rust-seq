@@ -21,7 +21,6 @@ where
 impl<T, E> GraphNodeExec<E> for TickStore<T>
 where
     T: ParamSet<usize>,
-    E: Send,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         self.storage.set(context.context_tick_now());

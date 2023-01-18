@@ -23,7 +23,6 @@ where
 impl<T, E> GraphNodeExec<E> for TickOffset<T>
 where
     T: ParamGet<isize>,
-    E: Send,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         let period_micros = context.context_tick_period_micros();

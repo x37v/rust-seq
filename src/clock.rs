@@ -4,7 +4,7 @@ const PERIOD_MICRO_MIN: Float = 0.001;
 const BPM_MIN: Float = 0.001;
 const PPQ_MIN: usize = 1;
 
-pub trait Clock: Send {
+pub trait Clock {
     fn bpm(&self) -> Float;
     fn set_bpm(&mut self, bpm: Float);
 

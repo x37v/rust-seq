@@ -13,8 +13,7 @@ pub struct NodeFunc<F, E> {
 
 impl<F, E> LeafFunc<F, E>
 where
-    F: Fn(&mut dyn EventEvalContext<E>) + Send,
-    E: Send,
+    F: Fn(&mut dyn EventEvalContext<E>),
 {
     pub fn new(func: F) -> Self {
         Self {
@@ -26,8 +25,7 @@ where
 
 impl<F, E> GraphLeafExec<E> for LeafFunc<F, E>
 where
-    F: Fn(&mut dyn EventEvalContext<E>) + Send,
-    E: Send,
+    F: Fn(&mut dyn EventEvalContext<E>),
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>) {
         (self.func)(context);
@@ -36,8 +34,7 @@ where
 
 impl<F, E> NodeFunc<F, E>
 where
-    F: Fn(&mut dyn EventEvalContext<E>, &dyn GraphChildExec<E>) + Send,
-    E: Send,
+    F: Fn(&mut dyn EventEvalContext<E>, &dyn GraphChildExec<E>),
 {
     pub fn new(func: F) -> Self {
         Self {
@@ -49,8 +46,7 @@ where
 
 impl<F, E> GraphNodeExec<E> for NodeFunc<F, E>
 where
-    F: Fn(&mut dyn EventEvalContext<E>, &dyn GraphChildExec<E>) + Send,
-    E: Send,
+    F: Fn(&mut dyn EventEvalContext<E>, &dyn GraphChildExec<E>),
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         (self.func)(context, children);

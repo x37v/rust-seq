@@ -45,7 +45,6 @@ where
     P: ParamGet<Float>,
     R: ParamGet<bool>,
     RS: ParamGet<bool>,
-    E: Send,
 {
     fn event_eval(
         &mut self,

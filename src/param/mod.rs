@@ -8,21 +8,21 @@ pub mod ops;
 //impl for atomic
 mod atomic;
 
-pub trait ParamGet<T>: Send + Sync {
+pub trait ParamGet<T> {
     fn get(&self) -> T;
 }
 
-pub trait ParamSet<T>: Send + Sync {
+pub trait ParamSet<T> {
     fn set(&self, value: T);
 }
 
-pub trait ParamKeyValueGet<T>: Send + Sync {
+pub trait ParamKeyValueGet<T> {
     fn get_at(&self, key: usize) -> Option<T>;
     fn len(&self) -> Option<usize>;
     //should there be an indication if its sparce? ie Array v. HashMap
 }
 
-pub trait ParamKeyValueSet<T>: Send + Sync {
+pub trait ParamKeyValueSet<T> {
     fn set_at(&self, key: usize, value: T) -> Result<(), T>;
     fn len(&self) -> Option<usize>;
     //should there be an indication if its sparce? ie Array v. HashMap
@@ -124,7 +124,7 @@ where
 
 impl<T> ParamGet<T> for T
 where
-    T: Copy + Send + Sync,
+    T: Copy,
 {
     fn get(&self) -> T {
         *self
@@ -133,7 +133,7 @@ where
 
 impl<T> ParamSet<T> for ()
 where
-    T: Copy + Sync + Send,
+    T: Copy,
 {
     fn set(&self, _v: T) {}
 }
@@ -195,7 +195,7 @@ where
 
 impl<T> ParamGet<T> for &'static dyn ParamGet<T>
 where
-    T: Copy + Sync + Send,
+    T: Copy,
 {
     fn get(&self) -> T {
         (*self).get()
@@ -204,7 +204,7 @@ where
 
 impl<T> ParamSet<T> for &'static dyn ParamSet<T>
 where
-    T: Copy + Sync + Send,
+    T: Copy,
 {
     fn set(&self, v: T) {
         (*self).set(v)
@@ -213,7 +213,7 @@ where
 
 impl<T> ParamKeyValueGet<T> for &'static dyn ParamKeyValueGet<T>
 where
-    T: Copy + Sync + Send,
+    T: Copy,
 {
     fn get_at(&self, index: usize) -> Option<T> {
         (*self).get_at(index)
@@ -226,7 +226,7 @@ where
 
 impl<T> ParamKeyValueSet<T> for &'static dyn ParamKeyValueSet<T>
 where
-    T: Copy + Sync + Send,
+    T: Copy,
 {
     fn set_at(&self, key: usize, value: T) -> Result<(), T> {
         (*self).set_at(key, value)
@@ -239,7 +239,7 @@ where
 
 impl<T, const N: usize> ParamKeyValueGet<T> for [T; N]
 where
-    T: Copy + Sync + Send,
+    T: Copy,
 {
     fn get_at(&self, index: usize) -> Option<T> {
         if index < N {

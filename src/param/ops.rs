@@ -135,9 +135,7 @@ where
 
 impl<I, O, F, P> GetUnaryOp<I, O, F, P>
 where
-    I: Send,
-    O: Send,
-    F: Fn(I) -> O + Send + Sync,
+    F: Fn(I) -> O,
     P: ParamGet<I>,
 {
     pub fn new(func: F, param: P) -> Self {
@@ -151,9 +149,7 @@ where
 
 impl<I, O, F, P> ParamGet<O> for GetUnaryOp<I, O, F, P>
 where
-    I: Send,
-    O: Send,
-    F: Fn(I) -> O + Send + Sync,
+    F: Fn(I) -> O,
     P: ParamGet<I>,
 {
     fn get(&self) -> O {
@@ -163,10 +159,7 @@ where
 
 impl<IL, IR, O, F, BL, BR> GetBinaryOp<IL, IR, O, F, BL, BR>
 where
-    IL: Send,
-    IR: Send,
-    O: Send,
-    F: Fn(IL, IR) -> O + Send + Sync,
+    F: Fn(IL, IR) -> O,
     BL: ParamGet<IL>,
     BR: ParamGet<IR>,
 {
@@ -182,10 +175,7 @@ where
 
 impl<IL, IR, O, F, BL, BR> ParamGet<O> for GetBinaryOp<IL, IR, O, F, BL, BR>
 where
-    IL: Send,
-    IR: Send,
-    O: Send,
-    F: Fn(IL, IR) -> O + Send + Sync,
+    F: Fn(IL, IR) -> O,
     BL: ParamGet<IL>,
     BR: ParamGet<IR>,
 {
@@ -196,7 +186,7 @@ where
 
 impl<I, F> SetUnaryOp<I, F>
 where
-    F: Fn(I) + Send + Sync,
+    F: Fn(I),
 {
     pub fn new(func: F) -> Self {
         Self {
@@ -208,7 +198,7 @@ where
 
 impl<I, F> ParamSet<I> for SetUnaryOp<I, F>
 where
-    F: Fn(I) + Send + Sync,
+    F: Fn(I),
 {
     fn set(&self, v: I) {
         (self.func)(v)
@@ -217,7 +207,7 @@ where
 
 impl<IL, IR, F, P> SetBinaryOpRight<IL, IR, F, P>
 where
-    F: Fn(IL, IR) + Send + Sync,
+    F: Fn(IL, IR),
     P: ParamGet<IL>,
 {
     pub fn new(func: F, param: P) -> Self {
@@ -231,7 +221,7 @@ where
 
 impl<IL, IR, F, P> ParamSet<IR> for SetBinaryOpRight<IL, IR, F, P>
 where
-    F: Fn(IL, IR) + Send + Sync,
+    F: Fn(IL, IR),
     P: ParamGet<IL>,
 {
     fn set(&self, v: IR) {
@@ -241,7 +231,7 @@ where
 
 impl<IL, IR, F, P> SetBinaryOpLeft<IL, IR, F, P>
 where
-    F: Fn(IL, IR) + Send + Sync,
+    F: Fn(IL, IR),
     P: ParamGet<IR>,
 {
     pub fn new(func: F, param: P) -> Self {
@@ -255,7 +245,7 @@ where
 
 impl<IL, IR, F, P> ParamSet<IL> for SetBinaryOpLeft<IL, IR, F, P>
 where
-    F: Fn(IL, IR) + Send + Sync,
+    F: Fn(IL, IR),
     P: ParamGet<IR>,
 {
     fn set(&self, v: IL) {

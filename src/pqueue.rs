@@ -1,12 +1,12 @@
 //! Priority Queues
 use core::cmp::Ordering;
 
-pub trait TickPriorityEnqueue<T>: Send {
+pub trait TickPriorityEnqueue<T> {
     /// Try to enqueue the item at the given tick
     fn try_enqueue(&mut self, tick: usize, value: T) -> Result<(), T>;
 }
 
-pub trait TickPriorityDequeue<T>: Send {
+pub trait TickPriorityDequeue<T> {
     /// Dequeue items, in order, with a tick less than `tick`, if there are any.
     fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, T)>;
 }
@@ -29,7 +29,7 @@ pub mod binaryheap {
 
     impl<T> TickPriorityEnqueue<T> for BinaryHeapQueue<T>
     where
-        T: Send + Ord,
+        T: Ord,
     {
         fn try_enqueue(&mut self, tick: usize, value: T) -> Result<(), T> {
             //don't allocate
@@ -44,7 +44,7 @@ pub mod binaryheap {
 
     impl<T> TickPriorityDequeue<T> for BinaryHeapQueue<T>
     where
-        T: Send + Ord,
+        T: Ord,
     {
         fn dequeue_lt(&mut self, tick: usize) -> Option<(usize, T)> {
             if let Some(t) = self.0.peek() {

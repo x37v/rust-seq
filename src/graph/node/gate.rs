@@ -25,7 +25,6 @@ where
 impl<P, E> GraphNodeExec<E> for Gate<P>
 where
     P: ParamGet<bool>,
-    E: Send,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         if self.gate.get() {

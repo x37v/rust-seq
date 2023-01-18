@@ -7,7 +7,6 @@ pub struct GraphNodeWrapper<N, C, E>
 where
     N: GraphNodeExec<E>,
     C: GraphChildExec<E>,
-    E: Send + Sync,
 {
     pub node: N,
     pub children: C,
@@ -18,7 +17,6 @@ impl<N, C, E> GraphNodeWrapper<N, C, E>
 where
     N: GraphNodeExec<E>,
     C: GraphChildExec<E>,
-    E: Send + Sync,
 {
     pub fn new(node: N, children: C) -> Self {
         Self {
@@ -33,7 +31,6 @@ impl<N, C, E> GraphNode<E> for GraphNodeWrapper<N, C, E>
 where
     N: GraphNodeExec<E>,
     C: GraphChildExec<E>,
-    E: Send + Sync,
 {
     fn node_exec(&self, context: &mut dyn EventEvalContext<E>) {
         self.node.graph_exec(context, &self.children)

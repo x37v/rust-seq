@@ -8,7 +8,7 @@ use crate::{
 ///children.
 pub struct Repeat<T, G, S>
 where
-    T: Send + num_traits::PrimInt + num_traits::sign::Unsigned,
+    T: num_traits::PrimInt + num_traits::sign::Unsigned,
     G: ParamGet<T>,
     S: ParamSet<T>,
 {
@@ -19,7 +19,7 @@ where
 
 impl<T, G, S> Repeat<T, G, S>
 where
-    T: Send + num_traits::PrimInt + num_traits::sign::Unsigned,
+    T: num_traits::PrimInt + num_traits::sign::Unsigned,
     G: ParamGet<T>,
     S: ParamSet<T>,
 {
@@ -34,8 +34,7 @@ where
 
 impl<T, G, S, E> GraphNodeExec<E> for Repeat<T, G, S>
 where
-    T: Send
-        + num_traits::PrimInt
+    T: num_traits::PrimInt
         + num_traits::sign::Unsigned
         + core::ops::Add<T, Output = T>
         + PartialOrd
@@ -43,7 +42,6 @@ where
         + num_traits::One,
     G: ParamGet<T>,
     S: ParamSet<T>,
-    E: Send,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
         let r = self.repeats.get();

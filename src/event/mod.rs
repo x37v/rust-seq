@@ -13,7 +13,7 @@ pub trait EventEvalContext<E>: EventSchedule<E> + TickContext {
     fn as_event_schedule(&mut self) -> &mut dyn EventSchedule<E>;
 }
 
-pub trait EventEval<E>: Send {
+pub trait EventEval<E> {
     fn event_eval(&mut self, context: &mut dyn EventEvalContext<E>) -> TickResched;
 }
 

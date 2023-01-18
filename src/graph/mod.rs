@@ -19,7 +19,7 @@ pub enum ChildCount {
 }
 
 /// A trait that a node, that will have children, implements.
-pub trait GraphNodeExec<E>: Send {
+pub trait GraphNodeExec<E> {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>);
     fn graph_children_max(&self) -> ChildCount {
         ChildCount::Inf
@@ -27,12 +27,12 @@ pub trait GraphNodeExec<E>: Send {
 }
 
 /// A trait that a leaf, a node without children, implements.
-pub trait GraphLeafExec<E>: Send {
+pub trait GraphLeafExec<E> {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>);
 }
 
 /// A trait that a node uses to execute its child nodes.
-pub trait GraphChildExec<E>: Send {
+pub trait GraphChildExec<E> {
     /// Get the `ChildCount` value.
     fn child_count(&self) -> ChildCount;
 
@@ -99,7 +99,7 @@ pub trait GraphChildExec<E>: Send {
 }
 
 /// A trait for a node that wraps something that implements GraphNodeExec and GraphChildExec
-pub trait GraphNode<E>: Send {
+pub trait GraphNode<E> {
     fn node_exec(&self, context: &mut dyn EventEvalContext<E>);
 }
 
