@@ -40,7 +40,7 @@ where
     }
 }
 
-impl<P, R, RS, E> GraphRootExec<E> for RootClock<P, R, RS, E>
+impl<P, R, RS, E, U> GraphRootExec<E, U> for RootClock<P, R, RS, E>
 where
     P: ParamGet<Float>,
     R: ParamGet<bool>,
@@ -49,6 +49,7 @@ where
     fn event_eval(
         &mut self,
         context: &mut dyn EventEvalContext<E>,
+        _user_data: &mut U,
         children: &mut dyn GraphChildExec<E>,
     ) -> TickResched {
         if self.run.get() {

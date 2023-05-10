@@ -5,7 +5,7 @@ use crate::pqueue::{TickPriorityDequeue, TickPriorityEnqueue};
 use crate::tick::*;
 
 /// Schedule executor.
-pub struct SchedExec<R, W, E>
+pub struct SchedExec<R, W, E, U>
 where
     R: TickPriorityDequeue<E>,
     W: TickPriorityEnqueue<E>,
@@ -13,14 +13,14 @@ where
     tick_next: usize,
     schedule_reader: R,
     schedule_writer: W,
-    _phantom: core::marker::PhantomData<fn() -> E>,
+    _phantom: core::marker::PhantomData<fn() -> (E, U)>,
 }
 
-impl<R, W, E> SchedExec<R, W, E>
+impl<R, W, E, U> SchedExec<R, W, E, U>
 where
     R: TickPriorityDequeue<E>,
     W: TickPriorityEnqueue<E>,
-    E: EventEval<E>,
+    E: EventEval<E, U>,
 {
     pub fn new(schedule_reader: R, schedule_writer: W) -> Self {
         Self {
@@ -31,7 +31,7 @@ where
         }
     }
 
-    pub fn run(&mut self, ticks: usize, ticks_per_second: usize) {
+    pub fn run(&mut self, ticks: usize, ticks_per_second: usize, user_data: &mut U) {
         let now = self.tick_next;
 
         //Find the net run's tick and handle rollover
@@ -48,7 +48,7 @@ where
             context.update_tick(tick);
 
             //eval and see about rescheduling
-            let r = match event.event_eval(&mut context) {
+            let r = match event.event_eval(&mut context, user_data) {
                 TickResched::Relative(t) => Some(TickSched::Relative(t as isize)),
                 TickResched::ContextRelative(t) => Some(TickSched::ContextRelative(t as isize)),
                 TickResched::None => None,
@@ -86,11 +86,11 @@ mod tests {
     static REF_CNT: AtomicUsize = AtomicUsize::new(0);
 
     lazy_static::lazy_static! {
-        static ref CLOCK_REF: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, RefEventContainer>, (), RefEventContainer>> = {
+        static ref CLOCK_REF: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, RefEventContainer>, (), RefEventContainer, ()>> = {
             let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64, true, false), ()));
             c
         };
-        static ref CLOCK_ENUM: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent>> = {
+        static ref CLOCK_ENUM: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent, ()>> = {
             let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64, true, false), ()));
             c
         };
@@ -98,12 +98,14 @@ mod tests {
 
     enum EnumEvent {
         Root(
-            &'static Mutex<GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent>>,
+            &'static Mutex<
+                GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent, ()>,
+            >,
         ),
     }
 
     pub struct RefEventContainer {
-        inner: &'static Mutex<dyn EventEval<RefEventContainer> + Send>,
+        inner: &'static Mutex<dyn EventEval<RefEventContainer, ()> + Send>,
     }
 
     pub fn ptr_cmp<T: ?Sized>(a: *const T, b: *const T) -> Ordering {
@@ -134,24 +136,32 @@ mod tests {
 
     impl Eq for EnumEvent {}
 
-    impl EventEval<EnumEvent> for EnumEvent {
-        fn event_eval(&mut self, context: &mut dyn EventEvalContext<EnumEvent>) -> TickResched {
+    impl EventEval<EnumEvent, ()> for EnumEvent {
+        fn event_eval(
+            &mut self,
+            context: &mut dyn EventEvalContext<EnumEvent>,
+            user_data: &mut (),
+        ) -> TickResched {
             ENUM_CNT.fetch_add(1, AOrdering::SeqCst);
             match &self {
-                Self::Root(r) => r.lock().unwrap().event_eval(context),
+                Self::Root(r) => r.lock().unwrap().event_eval(context, user_data),
             }
         }
     }
 
-    impl EventEval<RefEventContainer> for RefEventContainer {
-        fn event_eval(&mut self, context: &mut dyn EventEvalContext<Self>) -> TickResched {
+    impl EventEval<RefEventContainer, ()> for RefEventContainer {
+        fn event_eval(
+            &mut self,
+            context: &mut dyn EventEvalContext<Self>,
+            user_data: &mut (),
+        ) -> TickResched {
             REF_CNT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            self.inner.lock().unwrap().event_eval(context)
+            self.inner.lock().unwrap().event_eval(context, user_data)
         }
     }
 
     impl RefEventContainer {
-        pub fn new(inner: &'static Mutex<dyn EventEval<RefEventContainer> + Send>) -> Self {
+        pub fn new(inner: &'static Mutex<dyn EventEval<RefEventContainer, ()> + Send>) -> Self {
             Self { inner }
         }
     }
@@ -179,14 +189,14 @@ mod tests {
     #[test]
     fn can_build_boxed() {
         let clock = GraphRootWrapper::new(RootClock::new(1.0 as crate::Float, true, false), ());
-        let mut reader: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::with_capacity(16);
-        let writer: BinaryHeapQueue<EventContainer> = BinaryHeapQueue::default();
+        let mut reader: BinaryHeapQueue<EventContainer<()>> = BinaryHeapQueue::with_capacity(16);
+        let writer: BinaryHeapQueue<EventContainer<()>> = BinaryHeapQueue::default();
 
         assert!(reader
             .try_enqueue(0, EventContainer::new(Box::new(clock)))
             .is_ok());
         let mut sched = SchedExec::new(reader, writer);
-        sched.run(0, 16);
+        sched.run(0, 16, &mut ());
     }
 
     #[test]
@@ -199,9 +209,9 @@ mod tests {
         assert!(reader.try_enqueue(0, EnumEvent::Root(&*CLOCK_ENUM)).is_ok());
         let mut sched = SchedExec::new(reader, writer);
 
-        sched.run(0, 44100);
+        sched.run(0, 44100, &mut ());
         assert_eq!(ENUM_CNT.load(AOrdering::SeqCst), 0);
-        sched.run(16, 44100);
+        sched.run(16, 44100, &mut ());
         assert_eq!(ENUM_CNT.load(AOrdering::SeqCst), 1);
     }
 
@@ -217,9 +227,9 @@ mod tests {
             .is_ok());
         let mut sched = SchedExec::new(reader, writer);
 
-        sched.run(0, 4410);
+        sched.run(0, 4410, &mut ());
         assert_eq!(REF_CNT.load(AOrdering::SeqCst), 0);
-        sched.run(1, 4410);
+        sched.run(1, 4410, &mut ());
         assert_eq!(REF_CNT.load(AOrdering::SeqCst), 1);
     }
 }
