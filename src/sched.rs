@@ -86,11 +86,11 @@ mod tests {
     static REF_CNT: AtomicUsize = AtomicUsize::new(0);
 
     lazy_static::lazy_static! {
-        static ref CLOCK_REF: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, RefEventContainer>, (), RefEventContainer, ()>> = {
+        static ref CLOCK_REF: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, RefEventContainer, ()>, (), RefEventContainer, ()>> = {
             let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64, true, false), ()));
             c
         };
-        static ref CLOCK_ENUM: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent, ()>> = {
+        static ref CLOCK_ENUM: Mutex<GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent, ()>, (), EnumEvent, ()>> = {
             let c = Mutex::new(GraphRootWrapper::new(RootClock::new(1000f64, true, false), ()));
             c
         };
@@ -99,7 +99,7 @@ mod tests {
     enum EnumEvent {
         Root(
             &'static Mutex<
-                GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent>, (), EnumEvent, ()>,
+                GraphRootWrapper<RootClock<f64, bool, bool, EnumEvent, ()>, (), EnumEvent, ()>,
             >,
         ),
     }
