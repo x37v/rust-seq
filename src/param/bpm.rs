@@ -4,22 +4,13 @@ use crate::{
     Float,
 };
 
-pub struct ClockGetPeriodMicros<P, U>
-where
-    P: ParamGet<ClockData, U>,
-{
+pub struct ClockGetPeriodMicros<P> {
     clock: P,
-    _phantom: core::marker::PhantomData<U>,
 }
 
-pub struct ClockSetPeriodMicros<G, S, U>
-where
-    G: ParamGet<ClockData, U>,
-    S: ParamSet<ClockData, U>,
-{
+pub struct ClockSetPeriodMicros<G, S> {
     get: G,
     set: S,
-    _phantom: core::marker::PhantomData<U>,
 }
 
 pub struct ClockGetSetPeriodMicros<P, U>
@@ -29,22 +20,13 @@ where
     param: ParamGetSet<ClockData, P, U>,
 }
 
-pub struct ClockGetBPM<P, U>
-where
-    P: ParamGet<ClockData, U>,
-{
+pub struct ClockGetBPM<P> {
     clock: P,
-    _phantom: core::marker::PhantomData<U>,
 }
 
-pub struct ClockSetBPM<G, S, U>
-where
-    G: ParamGet<ClockData, U>,
-    S: ParamSet<ClockData, U>,
-{
+pub struct ClockSetBPM<G, S> {
     get: G,
     set: S,
-    _phantom: core::marker::PhantomData<U>,
 }
 
 pub struct ClockGetSetBPM<P, U>
@@ -54,22 +36,13 @@ where
     param: ParamGetSet<ClockData, P, U>,
 }
 
-pub struct ClockGetPPQ<P, U>
-where
-    P: ParamGet<ClockData, U>,
-{
+pub struct ClockGetPPQ<P> {
     clock: P,
-    _phantom: core::marker::PhantomData<U>,
 }
 
-pub struct ClockSetPPQ<G, S, U>
-where
-    G: ParamGet<ClockData, U>,
-    S: ParamSet<ClockData, U>,
-{
+pub struct ClockSetPPQ<G, S> {
     get: G,
     set: S,
-    _phantom: core::marker::PhantomData<U>,
 }
 
 pub struct ClockGetSetPPQ<P, U>
@@ -79,19 +52,13 @@ where
     param: ParamGetSet<ClockData, P, U>,
 }
 
-impl<P, U> ClockGetPeriodMicros<P, U>
-where
-    P: ParamGet<ClockData, U>,
-{
+impl<P> ClockGetPeriodMicros<P> {
     pub fn new(clock: P) -> Self {
-        Self {
-            clock,
-            _phantom: Default::default(),
-        }
+        Self { clock }
     }
 }
 
-impl<P, U> ParamGet<Float, U> for ClockGetPeriodMicros<P, U>
+impl<P, U> ParamGet<Float, U> for ClockGetPeriodMicros<P>
 where
     P: ParamGet<ClockData, U>,
 {
@@ -100,21 +67,13 @@ where
     }
 }
 
-impl<G, S, U> ClockSetPeriodMicros<G, S, U>
-where
-    G: ParamGet<ClockData, U>,
-    S: ParamSet<ClockData, U>,
-{
+impl<G, S> ClockSetPeriodMicros<G, S> {
     pub fn new(get: G, set: S) -> Self {
-        Self {
-            get,
-            set,
-            _phantom: Default::default(),
-        }
+        Self { get, set }
     }
 }
 
-impl<G, S, U> ParamSet<Float, U> for ClockSetPeriodMicros<G, S, U>
+impl<G, S, U> ParamSet<Float, U> for ClockSetPeriodMicros<G, S>
 where
     G: ParamGet<ClockData, U>,
     S: ParamSet<ClockData, U>,
@@ -157,19 +116,13 @@ where
     }
 }
 
-impl<P, U> ClockGetBPM<P, U>
-where
-    P: ParamGet<ClockData, U>,
-{
+impl<P> ClockGetBPM<P> {
     pub fn new(clock: P) -> Self {
-        Self {
-            clock,
-            _phantom: Default::default(),
-        }
+        Self { clock }
     }
 }
 
-impl<P, U> ParamGet<Float, U> for ClockGetBPM<P, U>
+impl<P, U> ParamGet<Float, U> for ClockGetBPM<P>
 where
     P: ParamGet<ClockData, U>,
 {
@@ -178,21 +131,13 @@ where
     }
 }
 
-impl<G, S, U> ClockSetBPM<G, S, U>
-where
-    G: ParamGet<ClockData, U>,
-    S: ParamSet<ClockData, U>,
-{
+impl<G, S> ClockSetBPM<G, S> {
     pub fn new(get: G, set: S) -> Self {
-        Self {
-            get,
-            set,
-            _phantom: Default::default(),
-        }
+        Self { get, set }
     }
 }
 
-impl<G, S, U> ParamSet<Float, U> for ClockSetBPM<G, S, U>
+impl<G, S, U> ParamSet<Float, U> for ClockSetBPM<G, S>
 where
     G: ParamGet<ClockData, U>,
     S: ParamSet<ClockData, U>,
@@ -235,19 +180,13 @@ where
     }
 }
 
-impl<P, U> ClockGetPPQ<P, U>
-where
-    P: ParamGet<ClockData, U>,
-{
+impl<P> ClockGetPPQ<P> {
     pub fn new(clock: P) -> Self {
-        Self {
-            clock,
-            _phantom: Default::default(),
-        }
+        Self { clock }
     }
 }
 
-impl<P, U> ParamGet<usize, U> for ClockGetPPQ<P, U>
+impl<P, U> ParamGet<usize, U> for ClockGetPPQ<P>
 where
     P: ParamGet<ClockData, U>,
 {
@@ -256,21 +195,13 @@ where
     }
 }
 
-impl<G, S, U> ClockSetPPQ<G, S, U>
-where
-    G: ParamGet<ClockData, U>,
-    S: ParamSet<ClockData, U>,
-{
+impl<G, S> ClockSetPPQ<G, S> {
     pub fn new(get: G, set: S) -> Self {
-        Self {
-            get,
-            set,
-            _phantom: Default::default(),
-        }
+        Self { get, set }
     }
 }
 
-impl<G, S, U> ParamSet<usize, U> for ClockSetPPQ<G, S, U>
+impl<G, S, U> ParamSet<usize, U> for ClockSetPPQ<G, S>
 where
     G: ParamGet<ClockData, U>,
     S: ParamSet<ClockData, U>,
