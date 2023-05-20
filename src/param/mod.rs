@@ -1,7 +1,7 @@
 //! Parameters
 
-//pub mod bool;
-//pub mod bpm;
+pub mod bool;
+pub mod bpm;
 //pub mod one_shot;
 //pub mod ops;
 

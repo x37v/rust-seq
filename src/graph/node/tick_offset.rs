@@ -9,7 +9,7 @@ use crate::{
 //only applies offset to context
 pub struct TickOffset<T, U> {
     offset: T,
-    _phatom: core::marker::PhantomData<U>,
+    _phantom: core::marker::PhantomData<U>,
 }
 
 impl<T, U> TickOffset<T, U>
@@ -19,7 +19,7 @@ where
     pub fn new(offset: T) -> Self {
         Self {
             offset,
-            _phatom: Default::default(),
+            _phantom: Default::default(),
         }
     }
 }

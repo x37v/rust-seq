@@ -77,21 +77,21 @@ impl<const BYTES: usize> From<&[bool]> for BoolArray<BYTES> {
     }
 }
 
-impl<const BYTES: usize> ParamKeyValueGet<bool> for BoolArray<BYTES> {
-    fn get_at(&self, key: usize) -> Option<bool> {
+impl<U, const BYTES: usize> ParamKeyValueGet<bool, U> for BoolArray<BYTES> {
+    fn get_at(&self, key: usize, _user_data: &mut U) -> Option<bool> {
         let byte = key / 8;
         self.byte(byte)
             .ok()
             .map(|cur| (cur & (1 << (key % 8))) != 0)
     }
 
-    fn len(&self) -> Option<usize> {
+    fn len(&self, _user_data: &mut U) -> Option<usize> {
         Some(BYTES * 8)
     }
 }
 
-impl<const BYTES: usize> ParamKeyValueSet<bool> for BoolArray<BYTES> {
-    fn set_at(&self, key: usize, value: bool) -> Result<(), bool> {
+impl<U, const BYTES: usize> ParamKeyValueSet<bool, U> for BoolArray<BYTES> {
+    fn set_at(&self, key: usize, value: bool, _user_data: &mut U) -> Result<(), bool> {
         let byte = key / 8;
         if byte >= BYTES {
             Err(value)
@@ -106,7 +106,7 @@ impl<const BYTES: usize> ParamKeyValueSet<bool> for BoolArray<BYTES> {
         }
     }
 
-    fn len(&self) -> Option<usize> {
+    fn len(&self, _user_data: &mut U) -> Option<usize> {
         Some(BYTES * 8)
     }
 }

@@ -7,7 +7,7 @@ use crate::{
 /// Stores the context tick
 pub struct TickStore<T, U> {
     storage: T,
-    _phatom: core::marker::PhantomData<U>,
+    _phantom: core::marker::PhantomData<U>,
 }
 
 impl<T, U> TickStore<T, U>
@@ -17,7 +17,7 @@ where
     pub fn new(storage: T) -> Self {
         Self {
             storage,
-            _phatom: Default::default(),
+            _phantom: Default::default(),
         }
     }
 }
