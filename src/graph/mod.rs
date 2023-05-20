@@ -1,9 +1,11 @@
 //! Graph items and evaluation
 
+pub mod children;
 pub mod func;
 pub mod leaf;
 pub mod node;
 pub mod root;
+
 mod wrapper;
 
 pub use wrapper::*;
