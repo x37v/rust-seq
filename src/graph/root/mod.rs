@@ -8,7 +8,7 @@ pub trait GraphRootExec<E, U> {
         &mut self,
         context: &mut dyn EventEvalContext<E>,
         user_data: &mut U,
-        children: &mut dyn GraphChildExec<E>,
+        children: &mut dyn GraphChildExec<E, U>,
     ) -> TickResched;
 }
 
@@ -16,7 +16,7 @@ pub trait GraphRootExec<E, U> {
 pub struct GraphRootWrapper<R, C, E, U>
 where
     R: GraphRootExec<E, U>,
-    C: GraphChildExec<E>,
+    C: GraphChildExec<E, U>,
 {
     pub(crate) root: R,
     pub(crate) children: C,
@@ -26,7 +26,7 @@ where
 impl<R, C, E, U> GraphRootWrapper<R, C, E, U>
 where
     R: GraphRootExec<E, U>,
-    C: GraphChildExec<E>,
+    C: GraphChildExec<E, U>,
 {
     pub fn new(root: R, children: C) -> Self {
         Self {
@@ -40,7 +40,7 @@ where
 impl<R, C, E, U> EventEval<E, U> for GraphRootWrapper<R, C, E, U>
 where
     R: GraphRootExec<E, U>,
-    C: GraphChildExec<E>,
+    C: GraphChildExec<E, U>,
 {
     fn event_eval(
         &mut self,

@@ -8,16 +8,16 @@ use crate::{
 
 use num_traits::cast::NumCast;
 
-pub struct ClockRatio<T, Mul, Div> {
+pub struct ClockRatio<T, Mul, Div, U> {
     mul: Mul,
     div: Div,
-    _phantom: core::marker::PhantomData<T>,
+    _phantom: core::marker::PhantomData<(T, U)>,
 }
 
-impl<T, Mul, Div> ClockRatio<T, Mul, Div>
+impl<T, Mul, Div, U> ClockRatio<T, Mul, Div, U>
 where
-    Mul: ParamGet<T>,
-    Div: ParamGet<T>,
+    Mul: ParamGet<T, U>,
+    Div: ParamGet<T, U>,
     T: num_traits::sign::Unsigned + NumCast,
 {
     pub fn new(mul: Mul, div: Div) -> Self {
@@ -29,17 +29,23 @@ where
     }
 }
 
-impl<T, Mul, Div, E> GraphNodeExec<E> for ClockRatio<T, Mul, Div>
+impl<T, Mul, Div, E, U> GraphNodeExec<E, U> for ClockRatio<T, Mul, Div, U>
 where
-    Mul: ParamGet<T>,
-    Div: ParamGet<T>,
+    Mul: ParamGet<T, U>,
+    Div: ParamGet<T, U>,
     T: num_traits::sign::Unsigned + NumCast,
 {
-    fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
-        let div: usize = NumCast::from(self.div.get()).expect("T should cast to usize");
+    fn graph_exec(
+        &self,
+        context: &mut dyn EventEvalContext<E>,
+        children: &dyn GraphChildExec<E, U>,
+        user_data: &mut U,
+    ) {
+        let div: usize = NumCast::from(self.div.get(user_data)).expect("T should cast to usize");
 
         if div > 0 && context.context_tick_now() % div == 0 {
-            let mul: usize = NumCast::from(self.mul.get()).expect("T should cast to usize");
+            let mul: usize =
+                NumCast::from(self.mul.get(user_data)).expect("T should cast to usize");
             let base_period_micros = context.tick_period_micros();
             let period_micros =
                 (context.context_tick_period_micros() * div as Float) / mul as Float;
@@ -50,7 +56,7 @@ where
                     ((i as Float * period_micros) / base_period_micros) as isize,
                 );
                 ccontext.update_context_tick(coffset + i);
-                children.child_exec_all(&mut ccontext);
+                children.child_exec_all(&mut ccontext, user_data);
             }
         }
     }

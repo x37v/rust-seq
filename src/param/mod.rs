@@ -1,59 +1,59 @@
 //! Parameters
 
-pub mod bool;
-pub mod bpm;
-pub mod one_shot;
-pub mod ops;
+//pub mod bool;
+//pub mod bpm;
+//pub mod one_shot;
+//pub mod ops;
 
 //impl for atomic
 mod atomic;
 
-pub trait ParamGet<T> {
-    fn get(&self) -> T;
+pub trait ParamGet<T, U> {
+    fn get(&self, user_data: &mut U) -> T;
 }
 
-pub trait ParamSet<T> {
-    fn set(&self, value: T);
+pub trait ParamSet<T, U> {
+    fn set(&self, value: T, user_data: &mut U);
 }
 
-pub trait ParamKeyValueGet<T> {
-    fn get_at(&self, key: usize) -> Option<T>;
-    fn len(&self) -> Option<usize>;
+pub trait ParamKeyValueGet<T, U> {
+    fn get_at(&self, key: usize, user_data: &mut U) -> Option<T>;
+    fn len(&self, user_data: &mut U) -> Option<usize>;
     //should there be an indication if its sparce? ie Array v. HashMap
 }
 
-pub trait ParamKeyValueSet<T> {
-    fn set_at(&self, key: usize, value: T) -> Result<(), T>;
-    fn len(&self) -> Option<usize>;
+pub trait ParamKeyValueSet<T, U> {
+    fn set_at(&self, key: usize, value: T, user_data: &mut U) -> Result<(), T>;
+    fn len(&self, user_data: &mut U) -> Option<usize>;
     //should there be an indication if its sparce? ie Array v. HashMap
 }
 
 /// A wrapper type that implements exposing both Get and Set traits for types that impl both Get
 /// and Set. So we an put this in an Arc and then cast to either
-pub struct ParamGetSet<T, P>
+pub struct ParamGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamGet<T> + ParamSet<T>,
+    P: ParamGet<T, U> + ParamSet<T, U>,
 {
     param: P,
-    _phantom: core::marker::PhantomData<fn() -> T>,
+    _phantom: core::marker::PhantomData<(T, U)>,
 }
 
 /// A wrapper type that implements exposing both Get and Set traits for types that impl both Get
 /// and Set. So we an put this in an Arc and then cast to either
-pub struct ParamKeyValueGetSet<T, P>
+pub struct ParamKeyValueGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamKeyValueGet<T> + ParamKeyValueSet<T>,
+    P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
     param: P,
-    _phantom: core::marker::PhantomData<fn() -> T>,
+    _phantom: core::marker::PhantomData<(T, U)>,
 }
 
-impl<T, P> ParamGetSet<T, P>
+impl<T, P, U> ParamGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamGet<T> + ParamSet<T>,
+    P: ParamGet<T, U> + ParamSet<T, U>,
 {
     pub fn new(param: P) -> Self {
         Self {
@@ -63,30 +63,30 @@ where
     }
 }
 
-impl<T, P> ParamGet<T> for ParamGetSet<T, P>
+impl<T, P, U> ParamGet<T, U> for ParamGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamGet<T> + ParamSet<T>,
+    P: ParamGet<T, U> + ParamSet<T, U>,
 {
-    fn get(&self) -> T {
-        self.param.get()
+    fn get(&self, user_data: &mut U) -> T {
+        self.param.get(user_data)
     }
 }
 
-impl<T, P> ParamSet<T> for ParamGetSet<T, P>
+impl<T, P, U> ParamSet<T, U> for ParamGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamGet<T> + ParamSet<T>,
+    P: ParamGet<T, U> + ParamSet<T, U>,
 {
-    fn set(&self, value: T) {
-        self.param.set(value);
+    fn set(&self, value: T, user_data: &mut U) {
+        self.param.set(value, user_data);
     }
 }
 
-impl<T, P> ParamKeyValueGetSet<T, P>
+impl<T, P, U> ParamKeyValueGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamKeyValueGet<T> + ParamKeyValueSet<T>,
+    P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
     pub fn new(param: P) -> Self {
         Self {
@@ -96,46 +96,46 @@ where
     }
 }
 
-impl<T, P> ParamKeyValueGet<T> for ParamKeyValueGetSet<T, P>
+impl<T, P, U> ParamKeyValueGet<T, U> for ParamKeyValueGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamKeyValueGet<T> + ParamKeyValueSet<T>,
+    P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
-    fn get_at(&self, key: usize) -> Option<T> {
-        self.param.get_at(key)
+    fn get_at(&self, key: usize, user_data: &mut U) -> Option<T> {
+        self.param.get_at(key, user_data)
     }
-    fn len(&self) -> Option<usize> {
-        ParamKeyValueGet::len(&self.param)
+    fn len(&self, user_data: &mut U) -> Option<usize> {
+        ParamKeyValueGet::len(&self.param, user_data)
     }
 }
 
-impl<T, P> ParamKeyValueSet<T> for ParamKeyValueGetSet<T, P>
+impl<T, P, U> ParamKeyValueSet<T, U> for ParamKeyValueGetSet<T, P, U>
 where
     T: Copy,
-    P: ParamKeyValueGet<T> + ParamKeyValueSet<T>,
+    P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
-    fn set_at(&self, key: usize, value: T) -> Result<(), T> {
-        self.param.set_at(key, value)
+    fn set_at(&self, key: usize, value: T, user_data: &mut U) -> Result<(), T> {
+        self.param.set_at(key, value, user_data)
     }
-    fn len(&self) -> Option<usize> {
-        ParamKeyValueSet::len(&self.param)
+    fn len(&self, user_data: &mut U) -> Option<usize> {
+        ParamKeyValueSet::len(&self.param, user_data)
     }
 }
 
-impl<T> ParamGet<T> for T
+impl<T, U> ParamGet<T, U> for T
 where
     T: Copy,
 {
-    fn get(&self) -> T {
+    fn get(&self, _user_data: &mut U) -> T {
         *self
     }
 }
 
-impl<T> ParamSet<T> for ()
+impl<T, U> ParamSet<T, U> for ()
 where
     T: Copy,
 {
-    fn set(&self, _v: T) {}
+    fn set(&self, _v: T, _user_data: &mut U) {}
 }
 
 /* use crate::spin::mutex::spin::SpinMutex;
@@ -193,55 +193,55 @@ where
     }
 } */
 
-impl<T> ParamGet<T> for &'static dyn ParamGet<T>
+impl<T, U> ParamGet<T, U> for &'static dyn ParamGet<T, U>
 where
     T: Copy,
 {
-    fn get(&self) -> T {
-        (*self).get()
+    fn get(&self, user_data: &mut U) -> T {
+        (*self).get(user_data)
     }
 }
 
-impl<T> ParamSet<T> for &'static dyn ParamSet<T>
+impl<T, U> ParamSet<T, U> for &'static dyn ParamSet<T, U>
 where
     T: Copy,
 {
-    fn set(&self, v: T) {
-        (*self).set(v)
+    fn set(&self, v: T, user_data: &mut U) {
+        (*self).set(v, user_data)
     }
 }
 
-impl<T> ParamKeyValueGet<T> for &'static dyn ParamKeyValueGet<T>
+impl<T, U> ParamKeyValueGet<T, U> for &'static dyn ParamKeyValueGet<T, U>
 where
     T: Copy,
 {
-    fn get_at(&self, index: usize) -> Option<T> {
-        (*self).get_at(index)
+    fn get_at(&self, index: usize, user_data: &mut U) -> Option<T> {
+        (*self).get_at(index, user_data)
     }
 
-    fn len(&self) -> Option<usize> {
-        (*self).len()
+    fn len(&self, user_data: &mut U) -> Option<usize> {
+        (*self).len(user_data)
     }
 }
 
-impl<T> ParamKeyValueSet<T> for &'static dyn ParamKeyValueSet<T>
+impl<T, U> ParamKeyValueSet<T, U> for &'static dyn ParamKeyValueSet<T, U>
 where
     T: Copy,
 {
-    fn set_at(&self, key: usize, value: T) -> Result<(), T> {
-        (*self).set_at(key, value)
+    fn set_at(&self, key: usize, value: T, user_data: &mut U) -> Result<(), T> {
+        (*self).set_at(key, value, user_data)
     }
 
-    fn len(&self) -> Option<usize> {
-        (*self).len()
+    fn len(&self, user_data: &mut U) -> Option<usize> {
+        (*self).len(user_data)
     }
 }
 
-impl<T, const N: usize> ParamKeyValueGet<T> for [T; N]
+impl<T, U, const N: usize> ParamKeyValueGet<T, U> for [T; N]
 where
     T: Copy,
 {
-    fn get_at(&self, index: usize) -> Option<T> {
+    fn get_at(&self, index: usize, _user_data: &mut U) -> Option<T> {
         if index < N {
             Some(self[index])
         } else {
@@ -249,7 +249,7 @@ where
         }
     }
 
-    fn len(&self) -> Option<usize> {
+    fn len(&self, _user_data: &mut U) -> Option<usize> {
         Some(N)
     }
 }

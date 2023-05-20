@@ -3,13 +3,13 @@ use core::sync::atomic::*;
 
 macro_rules! impl_get_set {
     ($t:ty, $a:ty) => {
-        impl ParamGet<$t> for $a {
-            fn get(&self) -> $t {
+        impl<U> ParamGet<$t, U> for $a {
+            fn get(&self, _user_data: &mut U) -> $t {
                 self.load(Ordering::SeqCst)
             }
         }
-        impl ParamSet<$t> for $a {
-            fn set(&self, value: $t) {
+        impl<U> ParamSet<$t, U> for $a {
+            fn set(&self, value: $t, _user_data: &mut U) {
                 self.store(value, Ordering::SeqCst);
             }
         }

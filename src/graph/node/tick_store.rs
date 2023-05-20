@@ -5,25 +5,34 @@ use crate::{
 };
 
 /// Stores the context tick
-pub struct TickStore<T> {
+pub struct TickStore<T, U> {
     storage: T,
+    _phatom: core::marker::PhantomData<U>,
 }
 
-impl<T> TickStore<T>
+impl<T, U> TickStore<T, U>
 where
-    T: ParamSet<usize>,
+    T: ParamSet<usize, U>,
 {
     pub fn new(storage: T) -> Self {
-        Self { storage }
+        Self {
+            storage,
+            _phatom: Default::default(),
+        }
     }
 }
 
-impl<T, E> GraphNodeExec<E> for TickStore<T>
+impl<T, E, U> GraphNodeExec<E, U> for TickStore<T, U>
 where
-    T: ParamSet<usize>,
+    T: ParamSet<usize, U>,
 {
-    fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, children: &dyn GraphChildExec<E>) {
-        self.storage.set(context.context_tick_now());
-        children.child_exec_all(context);
+    fn graph_exec(
+        &self,
+        context: &mut dyn EventEvalContext<E>,
+        children: &dyn GraphChildExec<E, U>,
+        user_data: &mut U,
+    ) {
+        self.storage.set(context.context_tick_now(), user_data);
+        children.child_exec_all(context, user_data);
     }
 }
