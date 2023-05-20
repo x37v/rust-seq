@@ -22,8 +22,8 @@ impl<U> ParamGet<bool, U> for OneShot {
 
 ///NOTE: expects that there is only one thread doing the get & set
 #[cfg(feature = "no_compare_exchange")]
-impl ParamGet<bool> for OneShot {
-    fn get(&self) -> bool {
+impl<U> ParamGet<bool, U> for OneShot {
+    fn get(&self, _user_data: &mut U) -> bool {
         if self.inner.load(Ordering::SeqCst) {
             self.inner.store(false, Ordering::SeqCst);
             true
