@@ -84,8 +84,6 @@ pub struct SetBinaryOpLeft<IL, IR, F, P> {
 impl<T, I, P> KeyValueGetDefault<T, I, P>
 where
     T: Copy + Default,
-    I: ParamGet<usize>,
-    P: ParamKeyValueGet<T>,
 {
     pub fn new(param: P, index: I) -> Self {
         Self {
@@ -96,23 +94,20 @@ where
     }
 }
 
-impl<T, I, P> ParamGet<T> for KeyValueGetDefault<T, I, P>
+impl<T, I, P, U> ParamGet<T, U> for KeyValueGetDefault<T, I, P>
 where
     T: Copy + Default,
-    I: ParamGet<usize>,
-    P: ParamKeyValueGet<T>,
+    I: ParamGet<usize, U>,
+    P: ParamKeyValueGet<T, U>,
 {
-    fn get(&self) -> T {
-        self.param.get_at(self.index.get()).unwrap_or_default()
+    fn get(&self, user_data: &mut U) -> T {
+        self.param
+            .get_at(self.index.get(user_data), user_data)
+            .unwrap_or_default()
     }
 }
 
-impl<T, I, P> KeyValueSet<T, I, P>
-where
-    T: Copy,
-    I: ParamGet<usize>,
-    P: ParamKeyValueSet<T>,
-{
+impl<T, I, P> KeyValueSet<T, I, P> {
     pub fn new(param: P, index: I) -> Self {
         Self {
             param,
@@ -122,21 +117,22 @@ where
     }
 }
 
-impl<T, I, P> ParamSet<T> for KeyValueSet<T, I, P>
+impl<T, I, P, U> ParamSet<T, U> for KeyValueSet<T, I, P>
 where
     T: Copy,
-    I: ParamGet<usize>,
-    P: ParamKeyValueSet<T>,
+    I: ParamGet<usize, U>,
+    P: ParamKeyValueSet<T, U>,
 {
-    fn set(&self, value: T) {
-        let _ = self.param.set_at(self.index.get(), value);
+    fn set(&self, value: T, user_data: &mut U) {
+        let _ = self
+            .param
+            .set_at(self.index.get(user_data), value, user_data);
     }
 }
 
 impl<I, O, F, P> GetUnaryOp<I, O, F, P>
 where
     F: Fn(I) -> O,
-    P: ParamGet<I>,
 {
     pub fn new(func: F, param: P) -> Self {
         Self {
@@ -147,21 +143,19 @@ where
     }
 }
 
-impl<I, O, F, P> ParamGet<O> for GetUnaryOp<I, O, F, P>
+impl<I, O, F, P, U> ParamGet<O, U> for GetUnaryOp<I, O, F, P>
 where
     F: Fn(I) -> O,
-    P: ParamGet<I>,
+    P: ParamGet<I, U>,
 {
-    fn get(&self) -> O {
-        (self.func)(self.param.get())
+    fn get(&self, user_data: &mut U) -> O {
+        (self.func)(self.param.get(user_data))
     }
 }
 
 impl<IL, IR, O, F, BL, BR> GetBinaryOp<IL, IR, O, F, BL, BR>
 where
     F: Fn(IL, IR) -> O,
-    BL: ParamGet<IL>,
-    BR: ParamGet<IR>,
 {
     pub fn new(func: F, left: BL, right: BR) -> Self {
         Self {
@@ -173,14 +167,14 @@ where
     }
 }
 
-impl<IL, IR, O, F, BL, BR> ParamGet<O> for GetBinaryOp<IL, IR, O, F, BL, BR>
+impl<IL, IR, O, F, BL, BR, U> ParamGet<O, U> for GetBinaryOp<IL, IR, O, F, BL, BR>
 where
     F: Fn(IL, IR) -> O,
-    BL: ParamGet<IL>,
-    BR: ParamGet<IR>,
+    BL: ParamGet<IL, U>,
+    BR: ParamGet<IR, U>,
 {
-    fn get(&self) -> O {
-        (self.func)(self.left.get(), self.right.get())
+    fn get(&self, user_data: &mut U) -> O {
+        (self.func)(self.left.get(user_data), self.right.get(user_data))
     }
 }
 
@@ -196,11 +190,11 @@ where
     }
 }
 
-impl<I, F> ParamSet<I> for SetUnaryOp<I, F>
+impl<I, F, U> ParamSet<I, U> for SetUnaryOp<I, F>
 where
     F: Fn(I),
 {
-    fn set(&self, v: I) {
+    fn set(&self, v: I, _user_data: &mut U) {
         (self.func)(v)
     }
 }
@@ -208,7 +202,6 @@ where
 impl<IL, IR, F, P> SetBinaryOpRight<IL, IR, F, P>
 where
     F: Fn(IL, IR),
-    P: ParamGet<IL>,
 {
     pub fn new(func: F, param: P) -> Self {
         Self {
@@ -219,20 +212,19 @@ where
     }
 }
 
-impl<IL, IR, F, P> ParamSet<IR> for SetBinaryOpRight<IL, IR, F, P>
+impl<IL, IR, F, P, U> ParamSet<IR, U> for SetBinaryOpRight<IL, IR, F, P>
 where
     F: Fn(IL, IR),
-    P: ParamGet<IL>,
+    P: ParamGet<IL, U>,
 {
-    fn set(&self, v: IR) {
-        (self.func)(self.param.get(), v)
+    fn set(&self, v: IR, user_data: &mut U) {
+        (self.func)(self.param.get(user_data), v)
     }
 }
 
 impl<IL, IR, F, P> SetBinaryOpLeft<IL, IR, F, P>
 where
     F: Fn(IL, IR),
-    P: ParamGet<IR>,
 {
     pub fn new(func: F, param: P) -> Self {
         Self {
@@ -243,12 +235,12 @@ where
     }
 }
 
-impl<IL, IR, F, P> ParamSet<IL> for SetBinaryOpLeft<IL, IR, F, P>
+impl<IL, IR, F, P, U> ParamSet<IL, U> for SetBinaryOpLeft<IL, IR, F, P>
 where
     F: Fn(IL, IR),
-    P: ParamGet<IR>,
+    P: ParamGet<IR, U>,
 {
-    fn set(&self, v: IL) {
-        (self.func)(v, self.param.get())
+    fn set(&self, v: IL, user_data: &mut U) {
+        (self.func)(v, self.param.get(user_data))
     }
 }

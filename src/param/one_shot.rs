@@ -14,8 +14,8 @@ impl OneShot {
 }
 
 #[cfg(not(feature = "no_compare_exchange"))]
-impl ParamGet<bool> for OneShot {
-    fn get(&self) -> bool {
+impl<U> ParamGet<bool, U> for OneShot {
+    fn get(&self, _user_data: &mut U) -> bool {
         self.inner.swap(false, Ordering::SeqCst)
     }
 }
@@ -33,8 +33,8 @@ impl ParamGet<bool> for OneShot {
     }
 }
 
-impl ParamSet<bool> for OneShot {
-    fn set(&self, v: bool) {
+impl<U> ParamSet<bool, U> for OneShot {
+    fn set(&self, v: bool, _user_data: &mut U) {
         self.inner.store(v, Ordering::SeqCst);
     }
 }
