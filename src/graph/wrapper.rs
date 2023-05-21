@@ -3,31 +3,18 @@ use crate::graph::{GraphChildExec, GraphNode, GraphNodeExec};
 
 /// A container to hold a `GraphNodeExec` and `GraphChildExec` that implements `GraphNode` to
 /// call both.
-pub struct GraphNodeWrapper<N, C, E, U>
-where
-    N: GraphNodeExec<E, U>,
-    C: GraphChildExec<E, U>,
-{
+pub struct GraphNodeWrapper<N, C> {
     pub node: N,
     pub children: C,
-    _phantom: core::marker::PhantomData<(E, U)>,
 }
 
-impl<N, C, E, U> GraphNodeWrapper<N, C, E, U>
-where
-    N: GraphNodeExec<E, U>,
-    C: GraphChildExec<E, U>,
-{
+impl<N, C> GraphNodeWrapper<N, C> {
     pub fn new(node: N, children: C) -> Self {
-        Self {
-            node,
-            children,
-            _phantom: Default::default(),
-        }
+        Self { node, children }
     }
 }
 
-impl<N, C, E, U> GraphNode<E, U> for GraphNodeWrapper<N, C, E, U>
+impl<N, C, E, U> GraphNode<E, U> for GraphNodeWrapper<N, C>
 where
     N: GraphNodeExec<E, U>,
     C: GraphChildExec<E, U>,
