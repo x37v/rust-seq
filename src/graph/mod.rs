@@ -179,7 +179,7 @@ where
 #[cfg(feature = "with_alloc")]
 impl<T, E, U> GraphNodeExec<E, U> for alloc::boxed::Box<T>
 where
-    T: GraphNodeExec<E, U>,
+    T: GraphNodeExec<E, U> + ?Sized,
 {
     fn graph_exec(
         &self,
@@ -197,7 +197,7 @@ where
 #[cfg(feature = "with_alloc")]
 impl<T, E, U> GraphChildExec<E, U> for alloc::boxed::Box<T>
 where
-    T: GraphChildExec<E, U>,
+    T: GraphChildExec<E, U> + ?Sized,
 {
     fn child_count(&self) -> ChildCount {
         T::child_count(self)
@@ -216,7 +216,7 @@ where
 #[cfg(feature = "with_alloc")]
 impl<T, E, U> GraphNode<E, U> for alloc::boxed::Box<T>
 where
-    T: GraphNode<E, U>,
+    T: GraphNode<E, U> + ?Sized,
 {
     fn node_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U) {
         T::node_exec(self, context, user_data)
