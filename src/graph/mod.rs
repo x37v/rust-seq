@@ -129,6 +129,97 @@ where
 }
 */
 
+impl<T, E, U> GraphNodeExec<E, U> for &T
+where
+    T: GraphNodeExec<E, U>,
+{
+    fn graph_exec(
+        &self,
+        context: &mut dyn EventEvalContext<E>,
+        children: &dyn GraphChildExec<E, U>,
+        user_data: &mut U,
+    ) {
+        T::graph_exec(self, context, children, user_data)
+    }
+    fn graph_children_max(&self) -> ChildCount {
+        T::graph_children_max(self)
+    }
+}
+
+impl<T, E, U> GraphChildExec<E, U> for &T
+where
+    T: GraphChildExec<E, U>,
+{
+    fn child_count(&self) -> ChildCount {
+        T::child_count(self)
+    }
+
+    fn child_exec_range(
+        &self,
+        context: &mut dyn EventEvalContext<E>,
+        range: core::ops::Range<usize>,
+        user_data: &mut U,
+    ) {
+        T::child_exec_range(self, context, range, user_data)
+    }
+}
+
+impl<T, E, U> GraphNode<E, U> for &T
+where
+    T: GraphNode<E, U>,
+{
+    fn node_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U) {
+        T::node_exec(self, context, user_data)
+    }
+}
+
+#[cfg(feature = "with_alloc")]
+impl<T, E, U> GraphNodeExec<E, U> for Box<T>
+where
+    T: GraphNodeExec<E, U>,
+{
+    fn graph_exec(
+        &self,
+        context: &mut dyn EventEvalContext<E>,
+        children: &dyn GraphChildExec<E, U>,
+        user_data: &mut U,
+    ) {
+        T::graph_exec(self, context, children, user_data)
+    }
+    fn graph_children_max(&self) -> ChildCount {
+        T::graph_children_max(self)
+    }
+}
+
+#[cfg(feature = "with_alloc")]
+impl<T, E, U> GraphChildExec<E, U> for Box<T>
+where
+    T: GraphChildExec<E, U>,
+{
+    fn child_count(&self) -> ChildCount {
+        T::child_count(self)
+    }
+
+    fn child_exec_range(
+        &self,
+        context: &mut dyn EventEvalContext<E>,
+        range: core::ops::Range<usize>,
+        user_data: &mut U,
+    ) {
+        T::child_exec_range(self, context, range, user_data)
+    }
+}
+
+#[cfg(feature = "with_alloc")]
+impl<T, E, U> GraphNode<E, U> for Box<T>
+where
+    T: GraphNode<E, U>,
+{
+    fn node_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U) {
+        T::node_exec(self, context, user_data)
+    }
+}
+
 //dummy graph node, useful while spinning up graph
 impl<E, U> GraphNodeExec<E, U> for () {
     fn graph_exec(
