@@ -10,6 +10,9 @@ mod wrapper;
 
 pub use wrapper::*;
 
+#[cfg(feature = "with_alloc")]
+extern crate alloc;
+
 use crate::event::EventEvalContext;
 
 /// An indication of the child count for a node.
@@ -174,7 +177,7 @@ where
 }
 
 #[cfg(feature = "with_alloc")]
-impl<T, E, U> GraphNodeExec<E, U> for Box<T>
+impl<T, E, U> GraphNodeExec<E, U> for alloc::boxed::Box<T>
 where
     T: GraphNodeExec<E, U>,
 {
@@ -192,7 +195,7 @@ where
 }
 
 #[cfg(feature = "with_alloc")]
-impl<T, E, U> GraphChildExec<E, U> for Box<T>
+impl<T, E, U> GraphChildExec<E, U> for alloc::boxed::Box<T>
 where
     T: GraphChildExec<E, U>,
 {
@@ -211,7 +214,7 @@ where
 }
 
 #[cfg(feature = "with_alloc")]
-impl<T, E, U> GraphNode<E, U> for Box<T>
+impl<T, E, U> GraphNode<E, U> for alloc::boxed::Box<T>
 where
     T: GraphNode<E, U>,
 {
