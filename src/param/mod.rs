@@ -193,27 +193,27 @@ where
     }
 } */
 
-impl<T, U> ParamGet<T, U> for &'static dyn ParamGet<T, U>
+impl<'a, T, U> ParamGet<T, U> for &'a dyn ParamGet<T, U>
 where
-    T: Copy,
+    T: Copy + 'a,
 {
     fn get(&self, user_data: &mut U) -> T {
         (*self).get(user_data)
     }
 }
 
-impl<T, U> ParamSet<T, U> for &'static dyn ParamSet<T, U>
+impl<'a, T, U> ParamSet<T, U> for &'a dyn ParamSet<T, U>
 where
-    T: Copy,
+    T: Copy + 'a,
 {
     fn set(&self, v: T, user_data: &mut U) {
         (*self).set(v, user_data)
     }
 }
 
-impl<T, U> ParamKeyValueGet<T, U> for &'static dyn ParamKeyValueGet<T, U>
+impl<'a, T, U> ParamKeyValueGet<T, U> for &'a dyn ParamKeyValueGet<T, U>
 where
-    T: Copy,
+    T: Copy + 'a,
 {
     fn get_at(&self, index: usize, user_data: &mut U) -> Option<T> {
         (*self).get_at(index, user_data)
@@ -224,9 +224,9 @@ where
     }
 }
 
-impl<T, U> ParamKeyValueSet<T, U> for &'static dyn ParamKeyValueSet<T, U>
+impl<'a, T, U> ParamKeyValueSet<T, U> for &'a dyn ParamKeyValueSet<T, U>
 where
-    T: Copy,
+    T: Copy + 'a,
 {
     fn set_at(&self, key: usize, value: T, user_data: &mut U) -> Result<(), T> {
         (*self).set_at(key, value, user_data)
