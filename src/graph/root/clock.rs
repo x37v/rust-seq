@@ -12,22 +12,15 @@ use num_traits::float::FloatCore;
 
 /// A root of a graph tree that evaluates its children at an interval controlled by its
 /// period_micros `ParamGet`.
-pub struct RootClock<P, R, RS, E, U> {
+pub struct RootClock<P, R, RS> {
     pub(crate) tick: usize,
     pub(crate) tick_sub: Float,
     pub(crate) period_micros: P,
     pub(crate) run: R,
     pub(crate) reset: RS,
-    pub(crate) _phantom: core::marker::PhantomData<(E, U)>,
 }
 
-impl<P, R, RS, E, U> RootClock<P, R, RS, E, U>
-where
-    P: ParamGet<Float, U>,
-    R: ParamGet<bool, U>,
-    RS: ParamGet<bool, U>,
-    R: ParamGet<bool, U>,
-{
+impl<P, R, RS> RootClock<P, R, RS> {
     pub fn new(period_micros: P, run: R, reset: RS) -> Self {
         Self {
             tick: 0,
@@ -35,12 +28,11 @@ where
             period_micros,
             run,
             reset,
-            _phantom: Default::default(),
         }
     }
 }
 
-impl<P, R, RS, E, U> GraphRootExec<E, U> for RootClock<P, R, RS, E, U>
+impl<P, R, RS, E, U> GraphRootExec<E, U> for RootClock<P, R, RS>
 where
     P: ParamGet<Float, U>,
     R: ParamGet<bool, U>,
