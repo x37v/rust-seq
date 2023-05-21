@@ -129,6 +129,20 @@ where
 }
 */
 
+//dummy graph node, useful while spinning up graph
+impl<E, U> GraphNodeExec<E, U> for () {
+    fn graph_exec(
+        &self,
+        _context: &mut dyn EventEvalContext<E>,
+        _children: &dyn GraphChildExec<E, U>,
+        _user_data: &mut U,
+    ) {
+    }
+    fn graph_children_max(&self) -> ChildCount {
+        ChildCount::Inf
+    }
+}
+
 impl<E, U> GraphChildExec<E, U> for () {
     fn child_count(&self) -> ChildCount {
         ChildCount::None
