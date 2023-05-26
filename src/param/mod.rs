@@ -8,31 +8,36 @@ pub mod ops;
 //impl for atomic
 mod atomic;
 
-pub trait ParamGet<T, U> {
+pub trait ParamGet<T, U>: Send {
     fn get(&self, user_data: &mut U) -> T;
 }
 
-pub trait ParamSet<T, U> {
+pub trait ParamSet<T, U>: Send {
     fn set(&self, value: T, user_data: &mut U);
 }
 
-pub trait ParamKeyValueGet<T, U> {
+pub trait ParamKeyValueGet<T, U>: Send {
     fn get_at(&self, key: usize, user_data: &mut U) -> Option<T>;
     fn len(&self, user_data: &mut U) -> Option<usize>;
     //should there be an indication if its sparce? ie Array v. HashMap
 }
 
-pub trait ParamKeyValueSet<T, U> {
+pub trait ParamKeyValueSet<T, U>: Send {
     fn set_at(&self, key: usize, value: T, user_data: &mut U) -> Result<(), T>;
     fn len(&self, user_data: &mut U) -> Option<usize>;
     //should there be an indication if its sparce? ie Array v. HashMap
 }
 
+pub trait ParamGetSync<T, U>: ParamGet<T, U> + Sync {}
+pub trait ParamSetSync<T, U>: ParamSet<T, U> + Sync {}
+pub trait ParamKeyValueGetSync<T, U>: ParamKeyValueGet<T, U> + Sync {}
+pub trait ParamKeyValueSetSync<T, U>: ParamKeyValueSet<T, U> + Sync {}
+
 /// A wrapper type that implements exposing both Get and Set traits for types that impl both Get
 /// and Set. So we an put this in an Arc and then cast to either
 pub struct ParamGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
     P: ParamGet<T, U> + ParamSet<T, U>,
 {
     param: P,
@@ -43,7 +48,7 @@ where
 /// and Set. So we an put this in an Arc and then cast to either
 pub struct ParamKeyValueGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
     P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
     param: P,
@@ -52,7 +57,7 @@ where
 
 impl<T, P, U> ParamGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
     P: ParamGet<T, U> + ParamSet<T, U>,
 {
     pub fn new(param: P) -> Self {
@@ -65,7 +70,8 @@ where
 
 impl<T, P, U> ParamGet<T, U> for ParamGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
+    U: Send,
     P: ParamGet<T, U> + ParamSet<T, U>,
 {
     fn get(&self, user_data: &mut U) -> T {
@@ -75,7 +81,8 @@ where
 
 impl<T, P, U> ParamSet<T, U> for ParamGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
+    U: Send,
     P: ParamGet<T, U> + ParamSet<T, U>,
 {
     fn set(&self, value: T, user_data: &mut U) {
@@ -85,7 +92,8 @@ where
 
 impl<T, P, U> ParamKeyValueGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
+    U: Send,
     P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
     pub fn new(param: P) -> Self {
@@ -98,7 +106,8 @@ where
 
 impl<T, P, U> ParamKeyValueGet<T, U> for ParamKeyValueGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
+    U: Send,
     P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
     fn get_at(&self, key: usize, user_data: &mut U) -> Option<T> {
@@ -111,7 +120,8 @@ where
 
 impl<T, P, U> ParamKeyValueSet<T, U> for ParamKeyValueGetSet<T, P, U>
 where
-    T: Copy,
+    T: Copy + Send,
+    U: Send,
     P: ParamKeyValueGet<T, U> + ParamKeyValueSet<T, U>,
 {
     fn set_at(&self, key: usize, value: T, user_data: &mut U) -> Result<(), T> {
@@ -124,7 +134,8 @@ where
 
 impl<T, U> ParamGet<T, U> for T
 where
-    T: Copy,
+    T: Copy + Send,
+    U: Send,
 {
     fn get(&self, _user_data: &mut U) -> T {
         *self
@@ -133,7 +144,8 @@ where
 
 impl<T, U> ParamSet<T, U> for ()
 where
-    T: Copy,
+    T: Copy + Send,
+    U: Send,
 {
     fn set(&self, _v: T, _user_data: &mut U) {}
 }
@@ -193,27 +205,28 @@ where
     }
 } */
 
-impl<'a, T, U> ParamGet<T, U> for &'a dyn ParamGet<T, U>
+impl<'a, T, U> ParamGet<T, U> for &'a dyn ParamGetSync<T, U>
 where
-    T: Copy + 'a,
+    T: Copy + Send + 'a,
+    U: Send,
 {
     fn get(&self, user_data: &mut U) -> T {
         (*self).get(user_data)
     }
 }
 
-impl<'a, T, U> ParamSet<T, U> for &'a dyn ParamSet<T, U>
+impl<'a, T, U> ParamSet<T, U> for &'a dyn ParamSetSync<T, U>
 where
-    T: Copy + 'a,
+    T: Copy + Send + 'a,
 {
     fn set(&self, v: T, user_data: &mut U) {
         (*self).set(v, user_data)
     }
 }
 
-impl<'a, T, U> ParamKeyValueGet<T, U> for &'a dyn ParamKeyValueGet<T, U>
+impl<'a, T, U> ParamKeyValueGet<T, U> for &'a dyn ParamKeyValueGetSync<T, U>
 where
-    T: Copy + 'a,
+    T: Copy + Send + 'a,
 {
     fn get_at(&self, index: usize, user_data: &mut U) -> Option<T> {
         (*self).get_at(index, user_data)
@@ -224,9 +237,9 @@ where
     }
 }
 
-impl<'a, T, U> ParamKeyValueSet<T, U> for &'a dyn ParamKeyValueSet<T, U>
+impl<'a, T, U> ParamKeyValueSet<T, U> for &'a dyn ParamKeyValueSetSync<T, U>
 where
-    T: Copy + 'a,
+    T: Copy + Send + 'a,
 {
     fn set_at(&self, key: usize, value: T, user_data: &mut U) -> Result<(), T> {
         (*self).set_at(key, value, user_data)
@@ -239,7 +252,7 @@ where
 
 impl<T, U, const N: usize> ParamKeyValueGet<T, U> for [T; N]
 where
-    T: Copy,
+    T: Copy + Send,
 {
     fn get_at(&self, index: usize, _user_data: &mut U) -> Option<T> {
         if index < N {

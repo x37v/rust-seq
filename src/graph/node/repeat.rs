@@ -39,7 +39,9 @@ where
         + core::ops::Add<T, Output = T>
         + PartialOrd
         + Clone
-        + num_traits::One,
+        + num_traits::One
+        + Send,
+    U: Send,
     G: ParamGet<T, U>,
     S: ParamSet<T, U>,
 {

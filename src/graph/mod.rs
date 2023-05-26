@@ -24,7 +24,7 @@ pub enum ChildCount {
 }
 
 /// A trait that a node, that will have children, implements.
-pub trait GraphNodeExec<E, U> {
+pub trait GraphNodeExec<E, U>: Send {
     fn graph_exec(
         &self,
         context: &mut dyn EventEvalContext<E>,
@@ -37,12 +37,12 @@ pub trait GraphNodeExec<E, U> {
 }
 
 /// A trait that a leaf, a node without children, implements.
-pub trait GraphLeafExec<E, U> {
+pub trait GraphLeafExec<E, U>: Send {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U);
 }
 
 /// A trait that a node uses to execute its child nodes.
-pub trait GraphChildExec<E, U> {
+pub trait GraphChildExec<E, U>: Send {
     /// Get the `ChildCount` value.
     fn child_count(&self) -> ChildCount;
 
@@ -113,9 +113,11 @@ pub trait GraphChildExec<E, U> {
 }
 
 /// A trait for a node that wraps something that implements GraphNodeExec and GraphChildExec
-pub trait GraphNode<E, U> {
+pub trait GraphNode<E: Send, U: Send>: Send {
     fn node_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U);
 }
+
+pub trait GraphNodeSync<E: Send, U: Send>: GraphNode<E, U> + Sync {}
 
 /*
 /// Automatically implement the node exec for leaf.
@@ -134,6 +136,7 @@ where
 
 impl<T, E, U> GraphNodeExec<E, U> for &T
 where
+    for<'a> &'a T: Send + Sync,
     T: GraphNodeExec<E, U>,
 {
     fn graph_exec(
@@ -151,6 +154,7 @@ where
 
 impl<T, E, U> GraphChildExec<E, U> for &T
 where
+    for<'a> &'a T: Send + Sync,
     T: GraphChildExec<E, U>,
 {
     fn child_count(&self) -> ChildCount {
@@ -169,7 +173,10 @@ where
 
 impl<T, E, U> GraphNode<E, U> for &T
 where
+    for<'a> &'a T: Send + Sync,
     T: GraphNode<E, U>,
+    E: Send,
+    U: Send,
 {
     fn node_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U) {
         T::node_exec(self, context, user_data)
@@ -179,7 +186,7 @@ where
 #[cfg(feature = "with_alloc")]
 impl<T, E, U> GraphNodeExec<E, U> for alloc::boxed::Box<T>
 where
-    T: GraphNodeExec<E, U> + ?Sized,
+    T: GraphNodeExec<E, U> + ?Sized + Send,
 {
     fn graph_exec(
         &self,
@@ -197,7 +204,7 @@ where
 #[cfg(feature = "with_alloc")]
 impl<T, E, U> GraphChildExec<E, U> for alloc::boxed::Box<T>
 where
-    T: GraphChildExec<E, U> + ?Sized,
+    T: GraphChildExec<E, U> + ?Sized + Send,
 {
     fn child_count(&self) -> ChildCount {
         T::child_count(self)
@@ -216,7 +223,9 @@ where
 #[cfg(feature = "with_alloc")]
 impl<T, E, U> GraphNode<E, U> for alloc::boxed::Box<T>
 where
-    T: GraphNode<E, U> + ?Sized,
+    T: GraphNode<E, U> + ?Sized + Send,
+    E: Send,
+    U: Send,
 {
     fn node_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U) {
         T::node_exec(self, context, user_data)

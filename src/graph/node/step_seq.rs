@@ -32,6 +32,7 @@ where
 impl<StepTicks, Index, E, U, const INDEX_CHILDREN: bool> GraphNodeExec<E, U>
     for StepSeq<StepTicks, Index, U, INDEX_CHILDREN>
 where
+    U: Send,
     StepTicks: ParamGet<usize, U>,
     Index: ParamGet<usize, U>,
 {

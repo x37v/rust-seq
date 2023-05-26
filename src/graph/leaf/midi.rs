@@ -42,6 +42,7 @@ where
     VN: ParamGet<u8, U>,
     VF: ParamGet<u8, U>,
     E: MidiTryEnqueue,
+    U: Send,
 {
     fn graph_exec(
         &self,

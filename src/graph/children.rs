@@ -17,7 +17,11 @@ pub mod boxed {
         }
     }
 
-    impl<E, U, const N: usize> GraphChildExec<E, U> for GraphChildrenArray<E, U, N> {
+    impl<E, U, const N: usize> GraphChildExec<E, U> for GraphChildrenArray<E, U, N>
+    where
+        E: Send,
+        U: Send,
+    {
         fn child_count(&self) -> ChildCount {
             if N == 0 {
                 ChildCount::None
@@ -40,19 +44,23 @@ pub mod boxed {
 
 use crate::{
     event::EventEvalContext,
-    graph::{ChildCount, GraphChildExec, GraphNode},
+    graph::{ChildCount, GraphChildExec, GraphNodeSync},
 };
 
 /// An array of children
-pub struct GraphChildrenArray<'a, E, U, const N: usize>([&'a dyn GraphNode<E, U>; N]);
+pub struct GraphChildrenArray<'a, E, U, const N: usize>([&'a dyn GraphNodeSync<E, U>; N]);
 
 impl<'a, E, U, const N: usize> GraphChildrenArray<'a, E, U, N> {
-    pub fn new(children: [&'a dyn GraphNode<E, U>; N]) -> Self {
+    pub fn new(children: [&'a dyn GraphNodeSync<E, U>; N]) -> Self {
         Self(children)
     }
 }
 
-impl<'a, E, U, const N: usize> GraphChildExec<E, U> for GraphChildrenArray<'a, E, U, N> {
+impl<'a, E, U, const N: usize> GraphChildExec<E, U> for GraphChildrenArray<'a, E, U, N>
+where
+    E: Send,
+    U: Send,
+{
     fn child_count(&self) -> ChildCount {
         if N == 0 {
             ChildCount::None

@@ -16,6 +16,8 @@ impl<N, C> GraphNodeWrapper<N, C> {
 
 impl<N, C, E, U> GraphNode<E, U> for GraphNodeWrapper<N, C>
 where
+    E: Send,
+    U: Send,
     N: GraphNodeExec<E, U>,
     C: GraphChildExec<E, U>,
 {

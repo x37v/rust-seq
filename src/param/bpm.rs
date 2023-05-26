@@ -99,6 +99,7 @@ where
 impl<P, U> ParamGet<Float, U> for ClockGetSetPeriodMicros<P, U>
 where
     P: ParamGet<ClockData, U> + ParamSet<ClockData, U>,
+    U: Send,
 {
     fn get(&self, user_data: &mut U) -> Float {
         self.param.get(user_data).period_micros()
@@ -108,6 +109,7 @@ where
 impl<P, U> ParamSet<Float, U> for ClockGetSetPeriodMicros<P, U>
 where
     P: ParamGet<ClockData, U> + ParamSet<ClockData, U>,
+    U: Send,
 {
     fn set(&self, period_micros: Float, user_data: &mut U) {
         let mut clock = self.param.get(user_data);
@@ -163,6 +165,7 @@ where
 impl<P, U> ParamGet<Float, U> for ClockGetSetBPM<P, U>
 where
     P: ParamGet<ClockData, U> + ParamSet<ClockData, U>,
+    U: Send,
 {
     fn get(&self, user_data: &mut U) -> Float {
         self.param.get(user_data).bpm()
@@ -172,6 +175,7 @@ where
 impl<P, U> ParamSet<Float, U> for ClockGetSetBPM<P, U>
 where
     P: ParamGet<ClockData, U> + ParamSet<ClockData, U>,
+    U: Send,
 {
     fn set(&self, bpm: Float, user_data: &mut U) {
         let mut clock = self.param.get(user_data);
@@ -227,6 +231,7 @@ where
 impl<P, U> ParamGet<usize, U> for ClockGetSetPPQ<P, U>
 where
     P: ParamGet<ClockData, U> + ParamSet<ClockData, U>,
+    U: Send,
 {
     fn get(&self, user_data: &mut U) -> usize {
         self.param.get(user_data).ppq()
@@ -236,6 +241,7 @@ where
 impl<P, U> ParamSet<usize, U> for ClockGetSetPPQ<P, U>
 where
     P: ParamGet<ClockData, U> + ParamSet<ClockData, U>,
+    U: Send,
 {
     fn set(&self, ppq: usize, user_data: &mut U) {
         let mut clock = self.param.get(user_data);

@@ -28,6 +28,7 @@ where
 
 impl<P, E, U> GraphNodeExec<E, U> for Gate<P, U>
 where
+    U: Send,
     P: ParamGet<bool, U>,
 {
     fn graph_exec(

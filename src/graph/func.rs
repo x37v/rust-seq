@@ -25,7 +25,9 @@ where
 
 impl<F, E, U> GraphLeafExec<E, U> for LeafFunc<F, E, U>
 where
-    F: Fn(&mut dyn EventEvalContext<E>, &mut U),
+    E: Send,
+    U: Send,
+    F: Fn(&mut dyn EventEvalContext<E>, &mut U) + Send,
 {
     fn graph_exec(&self, context: &mut dyn EventEvalContext<E>, user_data: &mut U) {
         (self.func)(context, user_data);
@@ -46,7 +48,9 @@ where
 
 impl<F, E, U> GraphNodeExec<E, U> for NodeFunc<F, E, U>
 where
-    F: Fn(&mut dyn EventEvalContext<E>, &dyn GraphChildExec<E, U>, &mut U),
+    E: Send,
+    U: Send,
+    F: Fn(&mut dyn EventEvalContext<E>, &dyn GraphChildExec<E, U>, &mut U) + Send,
 {
     fn graph_exec(
         &self,

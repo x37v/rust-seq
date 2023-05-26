@@ -31,6 +31,8 @@ where
 
 impl<T, G, S, E, U> GraphNodeExec<E, U> for ParamStore<T, G, S, U>
 where
+    T: Send,
+    U: Send,
     G: ParamGet<T, U>,
     S: ParamSet<T, U>,
 {

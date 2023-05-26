@@ -26,6 +26,7 @@ where
 
 impl<T, E, U> GraphNodeExec<E, U> for TickOffset<T, U>
 where
+    U: Send,
     T: ParamGet<isize, U>,
 {
     fn graph_exec(

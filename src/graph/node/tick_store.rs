@@ -24,6 +24,7 @@ where
 
 impl<T, E, U> GraphNodeExec<E, U> for TickStore<T, U>
 where
+    U: Send,
     T: ParamSet<usize, U>,
 {
     fn graph_exec(

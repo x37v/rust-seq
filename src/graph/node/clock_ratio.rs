@@ -31,6 +31,8 @@ where
 
 impl<T, Mul, Div, E, U> GraphNodeExec<E, U> for ClockRatio<T, Mul, Div, U>
 where
+    T: Send,
+    U: Send,
     Mul: ParamGet<T, U>,
     Div: ParamGet<T, U>,
     T: num_traits::sign::Unsigned + NumCast,

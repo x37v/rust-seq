@@ -145,7 +145,7 @@ where
 
 impl<I, O, F, P, U> ParamGet<O, U> for GetUnaryOp<I, O, F, P>
 where
-    F: Fn(I) -> O,
+    F: Fn(I) -> O + Send,
     P: ParamGet<I, U>,
 {
     fn get(&self, user_data: &mut U) -> O {
@@ -169,7 +169,7 @@ where
 
 impl<IL, IR, O, F, BL, BR, U> ParamGet<O, U> for GetBinaryOp<IL, IR, O, F, BL, BR>
 where
-    F: Fn(IL, IR) -> O,
+    F: Fn(IL, IR) -> O + Send,
     BL: ParamGet<IL, U>,
     BR: ParamGet<IR, U>,
 {
@@ -192,7 +192,7 @@ where
 
 impl<I, F, U> ParamSet<I, U> for SetUnaryOp<I, F>
 where
-    F: Fn(I),
+    F: Fn(I) + Send,
 {
     fn set(&self, v: I, _user_data: &mut U) {
         (self.func)(v)
@@ -214,7 +214,7 @@ where
 
 impl<IL, IR, F, P, U> ParamSet<IR, U> for SetBinaryOpRight<IL, IR, F, P>
 where
-    F: Fn(IL, IR),
+    F: Fn(IL, IR) + Send,
     P: ParamGet<IL, U>,
 {
     fn set(&self, v: IR, user_data: &mut U) {
@@ -237,7 +237,7 @@ where
 
 impl<IL, IR, F, P, U> ParamSet<IL, U> for SetBinaryOpLeft<IL, IR, F, P>
 where
-    F: Fn(IL, IR),
+    F: Fn(IL, IR) + Send,
     P: ParamGet<IR, U>,
 {
     fn set(&self, v: IL, user_data: &mut U) {
