@@ -3,7 +3,7 @@ use crate::{event::*, graph::GraphChildExec, tick::TickResched};
 pub mod clock;
 
 /// A trait for a graph root, this is executed the event schedule.
-pub trait GraphRootExec<E, U> {
+pub trait GraphRootExec<E, U>: Send {
     fn event_eval(
         &mut self,
         context: &mut dyn EventEvalContext<E>,
