@@ -205,6 +205,11 @@ where
     }
 } */
 
+impl<P, T, U> ParamGetSync<T, U> for P where P: ParamGet<T, U> + Sync {}
+impl<P, T, U> ParamSetSync<T, U> for P where P: ParamSet<T, U> + Sync {}
+impl<P, T, U> ParamKeyValueGetSync<T, U> for P where P: ParamKeyValueGet<T, U> + Sync {}
+impl<P, T, U> ParamKeyValueSetSync<T, U> for P where P: ParamKeyValueSet<T, U> + Sync {}
+
 impl<'a, T, U> ParamGet<T, U> for &'a dyn ParamGetSync<T, U>
 where
     T: Copy + Send + 'a,
