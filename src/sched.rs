@@ -10,7 +10,7 @@ where
     R: TickPriorityDequeue<E>,
     W: TickPriorityEnqueue<E>,
 {
-    tick_next: usize,
+    tick_last: usize,
     schedule_reader: R,
     schedule_writer: W,
     _phantom: core::marker::PhantomData<fn() -> (E, U)>,
@@ -24,27 +24,35 @@ where
 {
     pub fn new(schedule_reader: R, schedule_writer: W) -> Self {
         Self {
-            tick_next: 0usize,
+            tick_last: 0usize,
             schedule_reader,
             schedule_writer,
             _phantom: Default::default(),
         }
     }
 
-    pub fn run(&mut self, ticks: usize, ticks_per_second: usize, user_data: &mut U) {
-        let now = self.tick_next;
+    /// Run until `tick_offset` (relative) ticks from the last run
+    pub fn run_offset(&mut self, tick_offset: usize, ticks_per_second: usize, user_data: &mut U) {
+        self.run(
+            self.tick_last.wrapping_add(tick_offset),
+            ticks_per_second,
+            user_data,
+        )
+    }
 
-        //Find the net run's tick and handle rollover
-        let next = now.wrapping_add(ticks);
-        let end = if next < now { core::usize::MAX } else { next };
+    /// Run until `tick` (absolute)
+    pub fn run(&mut self, tick: usize, ticks_per_second: usize, user_data: &mut U) {
+        //eval from the last tick until the given tick
         //TODO there are likely other places where we have to deal with rollover
+        let t0 = self.tick_last;
+        let t1 = if tick < t0 { core::usize::MAX } else { tick };
 
-        let mut context = RootContext::new(now, ticks_per_second, &mut self.schedule_writer);
+        let mut context = RootContext::new(t0, ticks_per_second, &mut self.schedule_writer);
 
         //evaluate events before next
-        while let Some((t, mut event)) = self.schedule_reader.dequeue_lt(end) {
-            //clamp below now, exal and dispose
-            let tick = if t < now { now } else { t };
+        while let Some((t, mut event)) = self.schedule_reader.dequeue_lt(t1) {
+            //clamp below t0, exal and dispose
+            let tick = t.min(t0);
             context.update_tick(tick);
 
             //eval and see about rescheduling
@@ -60,11 +68,11 @@ where
             }
         }
 
-        self.tick_next = next;
+        self.tick_last = t1;
     }
 
-    pub fn tick_next(&self) -> usize {
-        self.tick_next
+    pub fn tick_last(&self) -> usize {
+        self.tick_last
     }
 }
 
