@@ -22,9 +22,9 @@ where
     W: TickPriorityEnqueue<E>,
     E: EventEval<E, U>,
 {
-    pub fn new(schedule_reader: R, schedule_writer: W) -> Self {
+    pub fn new(schedule_reader: R, schedule_writer: W, start_tick: usize) -> Self {
         Self {
-            tick_last: 0usize,
+            tick_last: start_tick,
             schedule_reader,
             schedule_writer,
             _phantom: Default::default(),
@@ -199,7 +199,7 @@ mod tests {
         assert!(reader
             .try_enqueue(0, EventContainer::new(Box::new(clock)))
             .is_ok());
-        let mut sched = SchedExec::new(reader, writer);
+        let mut sched = SchedExec::new(reader, writer, 0);
         sched.run(0, 16, &mut ());
     }
 
@@ -211,7 +211,7 @@ mod tests {
         ENUM_CNT.store(0, AOrdering::SeqCst);
 
         assert!(reader.try_enqueue(0, EnumEvent::Root(&*CLOCK_ENUM)).is_ok());
-        let mut sched = SchedExec::new(reader, writer);
+        let mut sched = SchedExec::new(reader, writer, 0);
 
         sched.run(0, 44100, &mut ());
         assert_eq!(ENUM_CNT.load(AOrdering::SeqCst), 0);
@@ -229,7 +229,7 @@ mod tests {
         assert!(reader
             .try_enqueue(0, RefEventContainer::new(&*CLOCK_REF))
             .is_ok());
-        let mut sched = SchedExec::new(reader, writer);
+        let mut sched = SchedExec::new(reader, writer, 0);
 
         sched.run(0, 4410, &mut ());
         assert_eq!(REF_CNT.load(AOrdering::SeqCst), 0);
