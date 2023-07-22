@@ -52,7 +52,7 @@ where
         //evaluate events before next
         while let Some((t, mut event)) = self.schedule_reader.dequeue_lt(t1) {
             //clamp below t0, exal and dispose
-            let tick = t.min(t0);
+            let tick = t.max(t0);
             context.update_tick(tick);
 
             //eval and see about rescheduling
